@@ -1,0 +1,107 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (
+          (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "german.a.trabucco@gmail.com" && request.auth.token.email_verified == true)
+        );
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    
+    function isValidProfile(data) {
+      return data.email is string && isValidEmail(data.email) &&
+             data.role in ['admin', 'staff'];
+    }
+
+    function isValidEvent(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.slug is string && data.slug.size() > 0 &&
+             data.event_type in ['torneo', 'cancha_abierta'] &&
+             data.status in ['draft', 'open', 'in_progress', 'closed', 'cancelled'];
+    }
+
+    function isValidRegistration(data) {
+      return data.event_id is string &&
+             data.player_1_name is string && data.player_1_name.size() > 0 &&
+             data.player_1_phone is string &&
+             data.status in ['pending', 'approved', 'rejected', 'waitlist'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /players/{playerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /profiles/{profileId} {
+      allow read: if isOwner(profileId) || isAdmin();
+      allow create, update: if isAdmin() && isValidProfile(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /clubs/{clubId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if resource.data.public_visible == true || isAdmin();
+      allow create, update: if isAdmin() && isValidEvent(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /registrations/{registrationId} {
+      allow read: if isAdmin();
+      allow create: if isValidRegistration(request.resource.data);
+      allow update: if isAdmin() && isValidRegistration(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /teams/{teamId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /zones/{zoneId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

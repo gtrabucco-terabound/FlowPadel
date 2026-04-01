@@ -1,0 +1,203 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Profile",
+      "description": "User profile for admins and staff",
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "staff"] },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    },
+    "Club": {
+      "title": "Club",
+      "description": "Padel club information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "address": { "type": "string" },
+        "city": { "type": "string" },
+        "phone": { "type": "string" },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Tournament category",
+      "type": "object",
+      "properties": {
+        "club_id": { "type": "string" },
+        "name": { "type": "string" },
+        "gender": { "type": "string", "enum": ["masculino", "femenino", "mixto"] },
+        "level_order": { "type": "integer" },
+        "is_active": { "type": "boolean" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
+    "Event": {
+      "title": "Event",
+      "description": "Tournament or open play event",
+      "type": "object",
+      "properties": {
+        "club_id": { "type": "string" },
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "event_type": { "type": "string", "enum": ["torneo", "cancha_abierta"] },
+        "category_id": { "type": "string" },
+        "start_date": { "type": "string", "format": "date" },
+        "end_date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["draft", "open", "in_progress", "closed", "cancelled"] },
+        "public_registration_enabled": { "type": "boolean" },
+        "public_visible": { "type": "boolean" },
+        "description": { "type": "string" },
+        "rules_json": { "type": "object" },
+        "created_by": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "club_name": { "type": "string" },
+        "club_city": { "type": "string" },
+        "category_name": { "type": "string" }
+      },
+      "required": ["name", "slug", "event_type", "start_date"]
+    },
+    "Registration": {
+      "title": "Registration",
+      "description": "Event registration",
+      "type": "object",
+      "properties": {
+        "event_id": { "type": "string" },
+        "registration_type": { "type": "string", "enum": ["torneo", "cancha_abierta"] },
+        "player_1_name": { "type": "string" },
+        "player_1_phone": { "type": "string" },
+        "player_1_category_text": { "type": "string" },
+        "player_2_name": { "type": "string" },
+        "player_2_phone": { "type": "string" },
+        "player_2_category_text": { "type": "string" },
+        "team_name": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "waitlist"] },
+        "source": { "type": "string", "enum": ["public_form", "admin_panel"] },
+        "notes": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "reviewed_at": { "type": "string", "format": "date-time" },
+        "reviewed_by": { "type": "string" }
+      },
+      "required": ["event_id", "player_1_name", "player_1_phone"]
+    },
+    "Player": {
+      "title": "Player",
+      "description": "Padel player",
+      "type": "object",
+      "properties": {
+        "full_name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["full_name"]
+    },
+    "Team": {
+      "title": "Team",
+      "description": "Team in an event",
+      "type": "object",
+      "properties": {
+        "event_id": { "type": "string" },
+        "name": { "type": "string" },
+        "player1_id": { "type": "string" },
+        "player2_id": { "type": "string" },
+        "player1_name": { "type": "string" },
+        "player2_name": { "type": "string" },
+        "registration_id": { "type": "string" },
+        "category_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive", "eliminated"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["event_id"]
+    },
+    "Zone": {
+      "title": "Zone",
+      "description": "Group stage zone",
+      "type": "object",
+      "properties": {
+        "event_id": { "type": "string" },
+        "name": { "type": "string" },
+        "court_id": { "type": "string" },
+        "stage_order": { "type": "integer" },
+        "status": { "type": "string", "enum": ["pending", "active", "completed"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["event_id", "name"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Padel match",
+      "type": "object",
+      "properties": {
+        "event_id": { "type": "string" },
+        "zone_id": { "type": "string" },
+        "phase": { "type": "string", "enum": ["open_play", "group_stage", "quarterfinal", "semifinal", "final"] },
+        "round_label": { "type": "string" },
+        "match_order": { "type": "integer" },
+        "court_id": { "type": "string" },
+        "scheduled_at": { "type": "string", "format": "date-time" },
+        "team_a_id": { "type": "string" },
+        "team_b_id": { "type": "string" },
+        "games_a": { "type": "integer" },
+        "games_b": { "type": "integer" },
+        "tiebreak_played": { "type": "boolean" },
+        "winner_team_id": { "type": "string" },
+        "status": { "type": "string", "enum": ["scheduled", "in_progress", "completed", "cancelled"] },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["event_id", "phase"]
+    }
+  },
+  "firestore": {
+    "/players/{playerId}": {
+      "schema": "Player",
+      "description": "Padel players"
+    },
+    "/profiles/{profileId}": {
+      "schema": "Profile",
+      "description": "Admin and staff profiles"
+    },
+    "/clubs/{clubId}": {
+      "schema": "Club",
+      "description": "Padel clubs"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Tournament categories"
+    },
+    "/events/{eventId}": {
+      "schema": "Event",
+      "description": "Tournaments and events"
+    },
+    "/registrations/{registrationId}": {
+      "schema": "Registration",
+      "description": "Event registrations"
+    },
+    "/teams/{teamId}": {
+      "schema": "Team",
+      "description": "Teams in events"
+    },
+    "/zones/{zoneId}": {
+      "schema": "Zone",
+      "description": "Group stage zones"
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Matches in events"
+    }
+  }
+}
