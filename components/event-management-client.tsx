@@ -339,7 +339,7 @@ export function EventManagementClient({
     const url = `${window.location.origin}/register/${event.slug}`;
     navigator.clipboard.writeText(url);
     setIsCopied(true);
-    setTimeout(() => setIsCopied(null), 2000);
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Cargando Gestión...</div>;
