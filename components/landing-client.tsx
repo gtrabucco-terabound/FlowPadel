@@ -206,11 +206,11 @@ export function LandingClient({ initialEvents }: LandingClientProps) {
                     </div>
                     <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
                       <MapPin className="h-4 w-4 text-[#c1ff72]" />
-                      {event.clubs?.name} - {event.clubs?.city}
+                      {event.club_name} - {event.club_city}
                     </div>
                     <div className="flex items-center gap-3 text-sm font-medium text-gray-700">
                       <Trophy className="h-4 w-4 text-[#c1ff72]" />
-                      Categoría: {event.categories?.name || 'Libre'}
+                      Categoría: {event.category_name || 'Libre'}
                     </div>
                   </div>
                 </div>

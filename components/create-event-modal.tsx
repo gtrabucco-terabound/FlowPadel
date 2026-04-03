@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
 import { X, Loader2, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface CreateEventModalProps {
   isOpen: boolean;
@@ -35,10 +35,10 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
   const fetchData = async () => {
     try {
       const clubsSnap = await getDocs(collection(db, 'clubs'));
-      setClubs(clubsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setClubs(clubsSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
 
       const categoriesSnap = await getDocs(collection(db, 'categories'));
-      setCategories(categoriesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setCategories(categoriesSnap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
     } catch (error) {
       console.error('Error fetching clubs/categories:', error);
     }
@@ -60,7 +60,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
         is_active: true
       });
       await fetchData();
-      setFormData(prev => ({ ...prev, club_id: docRef.id }));
+      setFormData((prev: typeof formData) => ({ ...prev, club_id: docRef.id }));
       setNewClubName('');
       setShowQuickAddClub(false);
     } catch (error) {
@@ -77,7 +77,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
         is_active: true
       });
       await fetchData();
-      setFormData(prev => ({ ...prev, category_id: docRef.id }));
+      setFormData((prev: typeof formData) => ({ ...prev, category_id: docRef.id }));
       setNewCategoryName('');
       setShowQuickAddCategory(false);
     } catch (error) {
@@ -98,8 +98,8 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
 
     setLoading(true);
     try {
-      const selectedClub = clubs.find(c => c.id === formData.club_id);
-      const selectedCategory = categories.find(c => c.id === formData.category_id);
+      const selectedClub = clubs.find((c: any) => c.id === formData.club_id);
+      const selectedCategory = categories.find((c: any) => c.id === formData.category_id);
 
       const eventData = {
         ...formData,
@@ -173,7 +173,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
                       required
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-8 py-6 font-bold focus:outline-none focus:ring-4 focus:ring-[#c1ff72]/30 focus:border-[#c1ff72] transition-all text-xl placeholder:text-gray-300"
                       placeholder="Ej: Torneo Apertura 2024"
                     />
@@ -185,7 +185,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
                     <div className="relative">
                       <select
                         value={formData.event_type}
-                        onChange={(e) => setFormData({ ...formData, event_type: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, event_type: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-8 py-6 font-bold focus:outline-none focus:ring-4 focus:ring-[#c1ff72]/30 focus:border-[#c1ff72] transition-all appearance-none text-xl cursor-pointer"
                       >
                         <option value="torneo">Torneo</option>
@@ -218,7 +218,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
                         <input
                           type="text"
                           value={newClubName}
-                          onChange={(e) => setNewClubName(e.target.value)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewClubName(e.target.value)}
                           placeholder="Nombre del nuevo club..."
                           className="flex-1 bg-white border border-gray-200 rounded-2xl px-8 py-5 font-bold focus:outline-none focus:ring-4 focus:ring-[#c1ff72]/30 focus:border-[#c1ff72] text-xl"
                         />
@@ -235,7 +235,7 @@ export function CreateEventModal({ isOpen, onClose }: CreateEventModalProps) {
                         <select
                           required
                           value={formData.club_id}
-                          onChange={(e) => setFormData({ ...formData, club_id: e.target.value })}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFormData({ ...formData, club_id: e.target.value })}
                           className="w-full bg-gray-50 border border-gray-100 rounded-3xl px-8 py-6 font-bold focus:outline-none focus:ring-4 focus:ring-[#c1ff72]/30 focus:border-[#c1ff72] transition-all appearance-none text-xl cursor-pointer"
                         >
                           <option value="">Seleccionar Club</option>
