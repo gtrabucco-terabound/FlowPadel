@@ -298,12 +298,19 @@ export function EventManagementClient({
     try {
       setIsSaving(true);
       const formData = new FormData(e.currentTarget);
+      const catId = formData.get('category_id') as string;
+      const cluId = formData.get('club_id') as string;
+      const catName = categories.find(c => c.id === catId)?.name || '';
+      const cluName = clubs.find(c => c.id === cluId)?.name || '';
+
       const data = {
         name: formData.get('name') as string,
         status: formData.get('status') as string,
         public_registration_enabled: formData.get('public_registration_enabled') === 'on',
-        category_id: formData.get('category_id') as string,
-        club_id: formData.get('club_id') as string,
+        category_id: catId,
+        category_name: catName,
+        club_id: cluId,
+        club_name: cluName,
         start_date: formData.get('start_date') as string,
       };
 
@@ -313,6 +320,108 @@ export function EventManagementClient({
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `events/${id}`);
       alert('Error al actualizar la configuración.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const startTournament = async () => {
+    if (!window.confirm('¿Desea iniciar el torneo? Se generarán los partidos y tablas de posiciones.')) return;
+    
+    try {
+      setIsSaving(true);
+      
+      // 1. Update status
+      const eventRef = doc(db, 'events', id as string);
+      await updateDoc(eventRef, { status: 'in_progress' });
+
+      // 2. Clear existing standings and matches (optional, but safer)
+      // For now, let's just generate new ones if they don't exist
+      
+      // 3. Create standings for each team
+      const standingsRef = collection(db, 'standings');
+      for (const team of teams) {
+        if (team.zone_id) {
+          const q = query(standingsRef, 
+            where('event_id', '==', id), 
+            where('team_id', '==', team.id)
+          );
+          const snap = await getDocs(q);
+          
+          if (snap.empty) {
+            await addDoc(standingsRef, {
+              event_id: id,
+              team_id: team.id,
+              zone_id: team.zone_id,
+              team: {
+                name: team.name,
+                player1_name: team.player1_name,
+                player2_name: team.player2_name,
+                // Fallback for detail view expectations
+                player1: { full_name: team.player1_name },
+                player2: { full_name: team.player2_name }
+              },
+              played: 0,
+              won: 0,
+              lost: 0,
+              games_diff: 0,
+              points: 0,
+              created_at: serverTimestamp()
+            });
+          }
+        }
+      }
+
+      // 4. Generate Round Robin matches for each zone
+      const matchesRef = collection(db, 'matches');
+      for (const zone of zones) {
+        const zoneTeams = teams.filter(t => t.zone_id === zone.id);
+        
+        for (let i = 0; i < zoneTeams.length; i++) {
+          for (let j = i + 1; j < zoneTeams.length; j++) {
+            const teamA = zoneTeams[i];
+            const teamB = zoneTeams[j];
+
+            const q = query(matchesRef, 
+              where('event_id', '==', id),
+              where('zone_id', '==', zone.id),
+              where('team_a_id', '==', teamA.id),
+              where('team_b_id', '==', teamB.id)
+            );
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+              await addDoc(matchesRef, {
+                event_id: id,
+                zone_id: zone.id,
+                phase: 'zona',
+                status: 'pending',
+                team_a_id: teamA.id,
+                team_b_id: teamB.id,
+                team_a: { 
+                  name: teamA.name,
+                  player1: { full_name: teamA.player1_name },
+                  player2: { full_name: teamA.player2_name }
+                },
+                team_b: { 
+                  name: teamB.name,
+                  player1: { full_name: teamB.player1_name },
+                  player2: { full_name: teamB.player2_name }
+                },
+                games_a: null,
+                games_b: null,
+                created_at: serverTimestamp()
+              });
+            }
+          }
+        }
+      }
+
+      alert('¡Torneo iniciado con éxito!');
+      setActiveTab('matches');
+    } catch (err) {
+      console.error('Error starting tournament:', err);
+      alert('Error al iniciar el torneo.');
     } finally {
       setIsSaving(false);
     }
@@ -331,6 +440,100 @@ export function EventManagementClient({
       alert('Error al eliminar el torneo.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'draft': return 'Borrador';
+      case 'open': return 'Abierto / Libre';
+      case 'in_progress': return 'En Curso';
+      case 'completed': return 'Finalizado';
+      default: return status;
+    }
+  };
+
+  const updateMatchResult = async (matchId: string, result: string) => {
+    try {
+      setIsSaving(true);
+      const match = matches.find(m => m.id === matchId);
+      if (!match) return;
+
+      const parts = result.split('/');
+      const gamesA = parseInt(parts[0]?.trim());
+      const gamesB = parseInt(parts[1]?.trim());
+      
+      const matchRef = doc(db, 'matches', matchId);
+      await updateDoc(matchRef, {
+        score_text: result,
+        games_a: isNaN(gamesA) ? null : gamesA,
+        games_b: isNaN(gamesB) ? null : gamesB,
+        status: 'completed',
+        winner_team_id: gamesA > gamesB ? match.team_a_id : (gamesB > gamesA ? match.team_b_id : null),
+        updated_at: serverTimestamp()
+      });
+
+      await updateTeamStandings(match.team_a_id);
+      await updateTeamStandings(match.team_b_id);
+
+      alert('Resultado guardado correctamente.');
+    } catch (err) {
+      console.error('Error updating match:', err);
+      alert('Error al guardar el resultado.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const updateTeamStandings = async (teamId: string) => {
+    const teamMatchesQuery = query(
+      collection(db, 'matches'),
+      where('event_id', '==', id),
+      where('status', '==', 'completed')
+    );
+    const snapshot = await getDocs(teamMatchesQuery);
+    const teamMatches = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as any))
+      .filter(m => m.team_a_id === teamId || m.team_b_id === teamId);
+
+    let played = 0;
+    let won = 0;
+    let lost = 0;
+    let gamesWon = 0;
+    let gamesLost = 0;
+    let points = 0;
+
+    teamMatches.forEach(m => {
+      played++;
+      const isTeamA = m.team_a_id === teamId;
+      const teamGames = isTeamA ? m.games_a : m.games_b;
+      const opponentGames = isTeamA ? m.games_b : m.games_a;
+
+      gamesWon += (teamGames || 0);
+      gamesLost += (opponentGames || 0);
+
+      if (m.winner_team_id === teamId) {
+        won++;
+        points += 3;
+      } else {
+        lost++;
+        points += 1;
+      }
+    });
+
+    const standingsRef = collection(db, 'standings');
+    const q = query(standingsRef, where('event_id', '==', id), where('team_id', '==', teamId));
+    const sSnap = await getDocs(q);
+
+    if (!sSnap.empty) {
+      await updateDoc(doc(db, 'standings', sSnap.docs[0].id), {
+        played,
+        won,
+        lost,
+        games_diff: gamesWon - gamesLost,
+        points,
+        updated_at: serverTimestamp()
+      });
     }
   };
 
@@ -354,7 +557,9 @@ export function EventManagementClient({
           </button>
           <div>
             <h1 className="text-lg md:text-xl font-black uppercase italic truncate max-w-[200px] md:max-w-none">{event.name}</h1>
-            <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">{event.event_type?.replace('_', ' ')} • {event.status}</p>
+            <p className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+              {event.event_type?.replace('_', ' ')} • {getStatusLabel(event.status)}
+            </p>
           </div>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -365,7 +570,11 @@ export function EventManagementClient({
             {isCopied ? <Check className="h-4 w-4 text-[#c1ff72]" /> : <Share2 className="h-4 w-4" />}
             {isCopied ? 'Copiado' : 'Link'}
           </button>
-          <button className="flex-[2] sm:flex-none bg-[#c1ff72] text-black px-4 md:px-6 py-2 rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-widest hover:opacity-90 transition-all text-center">
+          <button 
+            onClick={() => updateEventStatus('open')}
+            disabled={isSaving || event.status === 'open'}
+            className="flex-[2] sm:flex-none bg-[#c1ff72] text-black px-4 md:px-6 py-2 rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-widest hover:opacity-90 transition-all text-center disabled:opacity-50"
+          >
             Publicar
           </button>
         </div>
@@ -507,36 +716,72 @@ export function EventManagementClient({
           <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 md:mb-8">
               <h2 className="text-xl md:text-2xl font-black uppercase italic">Fixture y Resultados</h2>
-              <button className="bg-black text-white px-6 py-3 rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+              <button 
+                onClick={startTournament}
+                disabled={isSaving || zones.length === 0}
+                className="bg-black text-white px-6 py-3 rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+              >
                 <Play className="h-4 w-4" /> Iniciar
               </button>
             </div>
             
-            {matches.map(match => (
-              <div key={match.id} className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-lg border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-8">
-                <div className="flex-1 text-center sm:text-right font-black uppercase italic text-xs md:text-sm order-1 sm:order-none w-full sm:w-auto truncate">{match.team_a?.name || 'Equipo A'}</div>
-                <div className="flex items-center gap-3 md:gap-4 order-2 sm:order-none">
-                  <input 
-                    type="number" 
-                    defaultValue={match.games_a} 
-                    className="w-12 h-12 md:w-16 md:h-16 bg-gray-50 border-none rounded-xl md:rounded-2xl text-center text-xl md:text-2xl font-black focus:ring-2 focus:ring-[#c1ff72]"
-                  />
-                  <div className="flex flex-col items-center">
-                    <span className="text-gray-300 font-black italic text-[10px] md:text-xs uppercase">VS</span>
-                  </div>
-                  <input 
-                    type="number" 
-                    defaultValue={match.games_b} 
-                    className="w-12 h-12 md:w-16 md:h-16 bg-gray-50 border-none rounded-xl md:rounded-2xl text-center text-xl md:text-2xl font-black focus:ring-2 focus:ring-[#c1ff72]"
-                  />
-                </div>
-                <div className="flex-1 text-center sm:text-left font-black uppercase italic text-xs md:text-sm order-1 sm:order-none w-full sm:w-auto truncate">{match.team_b?.name || 'Equipo B'}</div>
-                <button className="sm:flex-none bg-gray-100 p-3 md:p-4 rounded-xl md:rounded-2xl hover:bg-[#c1ff72] transition-all group order-3 sm:order-none w-full sm:w-auto flex items-center justify-center">
-                  <Save className="h-5 w-5 text-gray-400 group-hover:text-black" />
-                  <span className="sm:hidden ml-2 font-bold text-[10px] uppercase">Guardar</span>
-                </button>
+            {matches.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No hay partidos generados. Haga clic en Iniciar.</p>
               </div>
-            ))}
+            ) : (
+              matches.map(match => (
+                <div key={match.id} className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-lg border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-8 hover:shadow-xl transition-all">
+                  <div className="flex-1">
+                    <div className="text-right sm:text-right font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_a?.name || 'Equipo A'}</div>
+                    <div className="text-[9px] text-gray-400 font-bold uppercase text-right tracking-tighter">
+                      {match.team_a?.player1?.full_name?.split(' ')[0]} / {match.team_a?.player2?.full_name?.split(' ')[0]}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="relative group">
+                      <input 
+                        type="text" 
+                        placeholder="6/1"
+                        defaultValue={match.score_text || (match.games_a !== null ? `${match.games_a}/${match.games_b}` : '')}
+                        onBlur={(e) => {
+                          const val = e.currentTarget.value;
+                          if (val && val.includes('/')) {
+                            // Automatically save on blur if changed? 
+                            // Better keep the button for explicit save
+                          }
+                        }}
+                        id={`score-${match.id}`}
+                        className="w-24 md:w-32 h-12 md:h-16 bg-gray-50 border-none rounded-xl md:rounded-2xl text-center text-xl md:text-2xl font-black focus:ring-2 focus:ring-[#c1ff72] transition-all"
+                      />
+                      <div className="absolute -top-6 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Resultado (Ej: 6/1)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="text-left font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_b?.name || 'Equipo B'}</div>
+                    <div className="text-[9px] text-gray-400 font-bold uppercase text-left tracking-tighter">
+                      {match.team_b?.player1?.full_name?.split(' ')[0]} / {match.team_b?.player2?.full_name?.split(' ')[0]}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      const input = document.getElementById(`score-${match.id}`) as HTMLInputElement;
+                      updateMatchResult(match.id, input.value);
+                    }}
+                    disabled={isSaving}
+                    className="sm:flex-none bg-gray-100 p-3 md:p-4 rounded-xl md:rounded-2xl hover:bg-[#c1ff72] transition-all group order-3 sm:order-none w-full sm:w-auto flex items-center justify-center disabled:opacity-50"
+                  >
+                    <Save className="h-5 w-5 text-gray-400 group-hover:text-black" />
+                    <span className="sm:hidden ml-2 font-bold text-[10px] uppercase">Guardar Resultado</span>
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -563,10 +808,10 @@ export function EventManagementClient({
                       defaultValue={event.status}
                       className="w-full bg-gray-50 border-none rounded-xl md:rounded-2xl p-4 font-bold focus:ring-2 focus:ring-[#c1ff72] text-sm md:text-base cursor-pointer"
                     >
-                      <option value="draft">Draft</option>
-                      <option value="open">Abierto</option>
-                      <option value="in_progress">En Progreso</option>
-                      <option value="finished">Finalizado</option>
+                      <option value="draft">Borrador</option>
+                      <option value="open">Libre (Inscripciones)</option>
+                      <option value="in_progress">En Curso (Torneo)</option>
+                      <option value="completed">Finalizado</option>
                     </select>
                   </div>
                   <div>

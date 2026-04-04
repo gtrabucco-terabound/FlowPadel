@@ -135,8 +135,11 @@ export function EventDetailClient({
                 <span className="bg-[#c1ff72] text-black text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full">
                   {event.event_type.replace('_', ' ')}
                 </span>
-                <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">
-                  {event.status}
+                <span className="text-gray-400 text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${event.status === 'open' ? 'bg-[#c1ff72] shadow-[0_0_10px_#c1ff72]' : 'bg-gray-500'}`} />
+                  {event.status === 'draft' ? 'Borrador' : 
+                   event.status === 'open' ? 'Libre' : 
+                   event.status === 'in_progress' ? 'En Curso' : 'Finalizado'}
                 </span>
               </div>
               <h1 className="text-3xl md:text-6xl font-black uppercase italic tracking-tighter mb-4 leading-none">
@@ -236,10 +239,11 @@ export function EventDetailClient({
                       {/* Team A */}
                       <div className="flex-1 text-center w-full sm:w-auto">
                         <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
-                          {match.team_a?.name || `${match.team_a?.player1?.full_name.split(' ')[0]} / ${match.team_a?.player2?.full_name.split(' ')[0]}`}
+                          {match.team_a?.name || 
+                           (match.team_a?.player1?.full_name ? `${match.team_a.player1.full_name.split(' ')[0]} / ${match.team_a.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo A')}
                         </div>
                         <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {match.team_a?.player1?.full_name} <br className="hidden sm:block" /> {match.team_a?.player2?.full_name}
+                          {match.team_a?.player1?.full_name || match.team_a?.player1_name} <br className="hidden sm:block" /> {match.team_a?.player2?.full_name || match.team_a?.player2_name}
                         </div>
                       </div>
  
@@ -257,10 +261,11 @@ export function EventDetailClient({
                       {/* Team B */}
                       <div className="flex-1 text-center w-full sm:w-auto">
                         <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
-                          {match.team_b?.name || `${match.team_b?.player1?.full_name.split(' ')[0]} / ${match.team_b?.player2?.full_name.split(' ')[0]}`}
+                          {match.team_b?.name || 
+                           (match.team_b?.player1?.full_name ? `${match.team_b.player1.full_name.split(' ')[0]} / ${match.team_b.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo B')}
                         </div>
                         <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {match.team_b?.player1?.full_name} <br className="hidden sm:block" /> {match.team_b?.player2?.full_name}
+                          {match.team_b?.player1?.full_name || match.team_b?.player1_name} <br className="hidden sm:block" /> {match.team_b?.player2?.full_name || match.team_b?.player2_name}
                         </div>
                       </div>
                     </div>
@@ -306,9 +311,9 @@ export function EventDetailClient({
                               </span>
                             </td>
                             <td className="px-8 py-6">
-                              <div className="font-black uppercase italic text-sm">{row.team?.name}</div>
+                              <div className="font-black uppercase italic text-sm">{row.team?.name || 'Pareja TBD'}</div>
                               <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                {row.team?.player1?.full_name} / {row.team?.player2?.full_name}
+                                {row.team?.player1?.full_name || row.team?.player1_name || '?'} / {row.team?.player2?.full_name || row.team?.player2_name || '?'}
                               </div>
                             </td>
                             <td className="px-4 py-6 text-center font-bold text-sm">{row.played}</td>
