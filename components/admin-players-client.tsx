@@ -25,6 +25,7 @@ import {
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { AdminSidebar } from './admin-sidebar';
 
 // Helper to convert Firestore Timestamps to plain ISO strings
 const sanitizeData = (val: any): any => {
@@ -135,38 +136,11 @@ export function AdminPlayersClient() {
   if (loading) return <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">Cargando Jugadores...</div>;
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex">
-      {/* Sidebar */}
-      <aside className="w-72 bg-[#141414] text-white p-8 flex flex-col hidden lg:flex">
-        <div className="text-2xl font-black italic uppercase mb-12">
-          Padel<span className="text-[#c1ff72]">Flow</span>
-        </div>
-
-        <nav className="flex-1 space-y-2">
-          <Link href="/admin/dashboard" className="flex items-center gap-3 p-4 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 font-bold text-sm uppercase tracking-wider transition-all">
-            <LayoutDashboard className="h-5 w-5" /> Dashboard
-          </Link>
-          <Link href="/admin/players" className="flex items-center gap-3 p-4 rounded-2xl bg-[#c1ff72] text-black font-bold text-sm uppercase tracking-wider">
-            <Users className="h-5 w-5" /> Jugadores
-          </Link>
-          <Link href="/admin/categories" className="flex items-center gap-3 p-4 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 font-bold text-sm uppercase tracking-wider transition-all">
-            <Trophy className="h-5 w-5" /> Categorías
-          </Link>
-          <Link href="/admin/settings" className="flex items-center gap-3 p-4 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 font-bold text-sm uppercase tracking-wider transition-all">
-            <Settings className="h-5 w-5" /> Ajustes
-          </Link>
-        </nav>
-
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-3 p-4 rounded-2xl text-red-400 hover:bg-red-400/10 font-bold text-sm uppercase tracking-wider transition-all mt-auto"
-        >
-          <LogOut className="h-5 w-5" /> Cerrar Sesión
-        </button>
-      </aside>
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col lg:flex-row">
+      <AdminSidebar activePage="players" />
 
       {/* Main Content */}
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto">
+      <main className="flex-1 p-6 lg:p-12 overflow-y-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <h1 className="text-4xl font-black uppercase italic tracking-tight mb-2">Jugadores</h1>
@@ -186,9 +160,9 @@ export function AdminPlayersClient() {
         </header>
 
         {/* Players List */}
-        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+        <div className="bg-white rounded-[2rem] lg:rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 overflow-hidden">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-8 py-6 text-xs font-black uppercase tracking-widest text-gray-400">Jugador</th>
@@ -216,7 +190,7 @@ export function AdminPlayersClient() {
                             <div className="font-black uppercase italic text-lg group-hover:text-[#c1ff72] transition-colors">
                               {player.full_name}
                             </div>
-                            <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
                               ID: {player.id.slice(0, 8)}
                             </div>
                           </div>

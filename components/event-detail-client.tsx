@@ -139,10 +139,10 @@ export function EventDetailClient({
                   {event.status}
                 </span>
               </div>
-              <h1 className="text-4xl md:text-6xl font-black uppercase italic tracking-tighter mb-4">
+              <h1 className="text-3xl md:text-6xl font-black uppercase italic tracking-tighter mb-4 leading-none">
                 {event.name}
               </h1>
-              <div className="flex flex-wrap gap-6 text-sm font-medium text-gray-400 mb-8">
+              <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs md:text-sm font-medium text-gray-400 mb-8">
                 <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-[#c1ff72]" /> {format(new Date(event.start_date), "d 'de' MMMM", { locale: es })}</div>
                 <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[#c1ff72]" /> {event.clubs?.name}</div>
                 <div className="flex items-center gap-2"><Trophy className="h-4 w-4 text-[#c1ff72]" /> {event.categories?.name || 'Libre'}</div>
@@ -158,40 +158,40 @@ export function EventDetailClient({
               )}
 
               {isAdmin && (
-                <div className="flex flex-wrap gap-4 mt-4">
+                <div className="flex flex-col sm:flex-row gap-4 mt-6">
                   <Link 
                     href={`/admin/events/${event.id}/manage`}
-                    className="inline-flex items-center gap-2 bg-white/10 text-white px-6 py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10"
+                    className="inline-flex items-center justify-center gap-2 bg-white/10 text-white px-6 py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10 text-xs"
                   >
-                    <Settings className="h-4 w-4" /> Gestionar Evento
+                    <Settings className="h-4 w-4" /> Gestionar
                   </Link>
                   <button 
                     onClick={copyToClipboard}
-                    className="inline-flex items-center gap-2 bg-[#c1ff72]/10 text-[#c1ff72] px-6 py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-[#c1ff72]/20 transition-all border border-[#c1ff72]/20"
+                    className="inline-flex items-center justify-center gap-2 bg-[#c1ff72]/10 text-[#c1ff72] px-6 py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-[#c1ff72]/20 transition-all border border-[#c1ff72]/20 text-xs"
                   >
                     {isCopied ? <Check className="h-4 w-4 text-green-500" /> : <Share2 className="h-4 w-4" />}
-                    {isCopied ? '¡Copiado!' : 'Copiar Link de Inscripción'}
+                    {isCopied ? '¡Copiado!' : 'Compartir'}
                   </button>
                 </div>
               )}
             </div>
             
-            <div className="flex bg-white/5 backdrop-blur-md p-1.5 rounded-2xl border border-white/10">
+            <div className="flex bg-white/5 backdrop-blur-md p-1 rounded-xl md:rounded-2xl border border-white/10 w-full md:w-auto overflow-x-auto scrollbar-hide">
               <button 
                 onClick={() => setActiveTab('matches')}
-                className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'matches' ? 'bg-[#c1ff72] text-black' : 'text-white hover:bg-white/5'}`}
+                className={`flex-1 md:flex-none px-4 md:px-6 py-3 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'matches' ? 'bg-[#c1ff72] text-black' : 'text-white hover:bg-white/5'}`}
               >
                 <Activity className="h-4 w-4" /> Partidos
               </button>
               <button 
                 onClick={() => setActiveTab('standings')}
-                className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'standings' ? 'bg-[#c1ff72] text-black' : 'text-white hover:bg-white/5'}`}
+                className={`flex-1 md:flex-none px-4 md:px-6 py-3 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'standings' ? 'bg-[#c1ff72] text-black' : 'text-white hover:bg-white/5'}`}
               >
                 <List className="h-4 w-4" /> Posiciones
               </button>
               <button 
                 onClick={() => setActiveTab('brackets')}
-                className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'brackets' ? 'bg-[#c1ff72] text-black' : 'text-white hover:bg-white/5'}`}
+                className={`flex-1 md:flex-none px-4 md:px-6 py-3 rounded-lg md:rounded-xl text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'brackets' ? 'bg-[#c1ff72] text-black' : 'text-white hover:bg-white/5'}`}
               >
                 <Grid className="h-4 w-4" /> Cuadro
               </button>
@@ -211,9 +211,9 @@ export function EventDetailClient({
               exit={{ opacity: 0, y: -20 }}
               className="space-y-8"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                 {matches.map((match) => (
-                  <div key={match.id} className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group">
+                  <div key={match.id} className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group">
                     <div className="flex justify-between items-center mb-8">
                       <div className="flex flex-col">
                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
@@ -232,35 +232,35 @@ export function EventDetailClient({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4">
                       {/* Team A */}
-                      <div className="flex-1 text-center">
-                        <div className="text-lg font-black uppercase italic leading-tight mb-2">
+                      <div className="flex-1 text-center w-full sm:w-auto">
+                        <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
                           {match.team_a?.name || `${match.team_a?.player1?.full_name.split(' ')[0]} / ${match.team_a?.player2?.full_name.split(' ')[0]}`}
                         </div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {match.team_a?.player1?.full_name} <br/> {match.team_a?.player2?.full_name}
+                        <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          {match.team_a?.player1?.full_name} <br className="hidden sm:block" /> {match.team_a?.player2?.full_name}
                         </div>
                       </div>
-
+ 
                       {/* Score */}
-                      <div className="flex items-center gap-4 px-6 py-4 bg-gray-50 rounded-3xl border border-gray-100">
-                        <span className={`text-4xl font-black italic ${match.winner_team_id === match.team_a_id ? 'text-[#c1ff72]' : 'text-black'}`}>
+                      <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 bg-gray-50 rounded-2xl md:rounded-3xl border border-gray-100 min-w-[140px] md:min-w-[180px] justify-center">
+                        <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_a_id ? 'text-[#c1ff72]' : 'text-black'}`}>
                           {match.games_a ?? '-'}
                         </span>
-                        <span className="text-gray-300 font-black italic text-2xl">VS</span>
-                        <span className={`text-4xl font-black italic ${match.winner_team_id === match.team_b_id ? 'text-[#c1ff72]' : 'text-black'}`}>
+                        <span className="text-gray-300 font-black italic text-xl md:text-2xl">VS</span>
+                        <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_b_id ? 'text-[#c1ff72]' : 'text-black'}`}>
                           {match.games_b ?? '-'}
                         </span>
                       </div>
-
+ 
                       {/* Team B */}
-                      <div className="flex-1 text-center">
-                        <div className="text-lg font-black uppercase italic leading-tight mb-2">
+                      <div className="flex-1 text-center w-full sm:w-auto">
+                        <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
                           {match.team_b?.name || `${match.team_b?.player1?.full_name.split(' ')[0]} / ${match.team_b?.player2?.full_name.split(' ')[0]}`}
                         </div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {match.team_b?.player1?.full_name} <br/> {match.team_b?.player2?.full_name}
+                        <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                          {match.team_b?.player1?.full_name} <br className="hidden sm:block" /> {match.team_b?.player2?.full_name}
                         </div>
                       </div>
                     </div>
@@ -284,8 +284,8 @@ export function EventDetailClient({
                     <h3 className="text-2xl font-black uppercase italic tracking-tighter">{zone.name}</h3>
                     <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#c1ff72]">Fase de Grupos</span>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                  <div className="overflow-x-auto scrollbar-hide">
+                    <table className="w-full text-left min-w-[600px]">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                           <th className="px-8 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Pos</th>

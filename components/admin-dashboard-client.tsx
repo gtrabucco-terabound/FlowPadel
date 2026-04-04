@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CreateEventModal } from './create-event-modal';
+import { AdminSidebar } from './admin-sidebar';
 
 interface AdminDashboardClientProps {
   initialEvents: any[];
@@ -81,38 +82,11 @@ export function AdminDashboardClient({ initialEvents }: AdminDashboardClientProp
   if (loading) return <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">Cargando Dashboard...</div>;
 
   return (
-    <div className="min-h-screen bg-[#f8f9fa] flex">
-      {/* Sidebar */}
-      <aside className="w-72 bg-[#141414] text-white p-8 flex flex-col hidden lg:flex">
-        <div className="text-2xl font-black italic uppercase mb-12">
-          Padel<span className="text-[#c1ff72]">Flow</span>
-        </div>
-
-        <nav className="flex-1 space-y-2">
-          <Link href="/admin/dashboard" className="flex items-center gap-3 p-4 rounded-2xl bg-[#c1ff72] text-black font-bold text-sm uppercase tracking-wider">
-            <LayoutDashboard className="h-5 w-5" /> Dashboard
-          </Link>
-          <Link href="/admin/players" className="flex items-center gap-3 p-4 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 font-bold text-sm uppercase tracking-wider transition-all">
-            <Users className="h-5 w-5" /> Jugadores
-          </Link>
-          <Link href="/admin/categories" className="flex items-center gap-3 p-4 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 font-bold text-sm uppercase tracking-wider transition-all">
-            <Trophy className="h-5 w-5" /> Categorías
-          </Link>
-          <Link href="/admin/settings" className="flex items-center gap-3 p-4 rounded-2xl text-gray-400 hover:text-white hover:bg-white/5 font-bold text-sm uppercase tracking-wider transition-all">
-            <Settings className="h-5 w-5" /> Ajustes
-          </Link>
-        </nav>
-
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-3 p-4 rounded-2xl text-red-400 hover:bg-red-400/10 font-bold text-sm uppercase tracking-wider transition-all mt-auto"
-        >
-          <LogOut className="h-5 w-5" /> Cerrar Sesión
-        </button>
-      </aside>
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col lg:flex-row">
+      <AdminSidebar activePage="dashboard" />
 
       {/* Main Content */}
-      <main className="flex-1 p-8 lg:p-12 overflow-y-auto">
+      <main className="flex-1 p-6 lg:p-12 overflow-y-auto">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <div>
             <h1 className="text-4xl font-black uppercase italic tracking-tight mb-2">Panel de Control</h1>
@@ -167,41 +141,43 @@ export function AdminDashboardClient({ initialEvents }: AdminDashboardClientProp
               <motion.div 
                 key={event.id}
                 whileHover={{ x: 5 }}
-                className="bg-white p-6 rounded-3xl shadow-lg shadow-gray-200/30 border border-gray-100 flex items-center justify-between group transition-all"
+                className="bg-white p-6 rounded-3xl shadow-lg shadow-gray-200/30 border border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group transition-all"
               >
-                <div className="flex items-center gap-6">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl italic ${
+                <div className="flex items-center gap-4 sm:gap-6">
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center font-black text-lg sm:text-xl italic shrink-0 ${
                     event.event_type === 'torneo' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
                   }`}>
                     {event.event_type === 'torneo' ? 'T' : 'C'}
                   </div>
-                  <div>
-                    <h3 className="text-lg font-black uppercase italic group-hover:text-[#c1ff72] transition-colors">{event.name}</h3>
-                    <div className="flex items-center gap-4 text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">
+                  <div className="min-w-0">
+                    <h3 className="text-base sm:text-lg font-black uppercase italic group-hover:text-[#c1ff72] transition-colors truncate">{event.name}</h3>
+                    <div className="flex items-center gap-3 text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">
                       <span>{event.categories?.name || 'Libre'}</span>
                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                      <span>{event.status}</span>
+                      <span className="truncate">{event.status}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={() => copyToClipboard(event.slug, event.id)}
-                    className="p-3 bg-gray-50 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100 transition-all"
-                    title="Copiar link de inscripción"
-                  >
-                    {copiedId === event.id ? <Check className="h-5 w-5 text-green-500" /> : <Share2 className="h-5 w-5" />}
-                  </button>
-                  <Link 
-                    href={`/admin/events/${event.id}/manage?tab=settings`}
-                    className="p-3 bg-gray-50 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100 transition-all"
-                  >
-                    <Settings className="h-5 w-5" />
-                  </Link>
+                <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 border-t sm:border-none pt-4 sm:pt-0">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <button 
+                      onClick={() => copyToClipboard(event.slug, event.id)}
+                      className="p-3 bg-gray-50 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100 transition-all"
+                      title="Copiar link de inscripción"
+                    >
+                      {copiedId === event.id ? <Check className="h-5 w-5 text-green-500" /> : <Share2 className="h-5 w-5" />}
+                    </button>
+                    <Link 
+                      href={`/admin/events/${event.id}/manage?tab=settings`}
+                      className="p-3 bg-gray-50 rounded-xl text-gray-400 hover:text-black hover:bg-gray-100 transition-all"
+                    >
+                      <Settings className="h-5 w-5" />
+                    </Link>
+                  </div>
                   <Link 
                     href={`/admin/events/${event.id}/manage`}
-                    className="bg-black text-white px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-widest flex items-center gap-2 hover:bg-gray-800 transition-all"
+                    className="bg-black text-white px-5 sm:px-6 py-3 rounded-xl font-bold text-xs sm:text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-800 transition-all flex-1 sm:flex-none"
                   >
                     Gestionar <ChevronRight className="h-4 w-4" />
                   </Link>

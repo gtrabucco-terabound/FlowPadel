@@ -9,6 +9,7 @@ import * as z from 'zod';
 import { motion } from 'motion/react';
 import { Trophy, User, Phone, Users, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
+import { Event } from '@/lib/types';
 
 const registrationSchema = z.object({
   player_1_name: z.string().min(3, 'Nombre requerido'),
@@ -24,12 +25,12 @@ const registrationSchema = z.object({
 type RegistrationForm = z.infer<typeof registrationSchema>;
 
 interface RegistrationClientProps {
-  initialEvent: any;
+  initialEvent: Event;
   slug: string;
 }
 
 export function RegistrationClient({ initialEvent, slug }: RegistrationClientProps) {
-  const [event] = useState<any>(initialEvent);
+  const [event] = useState<Event>(initialEvent);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +63,7 @@ export function RegistrationClient({ initialEvent, slug }: RegistrationClientPro
         <motion.div 
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white p-12 rounded-[3rem] shadow-2xl text-center max-w-lg w-full border border-gray-100"
+          className="bg-white p-8 md:p-12 rounded-[2.5rem] md:rounded-[3rem] shadow-2xl text-center max-w-lg w-full border border-gray-100"
         >
           <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-8">
             <CheckCircle2 className="h-10 w-10 text-green-600" />
@@ -85,21 +86,21 @@ export function RegistrationClient({ initialEvent, slug }: RegistrationClientPro
   return (
     <div className="min-h-screen bg-[#f8f9fa] py-12 px-6">
       <div className="max-w-2xl mx-auto">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-gray-500 hover:text-black mb-8 transition-colors">
+        <Link href="/" className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-black mb-6 md:mb-8 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Volver
         </Link>
 
-        <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-gray-100">
-          <div className="bg-[#141414] p-10 text-white">
-            <span className="text-[#c1ff72] text-xs font-black uppercase tracking-[0.2em] mb-2 block">Inscripción Abierta</span>
-            <h1 className="text-4xl font-black uppercase italic leading-tight">{event.name}</h1>
-            <div className="flex items-center gap-4 mt-4 text-gray-400 text-sm font-medium">
+        <div className="bg-white rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden border border-gray-100">
+          <div className="bg-[#141414] p-6 md:p-10 text-white">
+            <span className="text-[#c1ff72] text-[10px] font-black uppercase tracking-[0.2em] mb-2 block">Inscripción Abierta</span>
+            <h1 className="text-2xl md:text-4xl font-black uppercase italic leading-tight">{event.name}</h1>
+            <div className="flex items-center gap-4 mt-4 text-gray-400 text-[10px] md:text-sm font-medium">
               <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> {event.categories?.name || 'Libre'}</span>
               <span className="flex items-center gap-1 capitalize"><Users className="h-3 w-3" /> {event.event_type.replace('_', ' ')}</span>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="p-10 space-y-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="p-6 md:p-10 space-y-8">
             {error && <div className="p-4 bg-red-100 text-red-700 rounded-2xl text-xs font-bold uppercase tracking-widest">{error}</div>}
             
             <section>

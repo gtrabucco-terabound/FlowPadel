@@ -141,23 +141,23 @@ export function LandingClient({ initialEvents }: LandingClientProps) {
           <motion.h1 
             initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
-            className="text-5xl md:text-7xl font-black tracking-tighter mb-4 italic uppercase"
+            className="text-4xl md:text-7xl font-black tracking-tighter mb-4 italic uppercase leading-none"
           >
             Padel<span className="text-[#c1ff72]">Flow</span>
           </motion.h1>
           <p className="text-xl md:text-2xl font-light text-gray-400 mb-8 max-w-2xl mx-auto">
             La plataforma definitiva para gestionar tus torneos y turnos de pádel en tiempo real.
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-4 px-6 md:px-0">
             <Link 
               href="#events" 
-              className="bg-[#c1ff72] text-black px-8 py-4 rounded-full font-bold uppercase tracking-wider hover:scale-105 transition-transform shadow-xl shadow-[#c1ff72]/20"
+              className="bg-[#c1ff72] text-black px-8 py-4 rounded-full font-bold uppercase tracking-wider hover:scale-105 transition-transform shadow-xl shadow-[#c1ff72]/20 text-sm md:text-base"
             >
               Ver Eventos
             </Link>
             <Link 
               href="/admin/login" 
-              className="bg-white/10 backdrop-blur-md text-white border border-white/20 px-8 py-4 rounded-full font-bold uppercase tracking-wider hover:bg-white/20 transition-all"
+              className="bg-white/10 backdrop-blur-md text-white border border-white/20 px-8 py-4 rounded-full font-bold uppercase tracking-wider hover:bg-white/20 transition-all text-sm md:text-base"
             >
               Panel Admin
             </Link>
@@ -167,12 +167,12 @@ export function LandingClient({ initialEvents }: LandingClientProps) {
 
       {/* Main Content */}
       <main id="events" className="max-w-7xl mx-auto py-16 px-6">
-        <div className="flex items-center justify-between mb-12">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
           <motion.h2 
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="text-3xl font-black uppercase tracking-tight flex items-center gap-3"
+            className="text-2xl md:text-3xl font-black uppercase tracking-tight flex items-center gap-3"
           >
             <Activity className="text-[#c1ff72]" />
             Eventos Activos
@@ -204,10 +204,10 @@ export function LandingClient({ initialEvents }: LandingClientProps) {
                 viewport={{ once: true }}
                 transition={{ delay: idx * 0.1 }}
                 whileHover={{ y: -8 }}
-                className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col group transition-all duration-300"
+                className="bg-white rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-xl shadow-gray-200/50 border border-gray-100 flex flex-col group transition-all duration-300"
               >
-                <div className="p-8 flex-1">
-                  <div className="flex justify-between items-start mb-6">
+                <div className="p-6 md:p-8 flex-1">
+                  <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
                     <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                       event.event_type === 'torneo' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-orange-50 text-orange-600 border border-orange-100'
                     }`}>
@@ -248,9 +248,9 @@ export function LandingClient({ initialEvents }: LandingClientProps) {
                 <div className="p-6 bg-gray-50/50 border-t border-gray-100 flex flex-wrap gap-3 mt-auto">
                   <Link 
                     href={`/event/${event.slug}`}
-                    className="flex-1 bg-black text-white py-4 px-4 rounded-2xl font-black uppercase tracking-widest text-center hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-[10px]"
+                    className="flex-1 min-w-[120px] bg-black text-white py-4 px-4 rounded-2xl font-black uppercase tracking-widest text-center hover:bg-gray-800 transition-all flex items-center justify-center gap-2 text-[10px]"
                   >
-                    Ver Detalles <ChevronRight className="h-3 w-3" />
+                    Detalles <ChevronRight className="h-3 w-3" />
                   </Link>
                   <button 
                     onClick={() => copyToClipboard(event.slug, event.id)}
@@ -262,7 +262,7 @@ export function LandingClient({ initialEvents }: LandingClientProps) {
                   {event.public_registration_enabled && event.status === 'open' && (
                     <Link 
                       href={`/register/${event.slug}`}
-                      className="flex-1 bg-[#c1ff72] text-black py-4 px-4 rounded-2xl font-black uppercase tracking-widest text-center hover:shadow-lg hover:shadow-[#c1ff72]/30 transition-all text-[10px]"
+                      className="flex-1 min-w-[120px] bg-[#c1ff72] text-black py-4 px-4 rounded-2xl font-black uppercase tracking-widest text-center hover:shadow-lg hover:shadow-[#c1ff72]/30 transition-all text-[10px]"
                     >
                       Inscribirme
                     </Link>
