@@ -152,7 +152,7 @@ export function AdminDashboardClient({ initialEvents }: AdminDashboardClientProp
                   <div className="min-w-0">
                     <h3 className="text-base sm:text-lg font-black uppercase italic group-hover:text-[#c1ff72] transition-colors truncate">{event.name}</h3>
                     <div className="flex items-center gap-3 text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wider mt-1">
-                      <span>{event.categories?.name || 'Libre'}</span>
+                      <span>{event.category_name || 'Libre'}</span>
                       <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                       <span className="truncate">{event.status}</span>
                     </div>

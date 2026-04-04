@@ -95,8 +95,8 @@ export function RegistrationClient({ initialEvent, slug }: RegistrationClientPro
             <span className="text-[#c1ff72] text-[10px] font-black uppercase tracking-[0.2em] mb-2 block">Inscripción Abierta</span>
             <h1 className="text-2xl md:text-4xl font-black uppercase italic leading-tight">{event.name}</h1>
             <div className="flex items-center gap-4 mt-4 text-gray-400 text-[10px] md:text-sm font-medium">
-              <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> {event.categories?.name || 'Libre'}</span>
-              <span className="flex items-center gap-1 capitalize"><Users className="h-3 w-3" /> {event.event_type.replace('_', ' ')}</span>
+              <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> {event.category_name || 'Libre'}</span>
+              <span className="flex items-center gap-1 capitalize"><Users className="h-3 w-3" /> {event.event_type?.replace('_', ' ')}</span>
             </div>
           </div>
 

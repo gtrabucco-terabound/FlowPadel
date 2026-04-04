@@ -144,8 +144,8 @@ export function EventDetailClient({
               </h1>
               <div className="flex flex-wrap gap-x-6 gap-y-3 text-xs md:text-sm font-medium text-gray-400 mb-8">
                 <div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-[#c1ff72]" /> {format(new Date(event.start_date), "d 'de' MMMM", { locale: es })}</div>
-                <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[#c1ff72]" /> {event.clubs?.name}</div>
-                <div className="flex items-center gap-2"><Trophy className="h-4 w-4 text-[#c1ff72]" /> {event.categories?.name || 'Libre'}</div>
+                <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[#c1ff72]" /> {event.club_name}</div>
+                <div className="flex items-center gap-2"><Trophy className="h-4 w-4 text-[#c1ff72]" /> {event.category_name || 'Libre'}</div>
               </div>
 
               {event.public_registration_enabled && event.status === 'open' && (
