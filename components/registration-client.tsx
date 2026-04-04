@@ -14,7 +14,8 @@ import { Event } from '@/lib/types';
 const registrationSchema = z.object({
   player_1_name: z.string().min(3, 'Nombre requerido'),
   player_1_phone: z.string().min(8, 'Teléfono requerido'),
-  player_1_category_text: z.string().optional(),
+  player_1_email: z.string().email('Email inválido'),
+  player_1_category_text: z.string().min(2, 'Categoría requerida'),
   player_2_name: z.string().optional(),
   player_2_phone: z.string().optional(),
   player_2_category_text: z.string().optional(),
@@ -126,6 +127,25 @@ export function RegistrationClient({ initialEvent, slug }: RegistrationClientPro
                   />
                   {errors.player_1_phone && <p className="text-red-500 text-[10px] font-bold uppercase mt-1 ml-1">{errors.player_1_phone.message}</p>}
                 </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-600 ml-1">Correo Electrónico</label>
+                  <input 
+                    {...register('player_1_email')}
+                    type="email"
+                    className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#c1ff72] transition-all"
+                    placeholder="juan@ejemplo.com"
+                  />
+                  {errors.player_1_email && <p className="text-red-500 text-[10px] font-bold uppercase mt-1 ml-1">{errors.player_1_email.message}</p>}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-gray-600 ml-1">Tu Categoría / Nivel</label>
+                  <input 
+                    {...register('player_1_category_text')}
+                    className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#c1ff72] transition-all"
+                    placeholder="Ej: 4ta, 5ta, Principiante..."
+                  />
+                  {errors.player_1_category_text && <p className="text-red-500 text-[10px] font-bold uppercase mt-1 ml-1">{errors.player_1_category_text.message}</p>}
+                </div>
               </div>
             </section>
 
@@ -148,6 +168,14 @@ export function RegistrationClient({ initialEvent, slug }: RegistrationClientPro
                     <input 
                       {...register('player_2_phone')}
                       className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#c1ff72] transition-all"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-600 ml-1">Categoría del Compañero</label>
+                    <input 
+                      {...register('player_2_category_text')}
+                      className="w-full bg-gray-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-[#c1ff72] transition-all"
+                      placeholder="Ej: 4ta, 5ta..."
                     />
                   </div>
                 </div>

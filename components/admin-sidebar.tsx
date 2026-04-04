@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   LayoutDashboard, 
   Users, 
-  Trophy, 
   Settings, 
   LogOut, 
   Menu, 
@@ -18,7 +17,7 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
-  activePage: 'dashboard' | 'players' | 'categories' | 'settings';
+  activePage: 'dashboard' | 'players' | 'settings';
 }
 
 export function AdminSidebar({ activePage }: SidebarProps) {
@@ -34,7 +33,6 @@ export function AdminSidebar({ activePage }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { id: 'players', label: 'Jugadores', href: '/admin/players', icon: Users },
-    { id: 'categories', label: 'Categorías', href: '/admin/categories', icon: Trophy },
     { id: 'settings', label: 'Ajustes', href: '/admin/settings', icon: Settings },
   ];
 
