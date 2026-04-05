@@ -80,6 +80,7 @@ export function EventManagementClient({
   const [teams, setTeams] = useState<any[]>(initialTeams);
   const [zones, setZones] = useState<any[]>(initialZones);
   const [matches, setMatches] = useState<any[]>(initialMatches);
+  const [standings, setStandings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCopied, setIsCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<'registrations' | 'teams' | 'zones' | 'matches' | 'settings'>(
@@ -106,6 +107,7 @@ export function EventManagementClient({
     let unsubscribeTeams: () => void = () => {};
     let unsubscribeZones: () => void = () => {};
     let unsubscribeMatches: () => void = () => {};
+    let unsubscribeStandings: () => void = () => {};
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (!user) {
@@ -156,6 +158,12 @@ export function EventManagementClient({
             .sort((a: any, b: any) => (a.match_order || 0) - (b.match_order || 0));
           setMatches(sortedMatches);
         }, (err) => handleFirestoreError(err, OperationType.LIST, 'matches'));
+
+        const standingsRef = collection(db, 'standings');
+        const qStandings = query(standingsRef, where('event_id', '==', eventId));
+        unsubscribeStandings = onSnapshot(qStandings, (snapshot) => {
+          setStandings(snapshot.docs.map(d => ({ id: d.id, ...sanitizeData(d.data()) })));
+        }, (err) => handleFirestoreError(err, OperationType.LIST, 'standings'));
       }
     });
 
@@ -166,6 +174,7 @@ export function EventManagementClient({
       unsubscribeTeams();
       unsubscribeZones();
       unsubscribeMatches();
+      unsubscribeStandings();
     };
   }, [id, router]);
 
@@ -676,38 +685,57 @@ export function EventManagementClient({
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
-              {zones.map(zone => (
-                <div key={zone.id} className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
-                  <div className="bg-[#141414] p-4 md:p-6 text-white flex justify-between items-center">
-                    <h3 className="text-base md:text-xl font-black uppercase italic">{zone.name}</h3>
-                    <button className="p-2 hover:bg-white/10 rounded-lg transition-all"><Settings className="h-4 w-4" /></button>
-                  </div>
-                  <div className="p-4 md:p-6">
-                    {/* List teams in zone */}
-                    <div className="space-y-2 md:space-y-3">
-                      {teams.filter(t => t.zone_id === zone.id).length === 0 ? (
-                        <div className="text-[10px] md:text-xs text-gray-400 italic py-2">No hay equipos asignados</div>
-                      ) : (
-                        teams.filter(t => t.zone_id === zone.id).map((team, tIdx) => (
-                          <div key={team.id} className="flex items-center justify-between p-2 md:p-3 bg-gray-50 rounded-xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-gray-100">
-                            <div className="flex items-center gap-2 md:gap-3">
-                              <span className="w-5 h-5 md:w-6 md:h-6 rounded-lg bg-black text-white text-[9px] md:text-[10px] font-black flex items-center justify-center italic">
-                                {tIdx + 1}
-                              </span>
-                              <div className="text-[11px] md:text-sm font-black uppercase italic truncate max-w-[120px] md:max-w-[180px]">
-                                {team.name}
-                              </div>
-                            </div>
-                            <div className="text-[8px] md:text-[9px] font-bold text-gray-400 uppercase tracking-tighter text-right ml-2">
-                              {team.player1_name?.split(' ')[0]} / {team.player2_name?.split(' ')[0] || '-'}
-                            </div>
-                          </div>
-                        ))
-                      )}
+              {zones.map(zone => {
+                const zoneStandings = standings
+                  .filter(s => s.zone_id === zone.id)
+                  .sort((a, b) => (b.points - a.points) || (b.games_diff - a.games_diff));
+
+                return (
+                  <div key={zone.id} className="bg-white rounded-[1.5rem] md:rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
+                    <div className="bg-[#141414] p-4 md:p-6 text-white flex justify-between items-center">
+                      <h3 className="text-base md:text-xl font-black uppercase italic">{zone.name}</h3>
+                      <button className="p-2 hover:bg-white/10 rounded-lg transition-all"><Settings className="h-4 w-4" /></button>
+                    </div>
+                    <div className="p-0 overflow-x-auto">
+                      <table className="w-full text-[10px] md:text-xs">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-100">
+                            <th className="px-4 py-3 text-left font-black uppercase italic">Pareja</th>
+                            <th className="px-2 py-3 text-center font-black uppercase italic">Ptos</th>
+                            <th className="px-2 py-3 text-center font-black uppercase italic">PJ</th>
+                            <th className="px-2 py-3 text-center font-black uppercase italic">PG</th>
+                            <th className="px-2 py-3 text-center font-black uppercase italic">PP</th>
+                            <th className="px-2 py-3 text-center font-black uppercase italic">Dif</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {zoneStandings.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="px-4 py-8 text-center text-gray-400 italic">No hay posiciones generadas</td>
+                            </tr>
+                          ) : (
+                            zoneStandings.map((s, idx) => (
+                              <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-black italic text-[#c1ff72]">{idx + 1}</span>
+                                    <span className="font-bold uppercase truncate max-w-[120px]">{s.team?.name}</span>
+                                  </div>
+                                </td>
+                                <td className="px-2 py-3 text-center font-black">{s.points}</td>
+                                <td className="px-2 py-3 text-center text-gray-500">{s.played}</td>
+                                <td className="px-2 py-3 text-center text-green-600">{s.won}</td>
+                                <td className="px-2 py-3 text-center text-red-600">{s.lost}</td>
+                                <td className="px-2 py-3 text-center font-bold">{s.games_diff > 0 ? `+${s.games_diff}` : s.games_diff}</td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -719,9 +747,12 @@ export function EventManagementClient({
               <button 
                 onClick={startTournament}
                 disabled={isSaving || zones.length === 0}
-                className="bg-black text-white px-6 py-3 rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                className={`px-6 py-3 rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 transition-all ${
+                  event.status === 'in_progress' ? 'bg-gray-100 text-gray-400 cursor-default' : 'bg-black text-white hover:bg-[#c1ff72] hover:text-black shadow-lg shadow-black/10'
+                }`}
               >
-                <Play className="h-4 w-4" /> Iniciar
+                <Play className="h-4 w-4" /> 
+                {event.status === 'in_progress' ? 'Torneo en Curso' : 'Iniciar Torneo'}
               </button>
             </div>
             
