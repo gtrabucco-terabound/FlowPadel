@@ -741,8 +741,8 @@ export function EventManagementClient({
         )}
 
         {activeTab === 'matches' && (
-          <div className="space-y-4 md:space-y-6 max-w-4xl mx-auto">
-            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 md:mb-8">
+          <div className="space-y-8 max-w-5xl mx-auto">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
               <h2 className="text-xl md:text-2xl font-black uppercase italic">Fixture y Resultados</h2>
               <button 
                 onClick={startTournament}
@@ -761,57 +761,120 @@ export function EventManagementClient({
                 <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No hay partidos generados. Haga clic en Iniciar.</p>
               </div>
             ) : (
-              matches.map(match => (
-                <div key={match.id} className="bg-white p-4 md:p-8 rounded-[1.5rem] md:rounded-[2rem] shadow-lg border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-8 hover:shadow-xl transition-all">
-                  <div className="flex-1">
-                    <div className="text-right sm:text-right font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_a?.name || 'Equipo A'}</div>
-                    <div className="text-[9px] text-gray-400 font-bold uppercase text-right tracking-tighter">
-                      {match.team_a?.player1?.full_name?.split(' ')[0]} / {match.team_a?.player2?.full_name?.split(' ')[0]}
-                    </div>
-                  </div>
+              <div className="space-y-12">
+                {zones.map((zone) => {
+                  const zoneMatches = matches.filter(m => m.zone_id === zone.id);
+                  if (zoneMatches.length === 0) return null;
 
-                  <div className="flex items-center gap-4">
-                    <div className="relative group">
-                      <input 
-                        type="text" 
-                        placeholder="6/1"
-                        defaultValue={match.score_text || (match.games_a !== null ? `${match.games_a}/${match.games_b}` : '')}
-                        onBlur={(e) => {
-                          const val = e.currentTarget.value;
-                          if (val && val.includes('/')) {
-                            // Automatically save on blur if changed? 
-                            // Better keep the button for explicit save
-                          }
-                        }}
-                        id={`score-${match.id}`}
-                        className="w-24 md:w-32 h-12 md:h-16 bg-gray-50 border-none rounded-xl md:rounded-2xl text-center text-xl md:text-2xl font-black focus:ring-2 focus:ring-[#c1ff72] transition-all"
-                      />
-                      <div className="absolute -top-6 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <span className="text-[8px] font-black uppercase text-gray-400 tracking-widest">Resultado (Ej: 6/1)</span>
+                  return (
+                    <div key={zone.id} className="space-y-6">
+                      <div className="flex items-center gap-4 px-2">
+                        <h3 className="text-lg font-black uppercase italic text-gray-800">{zone.name}</h3>
+                        <div className="h-px flex-1 bg-gray-200"></div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        {zoneMatches.map(match => (
+                          <div key={match.id} className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-md border border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-8 hover:shadow-lg transition-all">
+                            <div className="flex-1 w-full sm:w-auto">
+                              <div className="text-right sm:text-right font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_a?.name || 'Equipo A'}</div>
+                              <div className="text-[9px] text-gray-400 font-bold uppercase text-right tracking-tighter">
+                                {match.team_a?.player1?.full_name?.split(' ')[0]} / {match.team_a?.player2?.full_name?.split(' ')[0]}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              <div className="relative group">
+                                <input 
+                                  type="text" 
+                                  placeholder="6/1"
+                                  defaultValue={match.score_text || (match.games_a !== null ? `${match.games_a}/${match.games_b}` : '')}
+                                  id={`score-${match.id}`}
+                                  className="w-20 md:w-28 h-10 md:h-14 bg-gray-50 border-none rounded-xl text-center text-lg md:text-xl font-black focus:ring-2 focus:ring-[#c1ff72] transition-all"
+                                />
+                              </div>
+                              
+                              <button 
+                                onClick={() => {
+                                  const input = document.getElementById(`score-${match.id}`) as HTMLInputElement;
+                                  updateMatchResult(match.id, input.value);
+                                }}
+                                disabled={isSaving}
+                                className="bg-gray-100 p-3 rounded-xl hover:bg-[#c1ff72] transition-all group flex items-center justify-center disabled:opacity-50"
+                                title="Guardar Resultado"
+                              >
+                                <Save className="h-4 w-4 text-gray-400 group-hover:text-black" />
+                              </button>
+                            </div>
+
+                            <div className="flex-1 w-full sm:w-auto text-left">
+                              <div className="text-left font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_b?.name || 'Equipo B'}</div>
+                              <div className="text-[9px] text-gray-400 font-bold uppercase text-left tracking-tighter">
+                                {match.team_b?.player1?.full_name?.split(' ')[0]} / {match.team_b?.player2?.full_name?.split(' ')[0]}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  );
+                })}
 
-                  <div className="flex-1">
-                    <div className="text-left font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_b?.name || 'Equipo B'}</div>
-                    <div className="text-[9px] text-gray-400 font-bold uppercase text-left tracking-tighter">
-                      {match.team_b?.player1?.full_name?.split(' ')[0]} / {match.team_b?.player2?.full_name?.split(' ')[0]}
+                {/* Otros partidos (No asignados a zona) */}
+                {(() => {
+                  const otherMatches = matches.filter(m => !m.zone_id);
+                  if (otherMatches.length === 0) return null;
+
+                  return (
+                    <div className="space-y-6 pt-8">
+                      <div className="flex items-center gap-4 px-2">
+                        <h3 className="text-lg font-black uppercase italic text-gray-800">Partidos de Eliminación / Otros</h3>
+                        <div className="h-px flex-1 bg-gray-200"></div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        {otherMatches.map(match => (
+                          <div key={match.id} className="bg-[#141414] text-white p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-md border border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4 md:gap-8 hover:shadow-lg transition-all">
+                            <div className="flex-1 w-full sm:w-auto">
+                              <div className="text-right sm:text-right font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_a?.name || 'Equipo A'}</div>
+                              <div className="text-[9px] text-gray-500 font-bold uppercase text-right tracking-tighter">
+                                {match.team_a?.player1?.full_name?.split(' ')[0]} / {match.team_a?.player2?.full_name?.split(' ')[0]}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              <input 
+                                type="text" 
+                                placeholder="6/1"
+                                defaultValue={match.score_text || (match.games_a !== null ? `${match.games_a}/${match.games_b}` : '')}
+                                id={`score-${match.id}`}
+                                className="w-20 md:w-28 h-10 md:h-14 bg-white/10 border-none rounded-xl text-center text-lg md:text-xl font-black focus:ring-2 focus:ring-[#c1ff72] transition-all text-white"
+                              />
+                              <button 
+                                onClick={() => {
+                                  const input = document.getElementById(`score-${match.id}`) as HTMLInputElement;
+                                  updateMatchResult(match.id, input.value);
+                                }}
+                                disabled={isSaving}
+                                className="bg-white/10 p-3 rounded-xl hover:bg-[#c1ff72] transition-all group flex items-center justify-center disabled:opacity-50"
+                              >
+                                <Save className="h-4 w-4 text-white/40 group-hover:text-black" />
+                              </button>
+                            </div>
+
+                            <div className="flex-1 w-full sm:w-auto text-left">
+                              <div className="text-left font-black uppercase italic text-xs md:text-sm truncate mb-1">{match.team_b?.name || 'Equipo B'}</div>
+                              <div className="text-[9px] text-gray-500 font-bold uppercase text-left tracking-tighter">
+                                {match.team_b?.player1?.full_name?.split(' ')[0]} / {match.team_b?.player2?.full_name?.split(' ')[0]}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-
-                  <button 
-                    onClick={() => {
-                      const input = document.getElementById(`score-${match.id}`) as HTMLInputElement;
-                      updateMatchResult(match.id, input.value);
-                    }}
-                    disabled={isSaving}
-                    className="sm:flex-none bg-gray-100 p-3 md:p-4 rounded-xl md:rounded-2xl hover:bg-[#c1ff72] transition-all group order-3 sm:order-none w-full sm:w-auto flex items-center justify-center disabled:opacity-50"
-                  >
-                    <Save className="h-5 w-5 text-gray-400 group-hover:text-black" />
-                    <span className="sm:hidden ml-2 font-bold text-[10px] uppercase">Guardar Resultado</span>
-                  </button>
-                </div>
-              ))
+                  );
+                })()}
+              </div>
             )}
           </div>
         )}

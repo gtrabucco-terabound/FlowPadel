@@ -212,66 +212,163 @@ export function EventDetailClient({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="space-y-8"
+              className="space-y-12"
             >
-               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                {matches.map((match) => (
-                  <div key={match.id} className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group">
-                    <div className="flex justify-between items-center mb-8">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
-                          {match.phase.replace('_', ' ')} {match.round_label ? `• ${match.round_label}` : ''}
-                        </span>
-                        <span className="text-xs font-bold text-gray-600 flex items-center gap-2">
-                          <MapPin className="h-3 w-3 text-[#c1ff72]" /> {match.court?.name || 'Cancha TBD'}
-                        </span>
-                      </div>
-                      <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                        match.status === 'completed' ? 'bg-gray-100 text-gray-500' : 
-                        match.status === 'in_progress' ? 'bg-red-100 text-red-600 animate-pulse' : 
-                        'bg-[#c1ff72]/10 text-black'
-                      }`}>
-                        {match.status}
-                      </div>
-                    </div>
+              {zones.length > 0 ? (
+                <>
+                  {zones.map((zone) => {
+                    const zoneMatches = matches.filter(m => m.zone_id === zone.id);
+                    if (zoneMatches.length === 0) return null;
 
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4">
-                      {/* Team A */}
-                      <div className="flex-1 text-center w-full sm:w-auto">
-                        <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
-                          {match.team_a?.name || 
-                           (match.team_a?.player1?.full_name ? `${match.team_a.player1.full_name.split(' ')[0]} / ${match.team_a.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo A')}
+                    return (
+                      <div key={zone.id} className="space-y-6">
+                        <div className="flex items-center gap-4">
+                          <h3 className="text-2xl font-black uppercase italic tracking-tighter text-[#141414]">
+                            {zone.name}
+                          </h3>
+                          <div className="h-px flex-1 bg-gray-200"></div>
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Fase de Grupos</span>
                         </div>
-                        <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {match.team_a?.player1?.full_name || match.team_a?.player1_name} <br className="hidden sm:block" /> {match.team_a?.player2?.full_name || match.team_a?.player2_name}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                          {zoneMatches.map((match) => (
+                            <div key={match.id} className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-xl shadow-gray-200/50 border border-gray-100 relative overflow-hidden group">
+                              <div className="flex justify-between items-center mb-8">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
+                                    {zone.name} • {match.phase.replace('_', ' ')} {match.round_label ? `• ${match.round_label}` : ''}
+                                  </span>
+                                  <span className="text-xs font-bold text-gray-600 flex items-center gap-2">
+                                    <MapPin className="h-3 w-3 text-[#c1ff72]" /> {match.court?.name || 'Cancha TBD'}
+                                  </span>
+                                </div>
+                                <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                  match.status === 'completed' ? 'bg-gray-100 text-gray-500' : 
+                                  match.status === 'in_progress' ? 'bg-red-100 text-red-600 animate-pulse' : 
+                                  'bg-[#c1ff72]/10 text-black'
+                                }`}>
+                                  {match.status}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4">
+                                <div className="flex-1 text-center w-full sm:w-auto">
+                                  <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
+                                    {match.team_a?.name || 
+                                     (match.team_a?.player1?.full_name ? `${match.team_a.player1.full_name.split(' ')[0]} / ${match.team_a.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo A')}
+                                  </div>
+                                  <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    {match.team_a?.player1?.full_name || match.team_a?.player1_name} <br className="hidden sm:block" /> {match.team_a?.player2?.full_name || match.team_a?.player2_name}
+                                  </div>
+                                </div>
+           
+                                <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 bg-gray-50 rounded-2xl md:rounded-3xl border border-gray-100 min-w-[140px] md:min-w-[180px] justify-center">
+                                  <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_a_id ? 'text-[#c1ff72]' : 'text-black'}`}>
+                                    {match.games_a ?? '-'}
+                                  </span>
+                                  <span className="text-gray-300 font-black italic text-xl md:text-2xl">VS</span>
+                                  <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_b_id ? 'text-[#c1ff72]' : 'text-black'}`}>
+                                    {match.games_b ?? '-'}
+                                  </span>
+                                </div>
+           
+                                <div className="flex-1 text-center w-full sm:w-auto">
+                                  <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
+                                    {match.team_b?.name || 
+                                     (match.team_b?.player1?.full_name ? `${match.team_b.player1.full_name.split(' ')[0]} / ${match.team_b.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo B')}
+                                  </div>
+                                  <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                    {match.team_b?.player1?.full_name || match.team_b?.player1_name} <br className="hidden sm:block" /> {match.team_b?.player2?.full_name || match.team_b?.player2_name}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
- 
-                      {/* Score */}
-                      <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 bg-gray-50 rounded-2xl md:rounded-3xl border border-gray-100 min-w-[140px] md:min-w-[180px] justify-center">
-                        <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_a_id ? 'text-[#c1ff72]' : 'text-black'}`}>
-                          {match.games_a ?? '-'}
-                        </span>
-                        <span className="text-gray-300 font-black italic text-xl md:text-2xl">VS</span>
-                        <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_b_id ? 'text-[#c1ff72]' : 'text-black'}`}>
-                          {match.games_b ?? '-'}
-                        </span>
-                      </div>
- 
-                      {/* Team B */}
-                      <div className="flex-1 text-center w-full sm:w-auto">
-                        <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
-                          {match.team_b?.name || 
-                           (match.team_b?.player1?.full_name ? `${match.team_b.player1.full_name.split(' ')[0]} / ${match.team_b.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo B')}
+                    );
+                  })}
+
+                  {/* Otros partidos (Playoffs, etc) */}
+                  {(() => {
+                    const playoffMatches = matches.filter(m => !m.zone_id);
+                    if (playoffMatches.length === 0) return null;
+
+                    return (
+                      <div className="space-y-6 pt-12">
+                        <div className="flex items-center gap-4">
+                          <h3 className="text-2xl font-black uppercase italic tracking-tighter text-[#141414]">
+                            Fase Eliminatoria
+                          </h3>
+                          <div className="h-px flex-1 bg-gray-200"></div>
+                          <Trophy className="h-5 w-5 text-[#c1ff72]" />
                         </div>
-                        <div className="text-[9px] md:text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                          {match.team_b?.player1?.full_name || match.team_b?.player1_name} <br className="hidden sm:block" /> {match.team_b?.player2?.full_name || match.team_b?.player2_name}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                          {playoffMatches.map((match) => (
+                            <div key={match.id} className="bg-[#141414] rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-8 shadow-2xl border border-white/5 relative overflow-hidden group text-white">
+                              <div className="flex justify-between items-center mb-8">
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c1ff72] mb-1">
+                                    {match.phase.replace('_', ' ')} {match.round_label ? `• ${match.round_label}` : ''}
+                                  </span>
+                                  <span className="text-xs font-bold text-gray-400 flex items-center gap-2">
+                                    <MapPin className="h-3 w-3 text-[#c1ff72]" /> {match.court?.name || 'Cancha TBD'}
+                                  </span>
+                                </div>
+                                <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                                  match.status === 'completed' ? 'bg-white/10 text-gray-400' : 
+                                  match.status === 'in_progress' ? 'bg-red-500/20 text-red-500 animate-pulse' : 
+                                  'bg-[#c1ff72] text-black'
+                                }`}>
+                                  {match.status}
+                                </div>
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 sm:gap-4">
+                                <div className="flex-1 text-center w-full sm:w-auto">
+                                  <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
+                                    {match.team_a?.name || 
+                                     (match.team_a?.player1?.full_name ? `${match.team_a.player1.full_name.split(' ')[0]} / ${match.team_a.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo A')}
+                                  </div>
+                                  <div className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                    {match.team_a?.player1?.full_name || match.team_a?.player1_name} <br className="hidden sm:block" /> {match.team_a?.player2?.full_name || match.team_a?.player2_name}
+                                  </div>
+                                </div>
+           
+                                <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 bg-white/5 rounded-2xl md:rounded-3xl border border-white/10 min-w-[140px] md:min-w-[180px] justify-center">
+                                  <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_a_id ? 'text-[#c1ff72]' : 'text-white'}`}>
+                                    {match.games_a ?? '-'}
+                                  </span>
+                                  <span className="text-gray-600 font-black italic text-xl md:text-2xl">VS</span>
+                                  <span className={`text-3xl md:text-4xl font-black italic ${match.winner_team_id === match.team_b_id ? 'text-[#c1ff72]' : 'text-white'}`}>
+                                    {match.games_b ?? '-'}
+                                  </span>
+                                </div>
+           
+                                <div className="flex-1 text-center w-full sm:w-auto">
+                                  <div className="text-base md:text-lg font-black uppercase italic leading-tight mb-2">
+                                    {match.team_b?.name || 
+                                     (match.team_b?.player1?.full_name ? `${match.team_b.player1.full_name.split(' ')[0]} / ${match.team_b.player2?.full_name?.split(' ')[0] || '?'}` : 'Equipo B')}
+                                  </div>
+                                  <div className="text-[9px] md:text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                                    {match.team_b?.player1?.full_name || match.team_b?.player1_name} <br className="hidden sm:block" /> {match.team_b?.player2?.full_name || match.team_b?.player2_name}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })()}
+                </>
+              ) : (
+                <div className="text-center py-20 bg-white rounded-[2.5rem] shadow-xl border border-dashed border-gray-200">
+                  <Activity className="h-12 w-12 text-gray-200 mx-auto mb-4" />
+                  <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">No hay partidos registrados aún.</p>
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -347,7 +444,6 @@ export function EventDetailClient({
 
               <div className="w-full overflow-x-auto pb-12">
                 <div className="min-w-[800px] flex justify-center gap-12">
-                  {/* Quarter Finals */}
                   <div className="flex flex-col justify-around gap-8">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center mb-4">Cuartos</div>
                     {[1, 2, 3, 4].map(i => (
@@ -365,7 +461,6 @@ export function EventDetailClient({
                     ))}
                   </div>
 
-                  {/* Semi Finals */}
                   <div className="flex flex-col justify-around gap-8">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center mb-4">Semis</div>
                     {[1, 2].map(i => (
@@ -383,7 +478,6 @@ export function EventDetailClient({
                     ))}
                   </div>
 
-                  {/* Final */}
                   <div className="flex flex-col justify-around gap-8">
                     <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 text-center mb-4">Final</div>
                     <div className="w-56 h-32 bg-[#141414] text-white rounded-[2rem] shadow-2xl flex flex-col justify-center px-6 relative border-4 border-[#c1ff72]">
