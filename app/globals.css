@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+/*
+  FlowPadel — Sistema de diseño premium deportivo
+  -------------------------------------------------
+  Modo OSCURO por defecto (:root). Modo CLARO bajo [data-theme="light"].
+
+  Los componentes existentes usan nombres de clase como:
+    bg-surface / bg-canvas / text-ink / text-muted
+    bg-padel-500 (primario lima) / text-padel-600|700 (acento) / bg-padel-50|100 (acento tenue)
+    border-black/5|10, text-red-*, bg-red-*, bg-amber-*, bg-slate-*, text-slate-*
+
+  Para no romper esos nombres, mapeamos cada token de @theme a una CSS variable
+  conmutable por tema. Así `bg-padel-500` siempre rinde el acento lima correcto,
+  `text-ink` el texto correcto en cada superficie, etc.
+*/
+
+/* ---------------------------------------------------------------- *
+ * Tokens crudos por tema
+ * ---------------------------------------------------------------- */
+
+/* OSCURO (default) */
+:root {
+  --fp-bg: #0f1513;
+  --fp-surface: #161d1a;
+  --fp-surface-2: #1c2521;
+  --fp-border: rgba(255, 255, 255, 0.07);
+  --fp-border-strong: rgba(255, 255, 255, 0.14);
+
+  --fp-text: #edf1ee;
+  --fp-muted: #9ba39d;
+  --fp-faint: #7e867f;
+
+  --fp-accent: #c7f94b;
+  --fp-accent-ink: #11160f;
+  --fp-accent-soft: rgba(199, 249, 75, 0.12);
+  --fp-accent-soft-strong: rgba(199, 249, 75, 0.18);
+  --fp-accent-text: #c7f94b;
+
+  --fp-positive: #2bd49b;
+  --fp-positive-soft: rgba(43, 212, 155, 0.14);
+  --fp-danger: #ec6a52;
+  --fp-danger-soft: rgba(236, 106, 82, 0.14);
+  --fp-warn: #f2c45a;
+  --fp-warn-soft: rgba(242, 196, 90, 0.14);
+
+  /* genéricos derivados (usados por utilidades black/white de Tailwind) */
+  --fp-overlay: rgba(0, 0, 0, 0.55);
+}
+
+/* CLARO */
+[data-theme="light"] {
+  --fp-bg: #f4f6f2;
+  --fp-surface: #ffffff;
+  --fp-surface-2: #fafbf8;
+  --fp-border: rgba(15, 21, 19, 0.1);
+  --fp-border-strong: rgba(15, 21, 19, 0.18);
+
+  --fp-text: #11201b;
+  --fp-muted: #5c655f;
+  --fp-faint: #8a938c;
+
+  --fp-accent: #c7f94b;
+  --fp-accent-ink: #11160f;
+  --fp-accent-soft: rgba(199, 249, 75, 0.22);
+  --fp-accent-soft-strong: rgba(199, 249, 75, 0.32);
+  /* sobre fondos claros, el texto "acento" usa un verde profundo legible */
+  --fp-accent-text: #2f6b15;
+
+  --fp-positive: #0f9e72;
+  --fp-positive-soft: rgba(15, 158, 114, 0.12);
+  --fp-danger: #c4452e;
+  --fp-danger-soft: rgba(196, 69, 46, 0.1);
+  --fp-warn: #9a6b12;
+  --fp-warn-soft: rgba(154, 107, 18, 0.12);
+
+  --fp-overlay: rgba(15, 21, 19, 0.45);
+}
+
+/* ---------------------------------------------------------------- *
+ * Mapeo a utilidades Tailwind v4 (@theme)
+ *   - mantiene los NOMBRES de clase existentes
+ *   - cada color apunta a una variable conmutable
+ * ---------------------------------------------------------------- */
+@theme inline {
+  /* superficies y texto base */
+  --color-canvas: var(--fp-bg);
+  --color-surface: var(--fp-surface);
+  --color-surface-2: var(--fp-surface-2);
+  --color-ink: var(--fp-text);
+  --color-muted: var(--fp-muted);
+  --color-faint: var(--fp-faint);
+
+  /* tokens semánticos nuevos */
+  --color-border-soft: var(--fp-border);
+  --color-border-strong: var(--fp-border-strong);
+  --color-accent: var(--fp-accent);
+  --color-accent-ink: var(--fp-accent-ink);
+  --color-positive: var(--fp-positive);
+  --color-danger: var(--fp-danger);
+  --color-warn: var(--fp-warn);
+
+  /*
+    Escala "padel" remapeada al lenguaje lima del nuevo diseño.
+    50/100  -> acento tenue (fondos de chips, hovers)
+    200     -> borde de acento
+    500     -> fill primario (lima)
+    600/700 -> texto de acento (legible por tema)
+  */
+  --color-padel-50: var(--fp-accent-soft);
+  --color-padel-100: var(--fp-accent-soft-strong);
+  --color-padel-200: var(--fp-border-strong);
+  --color-padel-300: var(--fp-accent);
+  --color-padel-400: var(--fp-accent);
+  --color-padel-500: var(--fp-accent);
+  --color-padel-600: var(--fp-accent-text);
+  --color-padel-700: var(--fp-accent-text);
+  --color-padel-800: var(--fp-accent-text);
+  --color-padel-900: var(--fp-accent-text);
+
+  /* Colores stock de Tailwind usados por componentes -> semánticos por tema */
+  --color-red-50: var(--fp-danger-soft);
+  --color-red-100: var(--fp-danger-soft);
+  --color-red-600: var(--fp-danger);
+  --color-red-700: var(--fp-danger);
+
+  --color-amber-100: var(--fp-warn-soft);
+  --color-amber-700: var(--fp-warn);
+
+  --color-slate-100: var(--fp-surface-2);
+  --color-slate-200: var(--fp-border-strong);
+  --color-slate-500: var(--fp-muted);
+  --color-slate-600: var(--fp-muted);
+}
+
+/* ---------------------------------------------------------------- *
+ * Utilidades black/white -> tokens (los componentes usan border-black/5
+ * etc. para bordes y overlays; los reasignamos para que respondan al tema)
+ * ---------------------------------------------------------------- */
+.border-black\/5 {
+  border-color: var(--fp-border);
+}
+.border-black\/10 {
+  border-color: var(--fp-border-strong);
+}
+.divide-black\/5 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--fp-border);
+}
+.text-black\/10 {
+  color: var(--fp-faint);
+}
+.bg-black\/40 {
+  background-color: var(--fp-overlay);
+}
+
+/* ---------------------------------------------------------------- *
+ * Base
+ * ---------------------------------------------------------------- */
+html,
+body {
+  background: var(--fp-bg);
+  color: var(--fp-text);
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Controles de formulario: por defecto toman colores del tema, así el texto
+ * tipeado nunca queda negro sobre fondo oscuro. Las utilidades Tailwind
+ * (bg-*, text-*) siguen pudiendo sobreescribir estos defaults. */
+input,
+select,
+textarea {
+  background-color: var(--fp-bg);
+  color: var(--fp-text);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--fp-faint);
+}
+select option {
+  background-color: var(--fp-surface);
+  color: var(--fp-text);
+}
+
+/* Headlines premium: peso medio, tracking negativo leve */
+h1,
+h2,
+h3 {
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+/* Micro-label utilitario (uppercase 11px con tracking) */
+.fp-microlabel {
+  font-size: 11px;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--fp-muted);
+}
+
+::selection {
+  background: var(--fp-accent);
+  color: var(--fp-accent-ink);
+}
+
+/* Transición suave al cambiar de tema */
+html.fp-theme-ready,
+html.fp-theme-ready * {
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    color 0.2s ease;
+}
