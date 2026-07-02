@@ -61,7 +61,7 @@ export async function signupAction(
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
@@ -73,7 +73,14 @@ export async function signupAction(
     return { error: "No pudimos crear la cuenta. Probá con otro email." };
   }
 
-  redirect("/");
+  // Con verificación por email activada, signUp no crea sesión: el usuario
+  // debe confirmar por mail primero. Sin sesión → pantalla "revisá tu email".
+  if (!data.session) {
+    redirect("/verifica-email");
+  }
+
+  // Sin verificación (sesión inmediata) → Pantalla 2 del perfil.
+  redirect("/perfil?welcome=1");
 }
 
 export async function logoutAction() {

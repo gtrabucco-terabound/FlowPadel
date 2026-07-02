@@ -627,6 +627,13 @@ export async function updateEventSettings(
     .eq("id", eventId);
   if (error) return fail("No pudimos guardar los cambios.");
 
+  // Al publicar (Abierto + visible), disparar invitaciones automáticas a los
+  // jugadores elegibles (opt-in + género/categoría). Idempotente: no re-encola
+  // a quien ya fue invitado (unique event+player).
+  if (parsed.data.status === "open" && parsed.data.public_visible) {
+    await supabase.rpc("generate_event_invites", { p_event_id: eventId });
+  }
+
   refresh(eventId);
   revalidatePath("/admin/events");
   return { ok: true };

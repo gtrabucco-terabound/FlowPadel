@@ -18,6 +18,7 @@ const ITEMS: NavItem[] = [
   { href: "/admin/players", label: "Jugadores", exact: false },
   { href: "/admin/miembros", label: "Miembros", exact: false, adminOnly: true },
   { href: "/admin/proyeccion", label: "Proyección", exact: false },
+  { href: "/admin/prospectos", label: "Prospectos", exact: false, adminOnly: true },
   { href: "/admin/settings", label: "Ajustes", exact: false },
 ];
 

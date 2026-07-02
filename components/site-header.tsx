@@ -10,6 +10,16 @@ export async function SiteHeader() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Notificaciones sin leer (RLS ya restringe a las del jugador logueado).
+  let unread = 0;
+  if (user) {
+    const { count } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .is("read_at", null);
+    unread = count ?? 0;
+  }
+
   return (
     <header className="sticky top-0 z-40 border-b border-border-soft bg-canvas/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
@@ -43,6 +53,21 @@ export async function SiteHeader() {
           </Link>
 
           <ThemeToggle />
+
+          {user && (
+            <Link
+              href="/notificaciones"
+              aria-label="Notificaciones"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-xl border border-border-soft text-ink transition-colors hover:bg-surface-2"
+            >
+              <span aria-hidden className="text-base">🔔</span>
+              {unread > 0 && (
+                <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-ink">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
+            </Link>
+          )}
 
           {user ? (
             <Link href="/perfil">

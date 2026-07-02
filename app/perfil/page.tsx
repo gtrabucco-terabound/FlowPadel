@@ -24,7 +24,12 @@ type StandingRow = Pick<
   > | null;
 };
 
-export default async function PerfilPage() {
+export default async function PerfilPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ welcome?: string }>;
+}) {
+  const { welcome } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -48,7 +53,7 @@ export default async function PerfilPage() {
   let { data: player } = await supabase
     .from("players")
     .select(
-      "id, full_name, email, gender, category, home_club_id, elo_rating, matches_played, matches_won"
+      "id, full_name, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, elo_rating, matches_played, matches_won"
     )
     .eq("profile_id", user.id)
     .maybeSingle();
@@ -63,7 +68,7 @@ export default async function PerfilPage() {
       .from("players")
       .insert(insert)
       .select(
-        "id, full_name, email, gender, category, home_club_id, elo_rating, matches_played, matches_won"
+        "id, full_name, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, elo_rating, matches_played, matches_won"
       )
       .single();
     player = created ?? null;
@@ -90,6 +95,17 @@ export default async function PerfilPage() {
     .order("name", { ascending: true });
   const clubs = (clubsData ?? []) as { id: string; name: string }[];
 
+  // Nombre del club-lead (si el jugador nombró un club no registrado).
+  let clubOther: string | null = null;
+  if (player?.club_lead_id) {
+    const { data: lead } = await supabase
+      .from("club_leads")
+      .select("name")
+      .eq("id", player.club_lead_id)
+      .maybeSingle();
+    clubOther = lead?.name ?? null;
+  }
+
   // "Mi seguimiento": tournaments where the player has standings.
   let standings: StandingRow[] = [];
   if (player) {
@@ -115,9 +131,13 @@ export default async function PerfilPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-10">
       <div>
-        <h1 className="text-2xl font-semibold text-ink">Mi perfil</h1>
+        <h1 className="text-2xl font-semibold text-ink">
+          {welcome ? "¡Bienvenido! Completá tu perfil" : "Mi perfil"}
+        </h1>
         <p className="mt-1 text-sm text-muted">
-          Editá tus datos de jugador y seguí tu rendimiento.
+          {welcome
+            ? "Cargá tus datos para que te avisemos de los torneos que te sirven. Podés completarlo ahora o más tarde."
+            : "Editá tus datos de jugador y seguí tu rendimiento."}
         </p>
       </div>
 
@@ -128,11 +148,23 @@ export default async function PerfilPage() {
         <CardContent>
           {player ? (
             <ProfileForm
+              userId={user.id}
               email={email}
               fullName={player.full_name}
+              firstName={player.first_name}
+              birthdate={player.birthdate}
               gender={player.gender as Enums<"gender"> | null}
               category={player.category}
+              hand={player.hand}
               homeClubId={player.home_club_id}
+              clubOther={clubOther}
+              photoUrl={player.photo_url}
+              notifyEnabled={player.notify_enabled}
+              notifyMixto={player.notify_mixto}
+              notifyInapp={player.notify_inapp}
+              notifyEmail={player.notify_email}
+              notifyTelegram={player.notify_telegram}
+              notifyWhatsapp={player.notify_whatsapp}
               clubs={clubs}
             />
           ) : (

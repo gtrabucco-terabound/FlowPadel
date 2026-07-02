@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -86,6 +88,44 @@ export type Database = {
           {
             foreignKeyName: "categories_club_id_fkey"
             columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      club_leads: {
+        Row: {
+          converted_club_id: string | null
+          created_at: string
+          id: string
+          mention_count: number
+          name: string
+          name_norm: string
+          updated_at: string
+        }
+        Insert: {
+          converted_club_id?: string | null
+          created_at?: string
+          id?: string
+          mention_count?: number
+          name: string
+          name_norm: string
+          updated_at?: string
+        }
+        Update: {
+          converted_club_id?: string | null
+          created_at?: string
+          id?: string
+          mention_count?: number
+          name?: string
+          name_norm?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_leads_converted_club_id_fkey"
+            columns: ["converted_club_id"]
             isOneToOne: false
             referencedRelation: "clubs"
             referencedColumns: ["id"]
@@ -263,9 +303,6 @@ export type Database = {
           court_cost_month: number
           court_fee_per_person: number
           court_pool_per_person: number
-          is_interclub: boolean
-          rival_accepted: boolean
-          rival_club_id: string | null
           created_at: string
           created_by: string | null
           currency: string
@@ -274,6 +311,7 @@ export type Database = {
           event_type: Database["public"]["Enums"]["event_type"]
           id: string
           inscription_per_person: number
+          is_interclub: boolean
           long_format: Database["public"]["Enums"]["tournament_format"] | null
           markup_pct: number
           matches_per_court_month: number
@@ -282,6 +320,8 @@ export type Database = {
           name: string
           public_visible: boolean
           registration_fee: number
+          rival_accepted: boolean
+          rival_club_id: string | null
           slug: string
           start_date: string | null
           status: Database["public"]["Enums"]["event_status"]
@@ -298,9 +338,6 @@ export type Database = {
           court_cost_month?: number
           court_fee_per_person?: number
           court_pool_per_person?: number
-          is_interclub?: boolean
-          rival_accepted?: boolean
-          rival_club_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -309,6 +346,7 @@ export type Database = {
           event_type: Database["public"]["Enums"]["event_type"]
           id?: string
           inscription_per_person?: number
+          is_interclub?: boolean
           long_format?: Database["public"]["Enums"]["tournament_format"] | null
           markup_pct?: number
           matches_per_court_month?: number
@@ -317,6 +355,8 @@ export type Database = {
           name: string
           public_visible?: boolean
           registration_fee?: number
+          rival_accepted?: boolean
+          rival_club_id?: string | null
           slug: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["event_status"]
@@ -333,9 +373,6 @@ export type Database = {
           court_cost_month?: number
           court_fee_per_person?: number
           court_pool_per_person?: number
-          is_interclub?: boolean
-          rival_accepted?: boolean
-          rival_club_id?: string | null
           created_at?: string
           created_by?: string | null
           currency?: string
@@ -344,6 +381,7 @@ export type Database = {
           event_type?: Database["public"]["Enums"]["event_type"]
           id?: string
           inscription_per_person?: number
+          is_interclub?: boolean
           long_format?: Database["public"]["Enums"]["tournament_format"] | null
           markup_pct?: number
           matches_per_court_month?: number
@@ -352,6 +390,8 @@ export type Database = {
           name?: string
           public_visible?: boolean
           registration_fee?: number
+          rival_accepted?: boolean
+          rival_club_id?: string | null
           slug?: string
           start_date?: string | null
           status?: Database["public"]["Enums"]["event_status"]
@@ -377,6 +417,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_rival_club_id_fkey"
+            columns: ["rival_club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
             referencedColumns: ["id"]
           },
         ]
@@ -520,6 +567,57 @@ export type Database = {
             columns: ["zone_id"]
             isOneToOne: false
             referencedRelation: "zones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          event_id: string | null
+          id: string
+          player_id: string
+          read_at: string | null
+          title: string
+          type: string
+          url: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          player_id: string
+          read_at?: string | null
+          title: string
+          type?: string
+          url?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          player_id?: string
+          read_at?: string | null
+          title?: string
+          type?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
             referencedColumns: ["id"]
           },
         ]
@@ -673,51 +771,94 @@ export type Database = {
       }
       players: {
         Row: {
+          birthdate: string | null
           category: number | null
+          club_lead_id: string | null
           created_at: string
           elo_rating: number
           email: string | null
+          first_name: string | null
           full_name: string
           gender: Database["public"]["Enums"]["gender"] | null
+          hand: string | null
           home_club_id: string | null
           id: string
           matches_played: number
           matches_won: number
+          notify_email: boolean
+          notify_enabled: boolean
+          notify_inapp: boolean
+          notify_mixto: boolean
+          notify_telegram: boolean
+          notify_whatsapp: boolean
           phone: string | null
+          photo_url: string | null
           profile_id: string | null
+          telegram_chat_id: string | null
           updated_at: string
         }
         Insert: {
+          birthdate?: string | null
           category?: number | null
+          club_lead_id?: string | null
           created_at?: string
           elo_rating?: number
           email?: string | null
+          first_name?: string | null
           full_name: string
           gender?: Database["public"]["Enums"]["gender"] | null
+          hand?: string | null
           home_club_id?: string | null
           id?: string
           matches_played?: number
           matches_won?: number
+          notify_email?: boolean
+          notify_enabled?: boolean
+          notify_inapp?: boolean
+          notify_mixto?: boolean
+          notify_telegram?: boolean
+          notify_whatsapp?: boolean
           phone?: string | null
+          photo_url?: string | null
           profile_id?: string | null
+          telegram_chat_id?: string | null
           updated_at?: string
         }
         Update: {
+          birthdate?: string | null
           category?: number | null
+          club_lead_id?: string | null
           created_at?: string
           elo_rating?: number
           email?: string | null
+          first_name?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["gender"] | null
+          hand?: string | null
           home_club_id?: string | null
           id?: string
           matches_played?: number
           matches_won?: number
+          notify_email?: boolean
+          notify_enabled?: boolean
+          notify_inapp?: boolean
+          notify_mixto?: boolean
+          notify_telegram?: boolean
+          notify_whatsapp?: boolean
           phone?: string | null
+          photo_url?: string | null
           profile_id?: string | null
+          telegram_chat_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "players_club_lead_id_fkey"
+            columns: ["club_lead_id"]
+            isOneToOne: false
+            referencedRelation: "club_leads"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "players_home_club_id_fkey"
             columns: ["home_club_id"]
@@ -1072,6 +1213,54 @@ export type Database = {
           },
         ]
       }
+      tournament_invites: {
+        Row: {
+          channel: string
+          created_at: string
+          event_id: string
+          id: string
+          player_id: string
+          reason: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          event_id: string
+          id?: string
+          player_id: string
+          reason?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          player_id?: string
+          reason?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tournament_invites_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tournament_invites_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       zone_teams: {
         Row: {
           team_id: string
@@ -1155,6 +1344,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _assert_event_access: { Args: { p_event_id: string }; Returns: string }
+      _resolve_first_round_byes: {
+        Args: { p_bracket_id: string }
+        Returns: undefined
+      }
       accept_interclub: { Args: { p_event_id: string }; Returns: undefined }
       add_club_member: {
         Args: {
@@ -1164,23 +1358,23 @@ export type Database = {
         }
         Returns: string
       }
-      list_club_members: {
-        Args: { p_club_id: string }
-        Returns: {
-          profile_id: string
-          email: string
-          full_name: string
-          role: Database["public"]["Enums"]["club_member_role"]
-        }[]
-      }
       apply_elo_for_match: { Args: { p_match_id: string }; Returns: undefined }
+      claim_partner_spot: {
+        Args: {
+          p_category: number
+          p_code: string
+          p_full_name: string
+          p_gender: Database["public"]["Enums"]["gender"]
+        }
+        Returns: undefined
+      }
       club_ranking: {
-        Args: Record<string, never>
+        Args: never
         Returns: {
           club_id: string
           club_name: string
-          total_points: number
           players_count: number
+          total_points: number
           tournaments_count: number
         }[]
       }
@@ -1203,30 +1397,11 @@ export type Database = {
         Args: { p_event_id: string; p_qualifiers_per_zone?: number }
         Returns: string
       }
-      get_registration_claim: {
-        Args: { p_code: string }
-        Returns: {
-          event_name: string
-          event_slug: string
-          club_id: string
-          inviter_name: string
-          partner_name: string
-          already_claimed: boolean
-        }[]
-      }
-      claim_partner_spot: {
-        Args: {
-          p_code: string
-          p_full_name: string
-          p_gender: Database["public"]["Enums"]["gender"]
-          p_category: number
-        }
-        Returns: undefined
-      }
       generate_division_zones: {
         Args: { p_event_id: string; p_teams_per_zone?: number }
         Returns: number
       }
+      generate_event_invites: { Args: { p_event_id: string }; Returns: number }
       generate_group_matches: { Args: { p_event_id: string }; Returns: number }
       generate_league: {
         Args: {
@@ -1239,9 +1414,29 @@ export type Database = {
         }
         Returns: number
       }
+      get_registration_claim: {
+        Args: { p_code: string }
+        Returns: {
+          already_claimed: boolean
+          club_id: string
+          event_name: string
+          event_slug: string
+          inviter_name: string
+          partner_name: string
+        }[]
+      }
       is_club_admin: { Args: { club: string }; Returns: boolean }
       is_club_member: { Args: { club: string }; Returns: boolean }
-      is_superadmin: { Args: Record<string, never>; Returns: boolean }
+      is_superadmin: { Args: never; Returns: boolean }
+      list_club_members: {
+        Args: { p_club_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          profile_id: string
+          role: Database["public"]["Enums"]["club_member_role"]
+        }[]
+      }
       recompute_player_standings: {
         Args: { p_event_id: string }
         Returns: undefined
@@ -1251,6 +1446,7 @@ export type Database = {
         Args: { p_games_a: number; p_games_b: number; p_match_id: string }
         Returns: undefined
       }
+      upsert_club_lead: { Args: { p_name: string }; Returns: string }
     }
     Enums: {
       app_role: "superadmin" | "club_admin" | "staff" | "player"
@@ -1394,6 +1590,23 @@ export type Enums<
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
