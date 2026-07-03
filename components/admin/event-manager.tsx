@@ -84,25 +84,29 @@ export function EventManager({ data }: { data: EventManagerData }) {
   const americano = isAmericanoFormat(data.event.long_format);
   // Calendario + Ranking individual están disponibles para liga y americano.
   const hasFixture = league || americano;
-  const [tab, setTab] = useState("registrations");
+  // En Borrador arranca por Ajustes (configurar); ya publicado, por Inscripciones.
+  const [tab, setTab] = useState(
+    data.event.status === "draft" ? "settings" : "registrations"
+  );
   const teamName = (id: string | null) =>
     (id && data.teams.find((t) => t.id === id)?.name) || "Equipo";
 
   const tabs = useMemo(() => {
+    // Orden por ciclo de vida: configurar → cobrar → inscribir → armar → jugar → cerrar.
     const base = [
+      { value: "settings", label: "Ajustes" },
+      { value: "planner", label: "Economía" },
       { value: "registrations", label: "Inscripciones" },
       { value: "teams", label: "Equipos" },
       // Americano: parejas rotativas sin posiciones por zona → sin Zonas.
       ...(americano ? [] : [{ value: "zones", label: "Zonas" }]),
+      { value: "calendar", label: "Horarios" },
       // Americano: el ranking que vale es el individual → sin Partidos por zona.
       ...(americano ? [] : [{ value: "matches", label: "Partidos" }]),
       // El cuadro de eliminación no aplica al americano.
       ...(americano ? [] : [{ value: "bracket", label: "Cuadro" }]),
-      { value: "calendar", label: "Calendario" },
       { value: "ranking", label: "Ranking" },
-      { value: "planner", label: "Planificador" },
       { value: "finances", label: "Finanzas" },
-      { value: "settings", label: "Ajustes" },
     ];
     return base;
   }, [americano]);
@@ -1165,7 +1169,7 @@ function CalendarTab({
 
   if (!hasFixture) {
     return (
-      <EmptyState text="Disponible para torneos de liga o americano; configurá el formato en Planificador." />
+      <EmptyState text="Disponible para torneos de liga o americano; configurá el formato en Economía." />
     );
   }
 
@@ -1480,7 +1484,7 @@ function RankingTab({
 }) {
   if (!league) {
     return (
-      <EmptyState text="Disponible para torneos de liga; configurá el formato en Planificador." />
+      <EmptyState text="Disponible para torneos de liga; configurá el formato en Economía." />
     );
   }
   if (data.playerStandings.length === 0) {
