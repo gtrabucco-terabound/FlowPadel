@@ -1358,6 +1358,15 @@ export type Database = {
         }
         Returns: string
       }
+      admin_create_club: {
+        Args: {
+          p_admin_email?: string
+          p_city?: string
+          p_lead_id?: string
+          p_name: string
+        }
+        Returns: Json
+      }
       apply_elo_for_match: { Args: { p_match_id: string }; Returns: undefined }
       claim_partner_spot: {
         Args: {

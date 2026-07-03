@@ -61,7 +61,10 @@ export default async function AdminLayout({
                 activeClubId={ctx.activeClubId}
               />
             </div>
-            <SidebarNav role={ctx.activeMembership.role} />
+            <SidebarNav
+              role={ctx.activeMembership.role}
+              superadmin={ctx.superadmin}
+            />
           </div>
         </aside>
         <main className="min-w-0 flex-1">{children}</main>

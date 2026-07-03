@@ -17,6 +17,7 @@ export interface AdminContext {
   memberships: AdminMembership[];
   activeClubId: string;
   activeMembership: AdminMembership;
+  superadmin: boolean;
 }
 
 type MembershipRow = {
@@ -51,6 +52,13 @@ export async function getAdminContext(): Promise<AdminContext> {
 
   if (memberships.length === 0) redirect("/");
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("global_role")
+    .eq("id", user.id)
+    .maybeSingle();
+  const superadmin = profile?.global_role === "superadmin";
+
   const cookieStore = await cookies();
   const cookieClub = cookieStore.get(ACTIVE_CLUB_COOKIE)?.value;
   const activeMembership =
@@ -62,6 +70,7 @@ export async function getAdminContext(): Promise<AdminContext> {
     memberships,
     activeClubId: activeMembership.club.id,
     activeMembership,
+    superadmin,
   };
 }
 
