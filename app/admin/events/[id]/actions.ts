@@ -171,6 +171,12 @@ export async function approveRegistration(
     .eq("id", registrationId);
   if (updErr) return fail("No pudimos actualizar la inscripción.");
 
+  // Avisar a la pareja que quedó confirmada (in-app; email cuando esté el worker).
+  await supabase.rpc("notify_registration_status", {
+    p_registration_id: registrationId,
+    p_kind: "confirmed",
+  });
+
   // Crear los cobros por equipo (inscripción + cancha). Idempotente: sólo crea
   // los que falten para esta inscripción (no duplica por kind).
   const { data: existingPayments } = await supabase
@@ -298,6 +304,10 @@ export async function rejectRegistration(
     .eq("id", registrationId)
     .eq("event_id", eventId);
   if (error) return fail("No pudimos rechazar la inscripción.");
+  await supabase.rpc("notify_registration_status", {
+    p_registration_id: registrationId,
+    p_kind: "rejected",
+  });
   refresh(eventId);
   return { ok: true };
 }
@@ -326,6 +336,10 @@ export async function waitlistRegistration(
     .eq("id", registrationId)
     .eq("event_id", eventId);
   if (error) return fail("No pudimos mover a lista de espera.");
+  await supabase.rpc("notify_registration_status", {
+    p_registration_id: registrationId,
+    p_kind: "waitlist",
+  });
   refresh(eventId);
   return { ok: true };
 }

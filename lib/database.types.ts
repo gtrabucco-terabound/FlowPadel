@@ -1446,6 +1446,10 @@ export type Database = {
           role: Database["public"]["Enums"]["club_member_role"]
         }[]
       }
+      notify_registration_status: {
+        Args: { p_kind: string; p_registration_id: string }
+        Returns: number
+      }
       recompute_player_standings: {
         Args: { p_event_id: string }
         Returns: undefined
