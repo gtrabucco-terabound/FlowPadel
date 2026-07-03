@@ -12,12 +12,29 @@ export async function SiteHeader() {
 
   // Notificaciones sin leer (RLS ya restringe a las del jugador logueado).
   let unread = 0;
+  // ¿Es admin/staff de algún club o superadmin? → mostrar acceso al Panel.
+  let isAdmin = false;
   if (user) {
-    const { count } = await supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .is("read_at", null);
+    const [{ count }, { data: membership }, { data: profile }] =
+      await Promise.all([
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .is("read_at", null),
+        supabase
+          .from("club_members")
+          .select("id")
+          .eq("profile_id", user.id)
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("profiles")
+          .select("global_role")
+          .eq("id", user.id)
+          .maybeSingle(),
+      ]);
     unread = count ?? 0;
+    isAdmin = !!membership || profile?.global_role === "superadmin";
   }
 
   return (
@@ -66,6 +83,14 @@ export async function SiteHeader() {
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
+            </Link>
+          )}
+
+          {isAdmin && (
+            <Link href="/admin" className="hidden sm:inline">
+              <Button size="sm" variant="outline">
+                Panel
+              </Button>
             </Link>
           )}
 
