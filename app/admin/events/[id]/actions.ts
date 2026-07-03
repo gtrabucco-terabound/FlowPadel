@@ -630,8 +630,6 @@ export async function updateEventSettings(
       status: parsed.data.status,
       public_visible: parsed.data.public_visible,
       max_teams: parsed.data.max_teams,
-      registration_fee: parsed.data.registration_fee,
-      category_id: parsed.data.category_id,
       modality: parsed.data.modality,
       category_system: parsed.data.category_system,
       category_value: parsed.data.category_value,

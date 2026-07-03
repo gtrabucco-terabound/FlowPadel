@@ -1623,39 +1623,12 @@ function SettingsTab({ data }: { data: EventManagerData }) {
                   <option value="closed">Cerrado</option>
                 </select>
               </Field>
-              <Field label="Categoría">
-                <select
-                  name="category_id"
-                  defaultValue={e.category_id ?? ""}
-                  className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
-                >
-                  <option value="">Sin categoría</option>
-                  {data.categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Cupo máximo de equipos">
                 <input
                   name="max_teams"
                   type="number"
                   min={0}
                   defaultValue={e.max_teams ?? ""}
-                  className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
-                />
-              </Field>
-              <Field label={`Inscripción (${e.currency})`}>
-                <input
-                  name="registration_fee"
-                  type="number"
-                  min={0}
-                  step="any"
-                  defaultValue={e.registration_fee}
                   className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
                 />
               </Field>
@@ -1797,16 +1770,21 @@ function SettingsTab({ data }: { data: EventManagerData }) {
             <h3 className="font-bold text-ink">Iniciar torneo</h3>
             <p className="text-sm text-muted">
               Genera el round-robin por zona (fase de grupos) y marca el evento
-              en progreso. Tarifa actual: {formatMoney(e.registration_fee, e.currency)}.
+              en progreso. Inscripción por persona:{" "}
+              {formatMoney(Number(e.inscription_per_person ?? 0), e.currency)} (se
+              configura en Economía).
             </p>
             <p className="mt-1 text-sm text-muted">
               Proyectado a cupo lleno:{" "}
               {e.max_teams != null
-                ? formatMoney(e.registration_fee * e.max_teams, e.currency)
-                : "—"}{" "}
-              {e.max_teams != null
-                ? `(${formatMoney(e.registration_fee, e.currency)} × ${e.max_teams})`
-                : ""}
+                ? `${formatMoney(
+                    Number(e.inscription_per_person ?? 0) * 2 * e.max_teams,
+                    e.currency
+                  )} (${formatMoney(
+                    Number(e.inscription_per_person ?? 0),
+                    e.currency
+                  )} × 2 × ${e.max_teams} equipos)`
+                : "—"}
             </p>
           </div>
           <StartButton eventId={e.id} disabled={e.status === "in_progress"} />
