@@ -30,6 +30,8 @@ export function RegistrationForm({
   categorySystem,
   categoryValue,
   clubs,
+  isLoggedIn = false,
+  me = null,
 }: {
   slug: string;
   isTournament: boolean;
@@ -38,6 +40,13 @@ export function RegistrationForm({
   categorySystem: Enums<"category_system"> | null;
   categoryValue: string | null;
   clubs: { id: string; name: string }[];
+  isLoggedIn?: boolean;
+  me?: {
+    full_name: string;
+    phone: string | null;
+    gender: string | null;
+    category: number | null;
+  } | null;
 }) {
   const [success, setSuccess] = useState(false);
   const [claimCode, setClaimCode] = useState<string | null>(null);
@@ -64,8 +73,12 @@ export function RegistrationForm({
   } = useForm<FormInput, unknown, FormValues>({
     resolver: zodResolver(clientSchema),
     defaultValues: {
-      player_1_name: "",
-      player_1_phone: "",
+      player_1_name: me?.full_name ?? "",
+      player_1_phone: me?.phone ?? "",
+      player_1_gender: (me?.gender ?? "") as FormInput["player_1_gender"],
+      player_1_category: (me?.category != null
+        ? String(me.category)
+        : "") as unknown as FormInput["player_1_category"],
       player_2_name: "",
       player_2_phone: "",
       team_name: "",
@@ -322,6 +335,12 @@ export function RegistrationForm({
         <input className={inputCls} {...register("team_name")} />
       </Field>
 
+      {isLoggedIn ? (
+        <p className="rounded-xl border border-black/5 bg-surface px-4 py-3 text-xs text-muted">
+          Te estás inscribiendo con tu cuenta{me?.full_name ? ` (${me.full_name})` : ""}. Tus
+          datos de Jugador 1 ya vienen cargados.
+        </p>
+      ) : (
       <fieldset className="space-y-3 rounded-xl border border-black/5 bg-surface p-4">
         <button
           type="button"
@@ -385,6 +404,7 @@ export function RegistrationForm({
           </div>
         )}
       </fieldset>
+      )}
 
       {accountNotice && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">

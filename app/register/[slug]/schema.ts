@@ -8,14 +8,27 @@ import type { Enums } from "@/lib/database.types";
 const genderEnum = z.enum(["male", "female"]);
 const categoryNum = z.coerce.number().int().min(1, "Elegí la categoría").max(9);
 
+// Celular: sólo dígitos/espacios/guiones/paréntesis/+, con al menos 8 dígitos.
+const digits = (v: string) => v.replace(/\D/g, "").length;
+const phoneRequired = z
+  .string()
+  .max(30)
+  .refine((v) => digits(v) >= 8, "Ingresá un celular válido (solo números)");
+const phoneOptional = z
+  .string()
+  .max(30)
+  .optional()
+  .or(z.literal(""))
+  .refine((v) => !v || v === "" || digits(v) >= 8, "Celular inválido (solo números)");
+
 export const registrationSchema = z.object({
   slug: z.string().min(1),
   player_1_name: z.string().min(2, "Ingresá el nombre").max(80),
-  player_1_phone: z.string().min(6, "Ingresá un teléfono válido").max(30),
+  player_1_phone: phoneRequired,
   player_1_gender: genderEnum,
   player_1_category: categoryNum,
   player_2_name: z.string().max(80).optional().or(z.literal("")),
-  player_2_phone: z.string().max(30).optional().or(z.literal("")),
+  player_2_phone: phoneOptional,
   player_2_gender: genderEnum.optional().nullable(),
   player_2_category: categoryNum.optional().nullable(),
   // Sólo se usa cuando el evento es "combinado": la sub-modalidad elegida.

@@ -53,7 +53,7 @@ export default async function PerfilPage({
   let { data: player } = await supabase
     .from("players")
     .select(
-      "id, full_name, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, elo_rating, matches_played, matches_won"
+      "id, full_name, phone, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, elo_rating, matches_played, matches_won"
     )
     .eq("profile_id", user.id)
     .maybeSingle();
@@ -68,7 +68,7 @@ export default async function PerfilPage({
       .from("players")
       .insert(insert)
       .select(
-        "id, full_name, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, elo_rating, matches_played, matches_won"
+        "id, full_name, phone, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, elo_rating, matches_played, matches_won"
       )
       .single();
     player = created ?? null;
@@ -150,6 +150,7 @@ export default async function PerfilPage({
             <ProfileForm
               userId={user.id}
               email={email}
+              phone={player.phone}
               fullName={player.full_name}
               firstName={player.first_name}
               birthdate={player.birthdate}

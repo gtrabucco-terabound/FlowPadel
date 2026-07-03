@@ -16,6 +16,7 @@ const inputCls =
 export interface ProfileFormProps {
   userId: string;
   email: string;
+  phone: string | null;
   fullName: string;
   firstName: string | null;
   birthdate: string | null;
@@ -51,6 +52,7 @@ const OTHER = "__other__";
 export function ProfileForm({
   userId,
   email,
+  phone,
   fullName,
   firstName,
   birthdate,
@@ -179,15 +181,28 @@ export function ProfileForm({
         </label>
       </div>
 
-      <label className="block space-y-1">
-        <span className="text-sm font-medium text-ink">Email</span>
-        <input
-          value={email}
-          readOnly
-          disabled
-          className={`${inputCls} cursor-not-allowed opacity-60`}
-        />
-      </label>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block space-y-1">
+          <span className="text-sm font-medium text-ink">Email</span>
+          <input
+            value={email}
+            readOnly
+            disabled
+            className={`${inputCls} cursor-not-allowed opacity-60`}
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-sm font-medium text-ink">Celular</span>
+          <input
+            name="phone"
+            type="tel"
+            inputMode="numeric"
+            defaultValue={phone ?? ""}
+            placeholder="Ej: 2995718746"
+            className={inputCls}
+          />
+        </label>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block space-y-1">

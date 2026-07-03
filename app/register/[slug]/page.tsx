@@ -30,6 +30,26 @@ export default async function RegisterPage({
     .select("id, name")
     .order("name");
 
+  // Si el usuario está logueado, precargamos sus datos en "Jugador 1" y
+  // ocultamos "Crear cuenta" (ya tiene una).
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  let me: {
+    full_name: string;
+    phone: string | null;
+    gender: string | null;
+    category: number | null;
+  } | null = null;
+  if (user) {
+    const { data: player } = await supabase
+      .from("players")
+      .select("full_name, phone, gender, category")
+      .eq("profile_id", user.id)
+      .maybeSingle();
+    me = player;
+  }
+
   if (event.status !== "open") {
     return (
       <div className="mx-auto max-w-lg px-4 py-12 text-center">
@@ -74,6 +94,8 @@ export default async function RegisterPage({
         categorySystem={event.category_system}
         categoryValue={event.category_value}
         clubs={clubs ?? []}
+        isLoggedIn={!!user}
+        me={me}
       />
     </div>
   );

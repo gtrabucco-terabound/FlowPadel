@@ -16,6 +16,15 @@ const optionalText = z
 
 const profileSchema = z.object({
   full_name: z.string().trim().min(2, "Ingresá tu nombre"),
+  phone: z
+    .string()
+    .trim()
+    .max(30)
+    .refine(
+      (v) => v === "" || v.replace(/\D/g, "").length >= 8,
+      "Ingresá un celular válido (solo números)"
+    )
+    .transform((v) => (v === "" ? null : v)),
   first_name: optionalText,
   birthdate: z
     .union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"), z.literal("")])
@@ -61,6 +70,7 @@ export async function updateMyPlayerProfile(
 
   const parsed = profileSchema.safeParse({
     full_name: formData.get("full_name"),
+    phone: formData.get("phone") ?? "",
     first_name: formData.get("first_name") ?? "",
     birthdate: formData.get("birthdate") ?? "",
     gender: formData.get("gender") ?? "",
@@ -99,6 +109,7 @@ export async function updateMyPlayerProfile(
 
   const update: TablesUpdate<"players"> = {
     full_name: parsed.data.full_name,
+    phone: parsed.data.phone,
     first_name: parsed.data.first_name,
     birthdate: parsed.data.birthdate,
     gender: parsed.data.gender as Enums<"gender"> | null,
