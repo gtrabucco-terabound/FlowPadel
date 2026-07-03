@@ -73,6 +73,16 @@ export async function signupAction(
     return { error: "No pudimos crear la cuenta. Probá con otro email." };
   }
 
+  // Email ya registrado: Supabase, por anti-enumeración, responde ok igual pero
+  // con identities vacío. Lo detectamos para avisar en vez de mandar a "revisá
+  // tu email" (donde nunca llegaría nada).
+  if (data.user && (data.user.identities?.length ?? 0) === 0) {
+    return {
+      error:
+        "Ese email ya tiene una cuenta. Ingresá con tu contraseña o usá “¿Olvidaste tu contraseña?”.",
+    };
+  }
+
   // Con verificación por email activada, signUp no crea sesión: el usuario
   // debe confirmar por mail primero. Sin sesión → pantalla "revisá tu email".
   if (!data.session) {
