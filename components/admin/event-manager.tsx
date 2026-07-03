@@ -1662,12 +1662,21 @@ function SettingsTab({ data }: { data: EventManagerData }) {
 
             <Field label="Categoría">
               {categorySystem === "fixed" ? (
-                <input
+                <select
                   name="category_value"
-                  defaultValue={e.category_value ?? ""}
-                  placeholder="4ta"
+                  defaultValue={e.category_value ?? "7ma"}
                   className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
-                />
+                >
+                  <option value="1ra">1ra</option>
+                  <option value="2da">2da</option>
+                  <option value="3ra">3ra</option>
+                  <option value="4ta">4ta</option>
+                  <option value="5ta">5ta</option>
+                  <option value="6ta">6ta</option>
+                  <option value="7ma">7ma</option>
+                  <option value="8va">8va</option>
+                  <option value="9na">9na</option>
+                </select>
               ) : (
                 <select
                   name="category_value"
