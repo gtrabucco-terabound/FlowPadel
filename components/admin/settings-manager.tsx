@@ -6,16 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  createCategory,
-  renameCategory,
-  deleteCategory,
   createCourt,
   renameCourt,
   toggleCourtActive,
 } from "@/app/admin/settings/actions";
 import type { Tables } from "@/lib/database.types";
 
-type Category = Pick<Tables<"categories">, "id" | "name">;
 type Court = Pick<Tables<"courts">, "id" | "name" | "is_active">;
 
 function useAction() {
@@ -33,68 +29,11 @@ function useAction() {
   return { run, pending, error };
 }
 
-export function SettingsManager({
-  categories,
-  courts,
-}: {
-  categories: Category[];
-  courts: Court[];
-}) {
+export function SettingsManager({ courts }: { courts: Court[] }) {
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      <CategoriesCard categories={categories} />
+    <div className="max-w-xl">
       <CourtsCard courts={courts} />
     </div>
-  );
-}
-
-function CategoriesCard({ categories }: { categories: Category[] }) {
-  const { run, pending, error } = useAction();
-  const formRef = useRef<HTMLFormElement>(null);
-
-  return (
-    <Card>
-      <CardContent className="space-y-4 py-5">
-        <h2 className="text-lg font-bold text-ink">Categorías</h2>
-
-        <form
-          ref={formRef}
-          action={(fd) =>
-            run(async () => {
-              const r = await createCategory(fd);
-              if (r.ok) formRef.current?.reset();
-              return r;
-            })
-          }
-          className="flex gap-2"
-        >
-          <input
-            name="name"
-            required
-            placeholder="Ej. 4ta caballeros"
-            className="flex-1 rounded-lg border border-black/10 px-3 py-2 text-sm"
-          />
-          <Button size="sm" type="submit" disabled={pending}>
-            Agregar
-          </Button>
-        </form>
-        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
-
-        <ul className="space-y-2">
-          {categories.length === 0 && (
-            <li className="text-sm text-muted">Sin categorías.</li>
-          )}
-          {categories.map((c) => (
-            <EditableRow
-              key={c.id}
-              name={c.name}
-              onRename={(fd) => renameCategory(c.id, fd)}
-              onDelete={() => deleteCategory(c.id)}
-            />
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
   );
 }
 

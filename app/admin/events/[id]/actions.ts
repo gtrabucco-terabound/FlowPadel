@@ -734,11 +734,16 @@ export async function saveEventEconomics(
     markup_pct,
     teams,
   } = parsed.data;
-  const costPerMatch =
-    matches_per_court_month > 0 ? court_cost_month / matches_per_court_month : 0;
+  // Modelo económico: "mensual" para liga (se alquila por mes), "por evento"
+  // para un día / americano (matches_per_court_month = canchas disponibles,
+  // court_cost_month = costo por cancha del evento).
+  const monthly = long_format !== null && long_format !== "americano";
   const matches = plannerTotalMatches(long_format, teams);
   const players = teams * 2;
-  const courtTotal = matches * costPerMatch;
+  const courtTotal = monthly
+    ? matches *
+      (matches_per_court_month > 0 ? court_cost_month / matches_per_court_month : 0)
+    : Math.max(0, matches_per_court_month) * court_cost_month;
   const courtPerPlayer = players > 0 ? courtTotal / players : 0;
   const courtFeePerPerson = charge_court
     ? courtPerPlayer * (1 + markup_pct / 100)

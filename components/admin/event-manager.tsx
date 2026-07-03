@@ -810,6 +810,14 @@ function isLeague(t: TournamentType): boolean {
   return t !== "un_dia";
 }
 
+/**
+ * Modelo económico "mensual" (liga larga: se alquila la cancha por mes) vs
+ * "por evento" (un día / americano: se paga por cancha para esa jornada).
+ */
+function usesMonthly(t: TournamentType): boolean {
+  return t !== "un_dia" && t !== "americano";
+}
+
 /** Partidos totales según tipo de torneo y cantidad de equipos n. */
 function totalMatches(type: TournamentType, n: number): number {
   if (n < 2) return 0;
@@ -853,20 +861,23 @@ function PlannerTab({ data }: { data: EventManagerData }) {
     typeFromLongFormat(e.long_format)
   );
   const [chargeCourt, setChargeCourt] = useState<boolean>(
-    e.charge_court ?? isLeague(typeFromLongFormat(e.long_format))
+    e.charge_court ?? usesMonthly(typeFromLongFormat(e.long_format))
   );
   const [teams, setTeams] = useState<number>(defaultTeams);
 
-  // Al cambiar el tipo, sugerimos charge_court (el usuario puede overridear).
+  // Al cambiar el tipo, sugerimos charge_court: liga = cancha aparte;
+  // un día / americano = cancha incluida (el usuario puede overridear).
   const onTypeChange = (next: TournamentType) => {
     setType(next);
-    setChargeCourt(isLeague(next));
+    setChargeCourt(usesMonthly(next));
   };
   const [courtCost, setCourtCost] = useState<number>(
     Number(e.court_cost_month ?? 0)
   );
+  // En modelo "por evento" este campo son las CANCHAS DISPONIBLES; en "mensual",
+  // los partidos por cancha-mes.
   const [perCourt, setPerCourt] = useState<number>(
-    Number(e.matches_per_court_month ?? 4)
+    Number(e.matches_per_court_month ?? (usesMonthly(typeFromLongFormat(e.long_format)) ? 4 : 2))
   );
   const [markup, setMarkup] = useState<number>(Number(e.markup_pct ?? 40));
   const [inscription, setInscription] = useState<number>(
@@ -875,10 +886,15 @@ function PlannerTab({ data }: { data: EventManagerData }) {
 
   const calc = useMemo(() => {
     const n = Math.max(0, Math.floor(teams));
-    const costPerMatch = perCourt > 0 ? courtCost / perCourt : 0;
     const matches = totalMatches(type, n);
     const players = n * 2;
-    const courtTotal = matches * costPerMatch;
+    // Mensual (liga): costo por partido = costo/mes ÷ partidos por cancha-mes.
+    // Por evento (un día/americano): costo total = canchas × costo por cancha.
+    const monthly = usesMonthly(type);
+    const courtTotal = monthly
+      ? matches * (perCourt > 0 ? courtCost / perCourt : 0)
+      : Math.max(0, perCourt) * courtCost;
+    const costPerMatch = matches > 0 ? courtTotal / matches : 0;
     const courtPerPlayer = players > 0 ? courtTotal / players : 0;
     // Si no se cobra la cancha: cuota cancha = 0, pozo = 0, paga = solo inscripción.
     const courtFeePerPlayer = chargeCourt
@@ -980,7 +996,13 @@ function PlannerTab({ data }: { data: EventManagerData }) {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={`Costo cancha / mes (${e.currency})`}>
+              <Field
+                label={
+                  usesMonthly(type)
+                    ? `Costo cancha / mes (${e.currency})`
+                    : `Costo por cancha (${e.currency})`
+                }
+              >
                 <input
                   type="number"
                   min={0}
@@ -990,7 +1012,13 @@ function PlannerTab({ data }: { data: EventManagerData }) {
                   className={inputCls}
                 />
               </Field>
-              <Field label="Partidos por cancha-mes">
+              <Field
+                label={
+                  usesMonthly(type)
+                    ? "Partidos por cancha-mes"
+                    : "Canchas disponibles"
+                }
+              >
                 <input
                   type="number"
                   min={0}
