@@ -14,52 +14,6 @@ function refresh() {
   revalidatePath("/admin/settings");
 }
 
-/* ---- Categories ---- */
-
-export async function createCategory(formData: FormData): Promise<ActionResult> {
-  const parsed = nameSchema.safeParse({ name: formData.get("name") });
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Inválido");
-  const { clubId } = await requireClubAccess();
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("categories")
-    .insert({ club_id: clubId, name: parsed.data.name.trim() });
-  if (error) return fail("No pudimos crear la categoría.");
-  refresh();
-  return { ok: true };
-}
-
-export async function renameCategory(
-  id: string,
-  formData: FormData
-): Promise<ActionResult> {
-  const parsed = nameSchema.safeParse({ name: formData.get("name") });
-  if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Inválido");
-  const { clubId } = await requireClubAccess();
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("categories")
-    .update({ name: parsed.data.name.trim() })
-    .eq("id", id)
-    .eq("club_id", clubId);
-  if (error) return fail("No pudimos actualizar la categoría.");
-  refresh();
-  return { ok: true };
-}
-
-export async function deleteCategory(id: string): Promise<ActionResult> {
-  const { clubId } = await requireClubAccess();
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("categories")
-    .delete()
-    .eq("id", id)
-    .eq("club_id", clubId);
-  if (error) return fail("No pudimos eliminar la categoría.");
-  refresh();
-  return { ok: true };
-}
-
 /* ---- Courts ---- */
 
 export async function createCourt(formData: FormData): Promise<ActionResult> {
@@ -105,6 +59,54 @@ export async function toggleCourtActive(
     .eq("id", id)
     .eq("club_id", clubId);
   if (error) return fail("No pudimos actualizar la cancha.");
+  refresh();
+  return { ok: true };
+}
+
+const numOrNull = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").trim();
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
+/** Guarda la configuración completa de una cancha. */
+export async function updateCourtConfig(
+  id: string,
+  formData: FormData
+): Promise<ActionResult> {
+  const name = String(formData.get("name") ?? "").trim();
+  if (name.length < 1) return fail("Ingresá un nombre de cancha.");
+
+  const enclosure = String(formData.get("enclosure_type") ?? "");
+  const surface = String(formData.get("surface") ?? "");
+  const openHour = numOrNull(formData.get("open_hour"));
+  const closeHour = numOrNull(formData.get("close_hour"));
+  const days = formData
+    .getAll("days")
+    .map((d) => Number(d))
+    .filter((n) => n >= 1 && n <= 7);
+
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("courts")
+    .update({
+      name,
+      number: numOrNull(formData.get("number")),
+      enclosure_type: enclosure === "" ? null : (enclosure as "blindex" | "muro" | "mixta"),
+      surface: surface === "" ? null : (surface as "cesped_sintetico" | "cemento" | "otro"),
+      covered: formData.get("covered") === "on",
+      lighting: formData.get("lighting") === "on",
+      panoramic: formData.get("panoramic") === "on",
+      rental_price_hour: numOrNull(formData.get("rental_price_hour")),
+      operating_days: days.length > 0 ? days : [1, 2, 3, 4, 5, 6, 7],
+      open_hour: openHour ?? 8,
+      close_hour: closeHour ?? 24,
+    })
+    .eq("id", id)
+    .eq("club_id", clubId);
+  if (error) return fail("No pudimos guardar la cancha.");
   refresh();
   return { ok: true };
 }

@@ -10,7 +10,9 @@ export default async function SettingsPage() {
 
   const { data: courts } = await supabase
     .from("courts")
-    .select("id, name, is_active")
+    .select(
+      "id, name, is_active, number, enclosure_type, surface, covered, lighting, panoramic, rental_price_hour, operating_days, open_hour, close_hour"
+    )
     .eq("club_id", ctx.activeClubId)
     .order("name", { ascending: true });
 

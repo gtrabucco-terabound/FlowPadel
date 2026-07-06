@@ -215,27 +215,57 @@ export type Database = {
       }
       courts: {
         Row: {
+          close_hour: number
           club_id: string
+          covered: boolean
           created_at: string
+          enclosure_type: string | null
           id: string
           is_active: boolean
+          lighting: boolean
           name: string
+          number: number | null
+          open_hour: number
+          operating_days: number[]
+          panoramic: boolean
+          rental_price_hour: number | null
+          surface: string | null
           updated_at: string
         }
         Insert: {
+          close_hour?: number
           club_id: string
+          covered?: boolean
           created_at?: string
+          enclosure_type?: string | null
           id?: string
           is_active?: boolean
+          lighting?: boolean
           name: string
+          number?: number | null
+          open_hour?: number
+          operating_days?: number[]
+          panoramic?: boolean
+          rental_price_hour?: number | null
+          surface?: string | null
           updated_at?: string
         }
         Update: {
+          close_hour?: number
           club_id?: string
+          covered?: boolean
           created_at?: string
+          enclosure_type?: string | null
           id?: string
           is_active?: boolean
+          lighting?: boolean
           name?: string
+          number?: number | null
+          open_hour?: number
+          operating_days?: number[]
+          panoramic?: boolean
+          rental_price_hour?: number | null
+          surface?: string | null
           updated_at?: string
         }
         Relationships: [
