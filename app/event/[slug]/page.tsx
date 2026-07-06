@@ -17,6 +17,47 @@ import {
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const supabase = await createClient();
+  const { data: ev } = await supabase
+    .from("events")
+    .select(
+      "name, description, modality, category_system, category_value, club:clubs!events_club_id_fkey(name, logo_url)"
+    )
+    .eq("slug", slug)
+    .eq("public_visible", true)
+    .maybeSingle();
+
+  if (!ev) return { title: "FlowPadel" };
+  const club = (ev as { club?: { name: string | null; logo_url: string | null } | null }).club;
+  const meta = formatModalityCategory(ev);
+  const title = `${ev.name}${club?.name ? " · " + club.name : ""} — FlowPadel`;
+  const description =
+    ev.description ||
+    `${meta ? meta + ". " : ""}Inscribite a este torneo en FlowPadel.`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website" as const,
+      images: club?.logo_url ? [{ url: club.logo_url }] : undefined,
+    },
+    twitter: {
+      card: "summary" as const,
+      title,
+      description,
+    },
+  };
+}
+
 export default async function EventDetailPage({
   params,
 }: {
