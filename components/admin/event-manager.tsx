@@ -228,11 +228,45 @@ function RegistrationsTab({ data }: { data: EventManagerData }) {
   const { run, pending, error } = useAction();
   const eventId = data.event.id;
 
+  const approved = data.registrations.filter((r) => r.status === "approved").length;
+  const waiting = data.registrations.filter((r) => r.status === "waitlist").length;
+  const pendingRegs = data.registrations.filter((r) => r.status === "pending").length;
+  const cupo = data.event.max_teams;
+  const full = cupo != null && approved >= cupo;
+
+  const summary = (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border-soft bg-surface px-4 py-3">
+      <span className="text-sm font-semibold text-ink">
+        Confirmadas: {approved}
+        {cupo != null ? ` / ${cupo}` : ""}
+      </span>
+      {full && <Badge tone="live">Cupo lleno</Badge>}
+      {pendingRegs > 0 && (
+        <span className="text-sm text-muted">· {pendingRegs} pendiente{pendingRegs === 1 ? "" : "s"}</span>
+      )}
+      {waiting > 0 && (
+        <span className="text-sm text-muted">· {waiting} en espera</span>
+      )}
+    </div>
+  );
+
   if (data.registrations.length === 0)
-    return <EmptyState text="Todavía no hay inscripciones." />;
+    return (
+      <div className="space-y-3">
+        {summary}
+        <EmptyState text="Todavía no hay inscripciones." />
+      </div>
+    );
 
   return (
     <div className="space-y-3">
+      {summary}
+      {full && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          El cupo está completo. Las inscripciones nuevas entran como “en espera”
+          — aprobalas si se libera un lugar o si querés sumar más parejas.
+        </p>
+      )}
       {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
       {data.registrations.map((r) => (
         <Card key={r.id}>

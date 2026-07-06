@@ -17,13 +17,23 @@ export default async function RegisterPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, event_type, status, start_date, end_date, public_visible, modality, category_system, category_value"
+      "id, name, slug, event_type, status, start_date, end_date, public_visible, modality, category_system, category_value, max_teams"
     )
     .eq("slug", slug)
     .eq("public_visible", true)
     .maybeSingle();
 
   if (!event) notFound();
+
+  // Cupo: si ya hay tantas inscripciones aprobadas como el máximo, avisamos que
+  // las nuevas quedan en lista de espera.
+  let cupoFull = false;
+  if (event.max_teams != null) {
+    const { data: approvedCount } = await supabase.rpc("event_approved_count", {
+      p_event_id: event.id,
+    });
+    cupoFull = (approvedCount ?? 0) >= event.max_teams;
+  }
 
   const { data: clubs } = await supabase
     .from("clubs")
@@ -85,6 +95,14 @@ export default async function RegisterPage({
       <p className="mb-6 text-sm text-muted">
         {formatDateRange(event.start_date, event.end_date)}
       </p>
+
+      {cupoFull && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>El cupo está completo.</strong> Podés anotarte igual en{" "}
+          <strong>lista de espera</strong> — si se libera un lugar o el club abre
+          más, te avisamos.
+        </div>
+      )}
 
       <RegistrationForm
         slug={event.slug}

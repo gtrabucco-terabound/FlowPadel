@@ -1432,6 +1432,7 @@ export type Database = {
           tournaments_count: number
         }[]
       }
+      event_approved_count: { Args: { p_event_id: string }; Returns: number }
       event_open_for_registration: {
         Args: { p_club_id: string; p_event_id: string }
         Returns: boolean
