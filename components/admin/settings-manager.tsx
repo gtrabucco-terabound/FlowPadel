@@ -23,7 +23,8 @@ type Court = Pick<
   | "covered"
   | "lighting"
   | "panoramic"
-  | "rental_price_hour"
+  | "price_per_slot"
+  | "slot_minutes"
   | "operating_days"
   | "open_hour"
   | "close_hour"
@@ -176,8 +177,8 @@ function CourtRow({ court }: { court: Court }) {
           : (court.operating_days ?? [])
               .map((d) => DAYS.find((x) => x.v === d)?.l)
               .join("")}
-        {court.rental_price_hour != null
-          ? ` · $${court.rental_price_hour}/h`
+        {court.price_per_slot != null
+          ? ` · $${court.price_per_slot}/turno de ${court.slot_minutes}min`
           : ""}
       </p>
     </div>
@@ -266,18 +267,33 @@ function CourtEditForm({
         </label>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-ink">Precio alquiler/hora</span>
+          <span className="text-xs font-medium text-ink">Duración del turno</span>
+          <select
+            name="slot_minutes"
+            defaultValue={String(court.slot_minutes ?? 90)}
+            className={inputCls}
+          >
+            <option value="60">60 min (1 h)</option>
+            <option value="90">90 min (1.5 h)</option>
+            <option value="120">120 min (2 h)</option>
+          </select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-ink">Precio por turno</span>
           <input
-            name="rental_price_hour"
+            name="price_per_slot"
             type="number"
             min={0}
             step="any"
-            defaultValue={court.rental_price_hour ?? ""}
+            defaultValue={court.price_per_slot ?? ""}
             className={inputCls}
           />
         </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1">
           <span className="text-xs font-medium text-ink">Abre (h)</span>
           <input name="open_hour" type="number" min={0} max={24} defaultValue={court.open_hour} className={inputCls} />

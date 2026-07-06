@@ -228,7 +228,8 @@ export type Database = {
           open_hour: number
           operating_days: number[]
           panoramic: boolean
-          rental_price_hour: number | null
+          price_per_slot: number | null
+          slot_minutes: number
           surface: string | null
           updated_at: string
         }
@@ -246,7 +247,8 @@ export type Database = {
           open_hour?: number
           operating_days?: number[]
           panoramic?: boolean
-          rental_price_hour?: number | null
+          price_per_slot?: number | null
+          slot_minutes?: number
           surface?: string | null
           updated_at?: string
         }
@@ -264,7 +266,8 @@ export type Database = {
           open_hour?: number
           operating_days?: number[]
           panoramic?: boolean
-          rental_price_hour?: number | null
+          price_per_slot?: number | null
+          slot_minutes?: number
           surface?: string | null
           updated_at?: string
         }
