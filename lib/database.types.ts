@@ -174,6 +174,38 @@ export type Database = {
           },
         ]
       }
+      club_payment_settings: {
+        Row: {
+          club_id: string
+          mp_access_token: string | null
+          mp_connected: boolean | null
+          mp_public_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          club_id: string
+          mp_access_token?: string | null
+          mp_connected?: boolean | null
+          mp_public_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          club_id?: string
+          mp_access_token?: string | null
+          mp_connected?: boolean | null
+          mp_public_key?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_payment_settings_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: true
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clubs: {
         Row: {
           address: string | null
@@ -351,6 +383,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency: string
+          deposit_type: string
+          deposit_value: number
           description: string | null
           end_date: string | null
           event_type: Database["public"]["Enums"]["event_type"]
@@ -388,6 +422,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          deposit_type?: string
+          deposit_value?: number
           description?: string | null
           end_date?: string | null
           event_type: Database["public"]["Enums"]["event_type"]
@@ -425,6 +461,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency?: string
+          deposit_type?: string
+          deposit_value?: number
           description?: string | null
           end_date?: string | null
           event_type?: Database["public"]["Enums"]["event_type"]

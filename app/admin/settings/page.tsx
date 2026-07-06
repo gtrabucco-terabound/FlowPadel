@@ -8,7 +8,10 @@ export default async function SettingsPage() {
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const [{ data: courts }, { data: club }] = await Promise.all([
+  const canEditClub =
+    ctx.activeMembership.role === "club_admin" || ctx.superadmin;
+
+  const [{ data: courts }, { data: club }, paymentsRes] = await Promise.all([
     supabase
       .from("courts")
       .select(
@@ -23,7 +26,17 @@ export default async function SettingsPage() {
       )
       .eq("id", ctx.activeClubId)
       .maybeSingle(),
+    canEditClub
+      ? supabase
+          .from("club_payment_settings")
+          .select("mp_connected")
+          .eq("club_id", ctx.activeClubId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  const mpConnected = Boolean(
+    (paymentsRes.data as { mp_connected: boolean } | null)?.mp_connected
+  );
 
   return (
     <div className="space-y-6">
@@ -34,7 +47,8 @@ export default async function SettingsPage() {
       <SettingsManager
         courts={courts ?? []}
         club={club ?? null}
-        canEditClub={ctx.activeMembership.role === "club_admin" || ctx.superadmin}
+        canEditClub={canEditClub}
+        mpConnected={mpConnected}
       />
     </div>
   );

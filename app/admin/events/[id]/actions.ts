@@ -672,6 +672,9 @@ const economicsSchema = z.object({
   inscription_per_person: z.coerce.number().min(0).max(100_000_000),
   // Cantidad de equipos del Planificador (para calcular cuota de cancha/persona).
   teams: z.coerce.number().int().min(0).max(10_000),
+  // Cobro online (Mercado Pago): qué se cobra online al inscribirse.
+  deposit_type: z.enum(["none", "fixed", "percent", "full"]).default("none"),
+  deposit_value: z.coerce.number().min(0).max(100_000_000).default(0),
 });
 
 /**
@@ -721,6 +724,8 @@ export async function saveEventEconomics(
     markup_pct: formData.get("markup_pct") ?? 0,
     inscription_per_person: formData.get("inscription_per_person") ?? 0,
     teams: formData.get("teams") ?? 0,
+    deposit_type: formData.get("deposit_type") ?? "none",
+    deposit_value: formData.get("deposit_value") ?? 0,
   });
   if (!parsed.success) return fail("Datos inválidos.");
 
@@ -767,6 +772,8 @@ export async function saveEventEconomics(
       inscription_per_person: parsed.data.inscription_per_person,
       court_fee_per_person: courtFeePerPerson,
       court_pool_per_person: courtPoolPerPerson,
+      deposit_type: parsed.data.deposit_type,
+      deposit_value: parsed.data.deposit_value,
     })
     .eq("id", eventId);
   if (error) return fail("No pudimos guardar la configuración.");

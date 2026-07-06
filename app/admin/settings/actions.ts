@@ -46,6 +46,46 @@ export async function updateClub(formData: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
+/* ---- Mercado Pago (config de cobro del club) ---- */
+
+/** Guarda el Access Token de MP del club. Si el campo va vacío, no lo pisa. */
+export async function updateClubPayments(formData: FormData): Promise<ActionResult> {
+  const token = String(formData.get("mp_access_token") ?? "").trim();
+  const publicKey = String(formData.get("mp_public_key") ?? "").trim();
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+
+  // Upsert; sólo actualiza el token si vino algo (para no borrarlo sin querer).
+  const payload: {
+    club_id: string;
+    mp_access_token?: string;
+    mp_public_key?: string | null;
+    updated_at: string;
+  } = { club_id: clubId, updated_at: new Date().toISOString() };
+  if (token) payload.mp_access_token = token;
+  if (publicKey || formData.has("mp_public_key")) payload.mp_public_key = publicKey || null;
+
+  const { error } = await supabase
+    .from("club_payment_settings")
+    .upsert(payload, { onConflict: "club_id" });
+  if (error) return fail("No pudimos guardar la configuración de pagos.");
+  refresh();
+  return { ok: true };
+}
+
+/** Desconecta MP (borra el token). */
+export async function disconnectClubPayments(): Promise<ActionResult> {
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("club_payment_settings")
+    .update({ mp_access_token: null, mp_public_key: null, updated_at: new Date().toISOString() })
+    .eq("club_id", clubId);
+  if (error) return fail("No pudimos desconectar.");
+  refresh();
+  return { ok: true };
+}
+
 /* ---- Courts ---- */
 
 export async function createCourt(formData: FormData): Promise<ActionResult> {

@@ -12,6 +12,8 @@ import {
   toggleCourtActive,
   updateCourtConfig,
   updateClub,
+  updateClubPayments,
+  disconnectClubPayments,
 } from "@/app/admin/settings/actions";
 import type { Tables } from "@/lib/database.types";
 
@@ -88,16 +90,92 @@ export function SettingsManager({
   courts,
   club,
   canEditClub,
+  mpConnected,
 }: {
   courts: Court[];
   club: Club | null;
   canEditClub: boolean;
+  mpConnected: boolean;
 }) {
   return (
     <div className="max-w-2xl space-y-6">
       {club && canEditClub && <ClubInfoCard club={club} />}
+      {canEditClub && <PaymentsCard connected={mpConnected} />}
       <CourtsCard courts={courts} />
     </div>
+  );
+}
+
+function PaymentsCard({ connected }: { connected: boolean }) {
+  const { run, pending, error } = useAction();
+  const formRef = useRef<HTMLFormElement>(null);
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 py-5">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-ink">Cobros — Mercado Pago</h2>
+            <p className="text-sm text-muted">
+              Conectá tu cuenta para cobrar la seña/inscripción online. La plata
+              va directo a tu Mercado Pago.
+            </p>
+          </div>
+          <Badge tone={connected ? "open" : "neutral"}>
+            {connected ? "Conectado" : "Sin conectar"}
+          </Badge>
+        </div>
+
+        <div className="rounded-xl border border-border-soft bg-surface p-3 text-xs text-muted">
+          <p className="mb-1 font-semibold text-ink">Cómo obtener tu Access Token:</p>
+          1. Entrá a <span className="text-padel-600">mercadopago.com.ar/developers</span> con tu cuenta.<br />
+          2. Creá una aplicación (o usá una existente).<br />
+          3. Copiá el <b>Access Token</b> de producción y pegalo acá.
+        </div>
+
+        <form
+          ref={formRef}
+          action={(fd) =>
+            run(async () => {
+              const r = await updateClubPayments(fd);
+              if (r.ok) formRef.current?.reset();
+              return r;
+            })
+          }
+          className="space-y-3"
+        >
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-ink">
+              Access Token de Mercado Pago
+            </span>
+            <input
+              name="mp_access_token"
+              type="password"
+              autoComplete="off"
+              placeholder={connected ? "•••••••• (guardado) — pegá uno nuevo para cambiarlo" : "APP_USR-..."}
+              className={inputCls}
+            />
+          </label>
+          {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+          <div className="flex items-center gap-2">
+            <Button type="submit" size="sm" disabled={pending}>
+              {pending ? "Guardando…" : connected ? "Actualizar token" : "Conectar"}
+            </Button>
+            {connected && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={pending}
+                onClick={() => run(() => disconnectClubPayments())}
+              >
+                Desconectar
+              </Button>
+            )}
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

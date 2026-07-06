@@ -918,6 +918,12 @@ function PlannerTab({ data }: { data: EventManagerData }) {
   const [inscription, setInscription] = useState<number>(
     Number(e.inscription_per_person ?? 0)
   );
+  const [depositType, setDepositType] = useState<string>(
+    e.deposit_type ?? "none"
+  );
+  const [depositValue, setDepositValue] = useState<number>(
+    Number(e.deposit_value ?? 0)
+  );
 
   const calc = useMemo(() => {
     const n = Math.max(0, Math.floor(teams));
@@ -1002,6 +1008,8 @@ function PlannerTab({ data }: { data: EventManagerData }) {
               value={inscription}
             />
             <input type="hidden" name="teams" value={teams} />
+            <input type="hidden" name="deposit_type" value={depositType} />
+            <input type="hidden" name="deposit_value" value={depositValue} />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Tipo de torneo">
@@ -1110,6 +1118,47 @@ function PlannerTab({ data }: { data: EventManagerData }) {
                 El formato americano usa liga (ida) como base — valor estimado.
               </p>
             )}
+
+            <div className="space-y-2 rounded-lg border border-border-soft p-3">
+              <p className="text-sm font-semibold text-ink">
+                Cobro online (Mercado Pago)
+              </p>
+              <p className="text-xs text-muted">
+                Qué se cobra al inscribirse. El resto queda pendiente para cobrar
+                en el club o el día del evento (con su link de pago).
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Qué se cobra online">
+                  <select
+                    value={depositType}
+                    onChange={(ev) => setDepositType(ev.target.value)}
+                    className={inputCls}
+                  >
+                    <option value="none">Nada (solo presencial)</option>
+                    <option value="fixed">Seña fija</option>
+                    <option value="percent">Seña (% de la inscripción)</option>
+                    <option value="full">Inscripción completa</option>
+                  </select>
+                </Field>
+                {(depositType === "fixed" || depositType === "percent") && (
+                  <Field
+                    label={
+                      depositType === "fixed"
+                        ? `Monto de la seña (${e.currency})`
+                        : "% de la inscripción"
+                    }
+                  >
+                    <input
+                      type="number"
+                      min={0}
+                      value={depositValue}
+                      onChange={(ev) => setDepositValue(Number(ev.target.value))}
+                      className={inputCls}
+                    />
+                  </Field>
+                )}
+              </div>
+            </div>
 
             {error && (
               <p className="text-sm font-semibold text-red-600">{error}</p>
