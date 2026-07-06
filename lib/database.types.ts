@@ -354,6 +354,7 @@ export type Database = {
           description: string | null
           end_date: string | null
           event_type: Database["public"]["Enums"]["event_type"]
+          flyer_image_url: string | null
           id: string
           inscription_per_person: number
           is_interclub: boolean
@@ -390,6 +391,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           event_type: Database["public"]["Enums"]["event_type"]
+          flyer_image_url?: string | null
           id?: string
           inscription_per_person?: number
           is_interclub?: boolean
@@ -426,6 +428,7 @@ export type Database = {
           description?: string | null
           end_date?: string | null
           event_type?: Database["public"]["Enums"]["event_type"]
+          flyer_image_url?: string | null
           id?: string
           inscription_per_person?: number
           is_interclub?: boolean

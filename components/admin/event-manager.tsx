@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { Tabs } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -1624,6 +1625,29 @@ function SettingsTab({ data }: { data: EventManagerData }) {
     Enums<"category_system">
   >(e.category_system ?? "fixed");
   const [interclub, setInterclub] = useState<boolean>(e.is_interclub ?? false);
+  const [flyerUrl, setFlyerUrl] = useState<string | null>(e.flyer_image_url);
+  const [flyerUploading, setFlyerUploading] = useState(false);
+  const flyerRef = useRef<HTMLInputElement>(null);
+
+  async function onPickFlyer(ev: React.ChangeEvent<HTMLInputElement>) {
+    const file = ev.target.files?.[0];
+    if (!file) return;
+    setFlyerUploading(true);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${e.id}/flyer-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("event-flyers")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (!upErr) {
+        const { data: pub } = supabase.storage.from("event-flyers").getPublicUrl(path);
+        setFlyerUrl(pub.publicUrl);
+      }
+    } finally {
+      setFlyerUploading(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -1739,6 +1763,47 @@ function SettingsTab({ data }: { data: EventManagerData }) {
                 className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
               />
             </Field>
+
+            <div className="space-y-2 rounded-lg border border-border-soft p-3">
+              <p className="text-sm font-semibold text-ink">
+                Imagen del flyer (fondo)
+              </p>
+              <p className="text-xs text-muted">
+                Subí una foto (cancha, tu gente…). La app arma el flyer con la
+                marca + los datos del torneo. Se usa como preview al compartir.
+              </p>
+              <input type="hidden" name="flyer_image_url" value={flyerUrl ?? ""} />
+              <input
+                ref={flyerRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPickFlyer}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={flyerUploading}
+                  onClick={() => flyerRef.current?.click()}
+                >
+                  {flyerUploading
+                    ? "Subiendo…"
+                    : flyerUrl
+                      ? "Cambiar imagen"
+                      : "Subir imagen"}
+                </Button>
+                <a
+                  href={`/event/${e.slug}/opengraph-image`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-padel-600"
+                >
+                  Ver flyer generado →
+                </a>
+              </div>
+            </div>
 
             <div className="space-y-3 rounded-lg border border-border-soft p-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-ink">

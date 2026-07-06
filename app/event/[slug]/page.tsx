@@ -48,10 +48,10 @@ export async function generateMetadata({
       title,
       description,
       type: "website" as const,
-      images: club?.logo_url ? [{ url: club.logo_url }] : undefined,
+      // La imagen la genera app/event/[slug]/opengraph-image.tsx (flyer).
     },
     twitter: {
-      card: "summary" as const,
+      card: "summary_large_image" as const,
       title,
       description,
     },
