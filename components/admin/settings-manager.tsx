@@ -2,15 +2,32 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
 import {
   createCourt,
   toggleCourtActive,
   updateCourtConfig,
+  updateClub,
 } from "@/app/admin/settings/actions";
 import type { Tables } from "@/lib/database.types";
+
+type Club = Pick<
+  Tables<"clubs">,
+  | "id"
+  | "name"
+  | "city"
+  | "address"
+  | "phone"
+  | "contact_email"
+  | "description"
+  | "instagram"
+  | "website"
+  | "logo_url"
+>;
 
 type Court = Pick<
   Tables<"courts">,
@@ -67,11 +84,151 @@ function useAction() {
   return { run, pending, error };
 }
 
-export function SettingsManager({ courts }: { courts: Court[] }) {
+export function SettingsManager({
+  courts,
+  club,
+  canEditClub,
+}: {
+  courts: Court[];
+  club: Club | null;
+  canEditClub: boolean;
+}) {
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl space-y-6">
+      {club && canEditClub && <ClubInfoCard club={club} />}
       <CourtsCard courts={courts} />
     </div>
+  );
+}
+
+function ClubInfoCard({ club }: { club: Club }) {
+  const { run, pending, error } = useAction();
+  const [logo, setLogo] = useState<string | null>(club.logo_url);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onPickLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${club.id}/logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("club-logos")
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (!upErr) {
+        const { data } = supabase.storage.from("club-logos").getPublicUrl(path);
+        setLogo(data.publicUrl);
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 py-5">
+        <div>
+          <h2 className="text-lg font-bold text-ink">Datos del club</h2>
+          <p className="text-sm text-muted">
+            Información y contacto de tu club. Se muestra a los jugadores.
+          </p>
+        </div>
+
+        <form
+          action={(fd) => run(() => updateClub(fd))}
+          className="space-y-3"
+        >
+          <div className="flex items-center gap-4">
+            <div className="relative h-16 w-16 overflow-hidden rounded-xl border border-border-strong bg-surface">
+              {logo ? (
+                <Image src={logo} alt="Logo" fill sizes="64px" className="object-cover" />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xl text-faint">
+                  🏆
+                </div>
+              )}
+            </div>
+            <div>
+              <input type="hidden" name="logo_url" value={logo ?? ""} />
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onPickLogo}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? "Subiendo…" : logo ? "Cambiar logo" : "Subir logo"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Nombre</span>
+              <input name="name" defaultValue={club.name} required className={inputCls} />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Ciudad</span>
+              <input name="city" defaultValue={club.city ?? ""} className={inputCls} />
+            </label>
+          </div>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-ink">Dirección</span>
+            <input name="address" defaultValue={club.address ?? ""} className={inputCls} />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Teléfono</span>
+              <input name="phone" type="tel" inputMode="numeric" defaultValue={club.phone ?? ""} className={inputCls} />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Email de contacto</span>
+              <input name="contact_email" type="email" defaultValue={club.contact_email ?? ""} className={inputCls} />
+            </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Instagram</span>
+              <input name="instagram" placeholder="@tuclub" defaultValue={club.instagram ?? ""} className={inputCls} />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Sitio web</span>
+              <input name="website" placeholder="https://…" defaultValue={club.website ?? ""} className={inputCls} />
+            </label>
+          </div>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-ink">Descripción</span>
+            <textarea
+              name="description"
+              rows={3}
+              defaultValue={club.description ?? ""}
+              placeholder="Contá algo de tu club…"
+              className={`${inputCls} resize-none`}
+            />
+          </label>
+
+          {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+
+          <Button type="submit" size="sm" disabled={pending || uploading}>
+            {pending ? "Guardando…" : "Guardar datos del club"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 

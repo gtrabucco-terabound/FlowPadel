@@ -14,6 +14,38 @@ function refresh() {
   revalidatePath("/admin/settings");
 }
 
+/* ---- Datos del club ---- */
+
+const txt = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").trim();
+  return s === "" ? null : s;
+};
+
+/** Actualiza los datos del club activo (solo admin del club / superadmin, vía RLS). */
+export async function updateClub(formData: FormData): Promise<ActionResult> {
+  const name = String(formData.get("name") ?? "").trim();
+  if (name.length < 2) return fail("Ingresá el nombre del club.");
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("clubs")
+    .update({
+      name,
+      city: txt(formData.get("city")),
+      address: txt(formData.get("address")),
+      phone: txt(formData.get("phone")),
+      contact_email: txt(formData.get("contact_email")),
+      description: txt(formData.get("description")),
+      instagram: txt(formData.get("instagram")),
+      website: txt(formData.get("website")),
+      logo_url: txt(formData.get("logo_url")),
+    })
+    .eq("id", clubId);
+  if (error) return fail("No pudimos guardar los datos del club.");
+  refresh();
+  return { ok: true };
+}
+
 /* ---- Courts ---- */
 
 export async function createCourt(formData: FormData): Promise<ActionResult> {
