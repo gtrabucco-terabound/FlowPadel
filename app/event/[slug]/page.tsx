@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, description, event_type, status, start_date, end_date, public_visible, long_format, modality, category_system, category_value, is_interclub, rival_club_id, rival_accepted, club:clubs!events_club_id_fkey(name)"
+      "id, name, slug, description, event_type, status, start_date, end_date, public_visible, long_format, modality, category_system, category_value, is_interclub, rival_club_id, rival_accepted, club:clubs!events_club_id_fkey(name, logo_url, city, address, phone, contact_email, instagram, website, description)"
     )
     .eq("slug", slug)
     .eq("public_visible", true)
@@ -100,7 +101,21 @@ export default async function EventDetailPage({
   }
 
   const status = eventStatusMeta(event.status);
-  const club = (event as { club?: { name: string | null } | null }).club;
+  const club = (
+    event as {
+      club?: {
+        name: string | null;
+        logo_url: string | null;
+        city: string | null;
+        address: string | null;
+        phone: string | null;
+        contact_email: string | null;
+        instagram: string | null;
+        website: string | null;
+        description: string | null;
+      } | null;
+    }
+  ).club;
 
   // Interclub: resolver el nombre del club rival para la cabecera.
   let rivalClubName: string | null = null;
@@ -171,6 +186,76 @@ export default async function EventDetailPage({
         <Link href={`/register/${event.slug}`} className="mt-4 inline-block">
           <Button>Inscribirme</Button>
         </Link>
+      )}
+
+      {club && (
+        <div className="mt-6 rounded-2xl border border-border-soft bg-surface p-4">
+          <div className="flex items-start gap-3">
+            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-border-soft bg-canvas">
+              {club.logo_url ? (
+                <Image
+                  src={club.logo_url}
+                  alt={club.name ?? "Club"}
+                  fill
+                  sizes="48px"
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-lg text-faint">
+                  🏆
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-ink">{club.name}</p>
+              {(club.address || club.city) && (
+                <p className="text-sm text-muted">
+                  {[club.address, club.city].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              {club.description && (
+                <p className="mt-1 text-sm text-muted">{club.description}</p>
+              )}
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                {club.phone && (
+                  <a
+                    href={`https://wa.me/${club.phone.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-padel-600"
+                  >
+                    📱 {club.phone}
+                  </a>
+                )}
+                {club.contact_email && (
+                  <a href={`mailto:${club.contact_email}`} className="font-medium text-padel-600">
+                    ✉️ {club.contact_email}
+                  </a>
+                )}
+                {club.instagram && (
+                  <a
+                    href={`https://instagram.com/${club.instagram.replace(/^@/, "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-padel-600"
+                  >
+                    📷 {club.instagram}
+                  </a>
+                )}
+                {club.website && (
+                  <a
+                    href={club.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-padel-600"
+                  >
+                    🌐 Sitio web
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="mt-8">
