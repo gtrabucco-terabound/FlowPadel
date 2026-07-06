@@ -69,7 +69,7 @@ export default async function EventDetailPage({
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, name, slug, description, event_type, status, start_date, end_date, public_visible, long_format, modality, category_system, category_value, is_interclub, rival_club_id, rival_accepted, club:clubs!events_club_id_fkey(name, logo_url, city, address, phone, contact_email, instagram, website, description)"
+      "id, name, slug, description, event_type, status, start_date, end_date, public_visible, long_format, modality, category_system, category_value, venue, is_interclub, rival_club_id, rival_accepted, club:clubs!events_club_id_fkey(name, logo_url, city, address, phone, contact_email, instagram, website, description)"
     )
     .eq("slug", slug)
     .eq("public_visible", true)
@@ -219,6 +219,9 @@ export default async function EventDetailPage({
         {formatDateRange(event.start_date, event.end_date)}
         {club?.name ? ` · ${club.name}` : ""}
       </p>
+      {event.venue && (
+        <p className="mt-1 text-sm font-medium text-ink">📍 {event.venue}</p>
+      )}
       {event.description && (
         <p className="mt-3 text-muted">{event.description}</p>
       )}

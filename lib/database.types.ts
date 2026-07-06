@@ -371,6 +371,7 @@ export type Database = {
           start_date: string | null
           status: Database["public"]["Enums"]["event_status"]
           updated_at: string
+          venue: string | null
         }
         Insert: {
           category_id?: string | null
@@ -406,6 +407,7 @@ export type Database = {
           start_date?: string | null
           status?: Database["public"]["Enums"]["event_status"]
           updated_at?: string
+          venue?: string | null
         }
         Update: {
           category_id?: string | null
@@ -441,6 +443,7 @@ export type Database = {
           start_date?: string | null
           status?: Database["public"]["Enums"]["event_status"]
           updated_at?: string
+          venue?: string | null
         }
         Relationships: [
           {

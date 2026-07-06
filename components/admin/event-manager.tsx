@@ -1731,6 +1731,15 @@ function SettingsTab({ data }: { data: EventManagerData }) {
               )}
             </Field>
 
+            <Field label="Sede / dónde se juega">
+              <input
+                name="venue"
+                defaultValue={e.venue ?? ""}
+                placeholder="Ej. La Cantera Padel Club (opcional)"
+                className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+              />
+            </Field>
+
             <div className="space-y-3 rounded-lg border border-border-soft p-3">
               <label className="flex items-center gap-2 text-sm font-semibold text-ink">
                 <input

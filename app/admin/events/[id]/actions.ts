@@ -585,6 +585,7 @@ const settingsSchema = z.object({
     .nullable(),
   category_system: z.enum(["fixed", "suma"]).nullable(),
   category_value: z.string().max(40).nullable(),
+  venue: z.string().max(200).nullable(),
   is_interclub: z.boolean(),
   rival_club_id: z.string().min(1).nullable(),
 });
@@ -613,6 +614,7 @@ export async function updateEventSettings(
       rawCatValue && String(rawCatValue).trim()
         ? String(rawCatValue).trim()
         : null,
+    venue: formData.get("venue")?.toString().trim() || null,
     is_interclub: isInterclub,
     rival_club_id: isInterclub && rawRival ? String(rawRival) : null,
   });
@@ -633,6 +635,7 @@ export async function updateEventSettings(
       modality: parsed.data.modality,
       category_system: parsed.data.category_system,
       category_value: parsed.data.category_value,
+      venue: parsed.data.venue,
       is_interclub: parsed.data.is_interclub,
       rival_club_id: parsed.data.rival_club_id,
     })
