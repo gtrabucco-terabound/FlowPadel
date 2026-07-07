@@ -9,8 +9,30 @@ import {
 } from "./schema";
 
 export type RegistrationResult =
-  | { ok: true; claimCode?: string }
+  | { ok: true; claimCode?: string; registrationId?: string; onlinePayment?: boolean }
   | { ok: false; error: string };
+
+/** Genera un link de pago (Checkout Pro) para una inscripción pública. */
+export async function createRegistrationPaymentLink(
+  registrationId: string
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!base || !anon) return { ok: false, error: "Config incompleta." };
+  try {
+    const res = await fetch(`${base}/functions/v1/mp-create-preference`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ registration_id: registrationId, kind: "deposit" }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.checkout_url)
+      return { ok: false, error: data.error ?? "No se pudo generar el pago." };
+    return { ok: true, url: data.checkout_url as string };
+  } catch {
+    return { ok: false, error: "No pudimos conectar con Mercado Pago." };
+  }
+}
 
 const CLAIM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -37,7 +59,7 @@ export async function submitRegistration(
   const { data: event, error: eventErr } = await supabase
     .from("events")
     .select(
-      "id, club_id, event_type, status, public_visible, modality, category_system, category_value"
+      "id, club_id, event_type, status, public_visible, modality, category_system, category_value, deposit_type"
     )
     .eq("slug", data.slug)
     .eq("public_visible", true)
@@ -113,28 +135,38 @@ export async function submitRegistration(
     }
   }
 
-  const { error: insertErr } = await supabase.from("registrations").insert({
-    club_id: event.club_id,
-    event_id: event.id,
-    status: "pending",
-    player_1_name: data.player_1_name.trim(),
-    player_1_phone: data.player_1_phone.trim(),
-    player_1_gender: data.player_1_gender,
-    player_1_category: data.player_1_category,
-    player_2_name: data.player_2_name?.trim() || null,
-    player_2_phone: data.player_2_phone?.trim() || null,
-    player_2_gender: data.player_2_gender ?? null,
-    player_2_category: data.player_2_category ?? null,
-    modality: storedModality,
-    partner_claim_code: claimCode,
-  });
+  const { data: inserted, error: insertErr } = await supabase
+    .from("registrations")
+    .insert({
+      club_id: event.club_id,
+      event_id: event.id,
+      status: "pending",
+      player_1_name: data.player_1_name.trim(),
+      player_1_phone: data.player_1_phone.trim(),
+      player_1_gender: data.player_1_gender,
+      player_1_category: data.player_1_category,
+      player_2_name: data.player_2_name?.trim() || null,
+      player_2_phone: data.player_2_phone?.trim() || null,
+      player_2_gender: data.player_2_gender ?? null,
+      player_2_category: data.player_2_category ?? null,
+      modality: storedModality,
+      partner_claim_code: claimCode,
+    })
+    .select("id")
+    .single();
 
-  if (insertErr) {
+  if (insertErr || !inserted) {
     return {
       ok: false,
       error: "No pudimos registrar tu inscripción. Intentá de nuevo.",
     };
   }
 
-  return claimCode ? { ok: true, claimCode } : { ok: true };
+  const onlinePayment = (event.deposit_type ?? "none") !== "none";
+  return {
+    ok: true,
+    claimCode: claimCode ?? undefined,
+    registrationId: inserted.id,
+    onlinePayment,
+  };
 }

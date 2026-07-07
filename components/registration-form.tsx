@@ -6,7 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { submitRegistration } from "@/app/register/[slug]/actions";
+import {
+  submitRegistration,
+  createRegistrationPaymentLink,
+} from "@/app/register/[slug]/actions";
 import {
   registrationSchema,
   accountSchema,
@@ -49,6 +52,9 @@ export function RegistrationForm({
   } | null;
 }) {
   const [success, setSuccess] = useState(false);
+  const [regId, setRegId] = useState<string | null>(null);
+  const [online, setOnline] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [claimCode, setClaimCode] = useState<string | null>(null);
   const [partnerPhone, setPartnerPhone] = useState<string>("");
   const [copied, setCopied] = useState(false);
@@ -163,10 +169,22 @@ export function RegistrationForm({
     const res = await submitRegistration({ ...values, slug });
     if (res.ok) {
       setClaimCode(res.claimCode ?? null);
+      setRegId(res.registrationId ?? null);
+      setOnline(!!res.onlinePayment);
       setPartnerPhone(values.player_2_phone ?? "");
       setSuccess(true);
     } else setServerError(res.error);
   };
+
+  async function payNow() {
+    if (!regId) return;
+    setPaying(true);
+    setServerError(null);
+    const r = await createRegistrationPaymentLink(regId);
+    setPaying(false);
+    if (r.ok) window.location.href = r.url;
+    else setServerError(r.error);
+  }
 
   const claimLink =
     claimCode && typeof window !== "undefined"
@@ -211,6 +229,25 @@ export function RegistrationForm({
             Tu inscripción a <strong>{eventName}</strong> quedó pendiente de
             aprobación. El club te contactará para confirmar.
           </p>
+
+          {online && (
+            <div className="mt-4 space-y-1">
+              <Button
+                type="button"
+                onClick={payNow}
+                disabled={paying}
+                className="w-full"
+              >
+                {paying ? "Redirigiendo…" : "Pagar la seña ahora"}
+              </Button>
+              <p className="text-xs text-muted">
+                Asegurá tu lugar pagando online con Mercado Pago.
+              </p>
+              {serverError && (
+                <p className="text-xs text-red-600">{serverError}</p>
+              )}
+            </div>
+          )}
 
           {isTournament && claimCode && (
             <div className="mt-6 space-y-3 rounded-xl border border-black/5 bg-padel-50 p-4 text-left">
