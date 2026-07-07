@@ -3,6 +3,7 @@ import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/server";
+import { logoutAction } from "@/app/(auth)/actions";
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -95,9 +96,16 @@ export async function SiteHeader() {
           )}
 
           {user ? (
-            <Link href="/perfil">
-              <Button size="sm">Mi perfil</Button>
-            </Link>
+            <>
+              <Link href="/perfil">
+                <Button size="sm">Mi perfil</Button>
+              </Link>
+              <form action={logoutAction}>
+                <Button type="submit" variant="ghost" size="sm">
+                  Salir
+                </Button>
+              </form>
+            </>
           ) : (
             <Link href="/login">
               <Button size="sm">Ingresar</Button>
