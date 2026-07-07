@@ -953,6 +953,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           profile_id: string | null
+          receive_offers: boolean
           telegram_chat_id: string | null
           updated_at: string
         }
@@ -980,6 +981,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           profile_id?: string | null
+          receive_offers?: boolean
           telegram_chat_id?: string | null
           updated_at?: string
         }
@@ -1007,6 +1009,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           profile_id?: string | null
+          receive_offers?: boolean
           telegram_chat_id?: string | null
           updated_at?: string
         }

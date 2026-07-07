@@ -19,16 +19,17 @@ export default async function PlayersPage({
   let query = supabase
     .from("players")
     .select(
-      "id, full_name, email, phone, elo_rating, matches_played, matches_won, home_club_id"
+      "id, full_name, email, phone, elo_rating, matches_played, matches_won, home_club_id, club:clubs(name)"
     )
     .order("elo_rating", { ascending: false })
-    .limit(100);
+    .limit(200);
 
-  // Players of this club plus globals (no home club). RLS still applies.
+  // Directorio global: mostramos TODOS los jugadores (potencial del mercado),
+  // con el club que representan al lado. RLS sigue aplicando.
   if (term) query = query.ilike("full_name", `%${term}%`);
 
   const { data } = await query;
-  const all = (data ?? []) as Pick<
+  const players = (data ?? []) as (Pick<
     Tables<"players">,
     | "id"
     | "full_name"
@@ -38,10 +39,7 @@ export default async function PlayersPage({
     | "matches_played"
     | "matches_won"
     | "home_club_id"
-  >[];
-  const players = all.filter(
-    (p) => p.home_club_id === ctx.activeClubId || p.home_club_id === null
-  );
+  > & { club: { name: string } | null })[];
 
   return (
     <div className="space-y-6">
@@ -71,9 +69,9 @@ export default async function PlayersPage({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold text-ink">
                     {p.full_name}
-                    {p.home_club_id === null && (
-                      <span className="ml-2 text-xs font-normal text-muted">
-                        global
+                    {p.club?.name && (
+                      <span className="ml-2 text-xs font-normal text-padel-600">
+                        {p.club.name}
                       </span>
                     )}
                   </p>

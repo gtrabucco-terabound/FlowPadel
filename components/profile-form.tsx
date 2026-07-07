@@ -32,6 +32,7 @@ export interface ProfileFormProps {
   notifyEmail: boolean;
   notifyTelegram: boolean;
   notifyWhatsapp: boolean;
+  receiveOffers: boolean;
   clubs: { id: string; name: string }[];
 }
 
@@ -68,6 +69,7 @@ export function ProfileForm({
   notifyEmail,
   notifyTelegram,
   notifyWhatsapp,
+  receiveOffers,
   clubs,
 }: ProfileFormProps) {
   const [state, formAction, pending] = useActionState<ProfileState, FormData>(
@@ -359,6 +361,22 @@ export function ProfileForm({
           <p className="mt-2 text-xs text-faint">
             Telegram y WhatsApp se activan cuando los conectes; mientras tanto
             recibís los avisos en la app y por email.
+          </p>
+        </div>
+
+        <div className="mt-3 border-t border-border-soft pt-3">
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="receive_offers"
+              defaultChecked={receiveOffers}
+              className="h-4 w-4 accent-accent"
+            />
+            Recibir ofertas y canchas disponibles de otros clubes 🎾
+          </label>
+          <p className="mt-1 text-xs text-faint">
+            Te llegan promos y turnos libres de clubes cerca tuyo, más allá del
+            club que representás.
           </p>
         </div>
       </fieldset>

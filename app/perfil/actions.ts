@@ -50,6 +50,7 @@ const profileSchema = z.object({
   notify_email: z.boolean(),
   notify_telegram: z.boolean(),
   notify_whatsapp: z.boolean(),
+  receive_offers: z.boolean(),
 });
 
 /**
@@ -85,6 +86,7 @@ export async function updateMyPlayerProfile(
     notify_email: formData.get("notify_email") === "on",
     notify_telegram: formData.get("notify_telegram") === "on",
     notify_whatsapp: formData.get("notify_whatsapp") === "on",
+    receive_offers: formData.get("receive_offers") === "on",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
@@ -124,6 +126,7 @@ export async function updateMyPlayerProfile(
     notify_email: parsed.data.notify_email,
     notify_telegram: parsed.data.notify_telegram,
     notify_whatsapp: parsed.data.notify_whatsapp,
+    receive_offers: parsed.data.receive_offers,
   };
 
   const { error } = await supabase
