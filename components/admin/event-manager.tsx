@@ -79,6 +79,7 @@ export interface EventManagerData {
   players: PlayerName[];
   courts: CourtName[];
   rivalClubs: { id: string; name: string }[];
+  mpCollected: number;
 }
 
 export function EventManager({ data }: { data: EventManagerData }) {
@@ -838,6 +839,15 @@ function FinancesTab({ data }: { data: EventManagerData }) {
         <MetricCard label="Por cobrar" value={money(outstanding)} />
         <MetricCard label="Total recaudado" value={money(totalCollected)} />
       </div>
+
+      {data.mpCollected > 0 && (
+        <div className="flex items-center gap-2 rounded-xl border border-border-soft bg-surface px-4 py-3">
+          <span className="text-sm font-semibold text-ink">
+            Cobrado online (Mercado Pago): {money(data.mpCollected)}
+          </span>
+          <span className="text-xs text-muted">· señas/pagos confirmados por MP</span>
+        </div>
+      )}
 
       {chargeCourt && (
         <p className="text-xs text-muted">

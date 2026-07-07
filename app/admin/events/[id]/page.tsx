@@ -108,6 +108,17 @@ export default async function EventDetailPage({
     players = (pl ?? []) as Pick<Tables<"players">, "id" | "full_name">[];
   }
 
+  // Cobrado online por Mercado Pago (pagos aprobados) para Finanzas.
+  const { data: mpRows } = await supabase
+    .from("mp_payments")
+    .select("amount")
+    .eq("event_id", id)
+    .eq("status", "approved");
+  const mpCollected = (mpRows ?? []).reduce(
+    (s, m) => s + Number(m.amount ?? 0),
+    0
+  );
+
   const zoneIds = (zones ?? []).map((z) => z.id);
   let zoneTeams: Tables<"zone_teams">[] = [];
   if (zoneIds.length > 0) {
@@ -148,6 +159,7 @@ export default async function EventDetailPage({
           matches: matches ?? [],
           categories: categories ?? [],
           payments: payments ?? [],
+          mpCollected,
           rounds: rounds ?? [],
           playerStandings: playerStandings ?? [],
           players,
