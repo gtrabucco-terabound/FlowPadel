@@ -101,6 +101,20 @@ export async function submitRegistration(
   );
   if (pairError) return { ok: false, error: pairError };
 
+  // Evitar inscripciones duplicadas: si el teléfono ya está inscripto en este
+  // torneo (no rechazado), no dejamos anotar de nuevo.
+  const { data: taken } = await supabase.rpc("registration_phone_taken", {
+    p_event_id: event.id,
+    p_phone: data.player_1_phone.trim(),
+  });
+  if (taken) {
+    return {
+      ok: false,
+      error:
+        "Ya hay una inscripción con ese teléfono en este torneo. Si es un error, contactá al club.",
+    };
+  }
+
   // Modalidad guardada en la inscripción: sólo aplica para "combinado".
   const storedModality =
     event.modality === "combinado"

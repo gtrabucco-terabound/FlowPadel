@@ -1618,6 +1618,10 @@ export type Database = {
         Returns: undefined
       }
       recompute_standings: { Args: { p_event_id: string }; Returns: undefined }
+      registration_phone_taken: {
+        Args: { p_event_id: string; p_phone: string }
+        Returns: boolean
+      }
       submit_match_result: {
         Args: { p_games_a: number; p_games_b: number; p_match_id: string }
         Returns: undefined
