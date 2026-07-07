@@ -29,6 +29,7 @@ import {
   generateFixture,
   recordLeagueResult,
   generateBracket,
+  generatePaymentLink,
 } from "@/app/admin/events/[id]/actions";
 import { BracketView, isBracketMatch } from "@/components/bracket-view";
 import type { Enums, Tables } from "@/lib/database.types";
@@ -284,10 +285,17 @@ function RegistrationsTab({ data }: { data: EventManagerData }) {
                   : ""}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge tone={REG_TONE[r.status]}>
                 {registrationStatusLabel(r.status)}
               </Badge>
+              {r.deposit_paid_at && <Badge tone="open">Seña pagada ✓</Badge>}
+              <PaymentLinkButton
+                eventId={eventId}
+                registrationId={r.id}
+                phone={r.player_1_phone}
+                eventName={data.event.name}
+              />
               {r.status !== "approved" && (
                 <Button
                   size="sm"
@@ -322,6 +330,72 @@ function RegistrationsTab({ data }: { data: EventManagerData }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+function PaymentLinkButton({
+  eventId,
+  registrationId,
+  phone,
+  eventName,
+}: {
+  eventId: string;
+  registrationId: string;
+  phone: string | null;
+  eventName: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  async function gen() {
+    setLoading(true);
+    setErr(null);
+    const res = await generatePaymentLink(eventId, registrationId, "deposit");
+    setLoading(false);
+    if (res.ok) setUrl(res.url);
+    else setErr(res.error);
+  }
+
+  if (url) {
+    const wa = (phone ?? "").replace(/\D/g, "");
+    const waHref = wa
+      ? `https://wa.me/${wa.startsWith("54") ? wa : "549" + wa}?text=${encodeURIComponent(
+          `Hola! Para confirmar tu lugar en ${eventName}, pagá la seña acá: ${url}`
+        )}`
+      : null;
+    return (
+      <span className="flex items-center gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={async () => {
+            await navigator.clipboard.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? "¡Copiado!" : "Copiar link"}
+        </Button>
+        {waHref && (
+          <a href={waHref} target="_blank" rel="noopener noreferrer">
+            <Button size="sm" className="bg-green-600 text-white hover:bg-green-700">
+              WhatsApp
+            </Button>
+          </a>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex items-center gap-1">
+      <Button size="sm" variant="outline" disabled={loading} onClick={gen}>
+        {loading ? "Generando…" : "Link de pago"}
+      </Button>
+      {err && <span className="text-xs text-red-600">{err}</span>}
+    </span>
   );
 }
 

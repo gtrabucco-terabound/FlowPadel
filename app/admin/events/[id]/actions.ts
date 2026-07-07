@@ -292,6 +292,35 @@ export async function markPaymentPending(
   return { ok: true };
 }
 
+/** Genera un link de pago (Checkout Pro) para la seña/inscripción de una inscripción. */
+export async function generatePaymentLink(
+  eventId: string,
+  registrationId: string,
+  kind: "deposit" | "remainder" | "full" = "deposit"
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const { event } = await loadEvent(eventId);
+  if (!event) return { ok: false, error: "Evento no encontrado." };
+
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!base || !anon) return { ok: false, error: "Config incompleta." };
+
+  try {
+    const res = await fetch(`${base}/functions/v1/mp-create-preference`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ registration_id: registrationId, kind }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.checkout_url) {
+      return { ok: false, error: data.error ?? "No se pudo generar el link de pago." };
+    }
+    return { ok: true, url: data.checkout_url as string };
+  } catch {
+    return { ok: false, error: "No pudimos conectar con Mercado Pago." };
+  }
+}
+
 export async function rejectRegistration(
   eventId: string,
   registrationId: string

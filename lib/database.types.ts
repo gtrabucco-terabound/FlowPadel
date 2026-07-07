@@ -660,6 +660,76 @@ export type Database = {
           },
         ]
       }
+      mp_payments: {
+        Row: {
+          amount: number
+          checkout_url: string | null
+          club_id: string | null
+          created_at: string
+          currency: string
+          event_id: string | null
+          id: string
+          kind: string
+          mp_payment_id: string | null
+          preference_id: string | null
+          registration_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          checkout_url?: string | null
+          club_id?: string | null
+          created_at?: string
+          currency?: string
+          event_id?: string | null
+          id?: string
+          kind?: string
+          mp_payment_id?: string | null
+          preference_id?: string | null
+          registration_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          checkout_url?: string | null
+          club_id?: string | null
+          created_at?: string
+          currency?: string
+          event_id?: string | null
+          id?: string
+          kind?: string
+          mp_payment_id?: string | null
+          preference_id?: string | null
+          registration_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_payments_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_payments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_payments_registration_id_fkey"
+            columns: ["registration_id"]
+            isOneToOne: false
+            referencedRelation: "registrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -1009,6 +1079,7 @@ export type Database = {
         Row: {
           club_id: string
           created_at: string
+          deposit_paid_at: string | null
           event_id: string
           id: string
           modality: Database["public"]["Enums"]["tournament_modality"] | null
@@ -1031,6 +1102,7 @@ export type Database = {
         Insert: {
           club_id: string
           created_at?: string
+          deposit_paid_at?: string | null
           event_id: string
           id?: string
           modality?: Database["public"]["Enums"]["tournament_modality"] | null
@@ -1053,6 +1125,7 @@ export type Database = {
         Update: {
           club_id?: string
           created_at?: string
+          deposit_paid_at?: string | null
           event_id?: string
           id?: string
           modality?: Database["public"]["Enums"]["tournament_modality"] | null
