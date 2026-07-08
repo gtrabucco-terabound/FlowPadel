@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createBooking, cancelBooking } from "@/app/admin/agenda/actions";
+import {
+  createBooking,
+  cancelBooking,
+  createBookingWithPayment,
+} from "@/app/admin/agenda/actions";
 
 export interface AgendaCourt {
   id: string;
@@ -269,6 +273,26 @@ export function AgendaGrid({
   const [error, setError] = useState<string | null>(null);
   // Slot en edición: `${courtId}:${startMin}`
   const [editing, setEditing] = useState<string | null>(null);
+  // Link de pago recién generado (para copiar / mandar por WhatsApp).
+  const [payLink, setPayLink] = useState<{ url: string; name: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const generatePayLink = (form: HTMLFormElement) => {
+    setError(null);
+    const fd = new FormData(form);
+    const name = String(fd.get("customer_name") ?? "").trim();
+    start(async () => {
+      const r = await createBookingWithPayment(fd);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      setEditing(null);
+      setCopied(false);
+      setPayLink({ url: r.checkoutUrl, name });
+      router.refresh();
+    });
+  };
 
   const dow = dowOf(date);
   const bookingAt = (courtId: string, min: number) =>
@@ -317,6 +341,57 @@ export function AgendaGrid({
 
       {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
 
+      {payLink && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-amber-900">
+                Link de pago listo para {payLink.name}
+              </p>
+              <p className="mt-0.5 text-xs text-amber-800">
+                El turno queda reservado 30 min. Se confirma solo al pagar; si no
+                paga, se libera automáticamente.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPayLink(null)}
+              className="text-xs font-semibold text-amber-800"
+            >
+              Cerrar
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              readOnly
+              value={payLink.url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-md border border-amber-300 bg-surface px-2 py-1.5 text-xs text-ink"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                navigator.clipboard?.writeText(payLink.url);
+                setCopied(true);
+              }}
+            >
+              {copied ? "¡Copiado!" : "Copiar"}
+            </Button>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(
+                `Hola ${payLink.name}, reservá tu turno pagando acá: ${payLink.url}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-semibold text-white"
+            >
+              WhatsApp
+            </a>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {courts.map((court) => {
           const operates = (court.operating_days ?? []).includes(dow);
@@ -351,7 +426,9 @@ export function AgendaGrid({
                           className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
                             b.status === "blocked"
                               ? "border-border-soft bg-surface text-muted"
-                              : "border-accent/40 bg-surface"
+                              : b.status === "held"
+                                ? "border-amber-400/60 bg-amber-50"
+                                : "border-accent/40 bg-surface"
                           }`}
                         >
                           <span>
@@ -363,6 +440,11 @@ export function AgendaGrid({
                                 ? "Bloqueado"
                                 : b.customer_name || "Reservado"}
                             </span>
+                            {b.status === "held" && (
+                              <span className="ml-1 text-xs font-semibold text-amber-700">
+                                · Esperando pago
+                              </span>
+                            )}
                           </span>
                           <button
                             type="button"
@@ -408,6 +490,20 @@ export function AgendaGrid({
                             <Button type="submit" size="sm" name="status" value="reserved" disabled={pending}>
                               Reservar
                             </Button>
+                            {court.price_per_slot != null &&
+                              court.price_per_slot > 0 && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={pending}
+                                  onClick={(e) =>
+                                    generatePayLink(e.currentTarget.form!)
+                                  }
+                                >
+                                  Cobrar online
+                                </Button>
+                              )}
                             <Button type="submit" size="sm" variant="outline" name="status" value="blocked" disabled={pending}>
                               Bloquear
                             </Button>
