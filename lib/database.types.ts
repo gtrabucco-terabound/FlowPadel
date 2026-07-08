@@ -176,6 +176,8 @@ export type Database = {
       }
       club_payment_settings: {
         Row: {
+          booking_charge_type: string
+          booking_charge_value: number | null
           club_id: string
           mp_access_token: string | null
           mp_connected: boolean | null
@@ -183,6 +185,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          booking_charge_type?: string
+          booking_charge_value?: number | null
           club_id: string
           mp_access_token?: string | null
           mp_connected?: boolean | null
@@ -190,6 +194,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          booking_charge_type?: string
+          booking_charge_value?: number | null
           club_id?: string
           mp_access_token?: string | null
           mp_connected?: boolean | null
@@ -259,7 +265,9 @@ export type Database = {
       }
       court_bookings: {
         Row: {
+          amount_charged: number | null
           booking_date: string
+          checkout_url: string | null
           club_id: string
           court_id: string
           created_at: string
@@ -280,7 +288,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          amount_charged?: number | null
           booking_date: string
+          checkout_url?: string | null
           club_id: string
           court_id: string
           created_at?: string
@@ -301,7 +311,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          amount_charged?: number | null
           booking_date?: string
+          checkout_url?: string | null
           club_id?: string
           court_id?: string
           created_at?: string

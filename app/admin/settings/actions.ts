@@ -73,6 +73,35 @@ export async function updateClubPayments(formData: FormData): Promise<ActionResu
   return { ok: true };
 }
 
+/** Define cuánto se cobra online al reservar una cancha (seña o total). */
+export async function updateBookingCharge(formData: FormData): Promise<ActionResult> {
+  const type = String(formData.get("booking_charge_type") ?? "full");
+  if (!["full", "percent", "fixed"].includes(type))
+    return fail("Tipo de cobro inválido.");
+  const value = numOrNull(formData.get("booking_charge_value"));
+  if (type === "percent" && (value == null || value <= 0 || value > 100))
+    return fail("Ingresá un porcentaje entre 1 y 100.");
+  if (type === "fixed" && (value == null || value <= 0))
+    return fail("Ingresá un monto de seña válido.");
+
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("club_payment_settings")
+    .upsert(
+      {
+        club_id: clubId,
+        booking_charge_type: type as "full" | "percent" | "fixed",
+        booking_charge_value: type === "full" ? null : value,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "club_id" }
+    );
+  if (error) return fail("No pudimos guardar la política de cobro.");
+  refresh();
+  return { ok: true };
+}
+
 /** Desconecta MP (borra el token). */
 export async function disconnectClubPayments(): Promise<ActionResult> {
   const { clubId } = await requireClubAccess();

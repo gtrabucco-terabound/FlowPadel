@@ -14,6 +14,7 @@ import {
   updateClub,
   updateClubPayments,
   disconnectClubPayments,
+  updateBookingCharge,
 } from "@/app/admin/settings/actions";
 import type { Tables } from "@/lib/database.types";
 
@@ -91,22 +92,40 @@ export function SettingsManager({
   club,
   canEditClub,
   mpConnected,
+  bookingChargeType,
+  bookingChargeValue,
 }: {
   courts: Court[];
   club: Club | null;
   canEditClub: boolean;
   mpConnected: boolean;
+  bookingChargeType: "full" | "percent" | "fixed";
+  bookingChargeValue: number | null;
 }) {
   return (
     <div className="max-w-2xl space-y-6">
       {club && canEditClub && <ClubInfoCard club={club} />}
-      {canEditClub && <PaymentsCard connected={mpConnected} />}
+      {canEditClub && (
+        <PaymentsCard
+          connected={mpConnected}
+          chargeType={bookingChargeType}
+          chargeValue={bookingChargeValue}
+        />
+      )}
       <CourtsCard courts={courts} />
     </div>
   );
 }
 
-function PaymentsCard({ connected }: { connected: boolean }) {
+function PaymentsCard({
+  connected,
+  chargeType,
+  chargeValue,
+}: {
+  connected: boolean;
+  chargeType: "full" | "percent" | "fixed";
+  chargeValue: number | null;
+}) {
   const { run, pending, error } = useAction();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -174,8 +193,92 @@ function PaymentsCard({ connected }: { connected: boolean }) {
             )}
           </div>
         </form>
+
+        <BookingChargeForm
+          connected={connected}
+          chargeType={chargeType}
+          chargeValue={chargeValue}
+        />
       </CardContent>
     </Card>
+  );
+}
+
+function BookingChargeForm({
+  connected,
+  chargeType,
+  chargeValue,
+}: {
+  connected: boolean;
+  chargeType: "full" | "percent" | "fixed";
+  chargeValue: number | null;
+}) {
+  const { run, pending, error } = useAction();
+  const [type, setType] = useState<"full" | "percent" | "fixed">(chargeType);
+
+  return (
+    <div className="border-t border-border-soft pt-4">
+      <h3 className="text-sm font-bold text-ink">Cobro de reservas de cancha</h3>
+      <p className="mb-3 text-xs text-muted">
+        Cuánto se cobra online al reservar un turno. El resto (si es seña) se
+        paga en el club.
+      </p>
+      {!connected && (
+        <p className="mb-3 text-xs font-medium text-amber-700">
+          Conectá Mercado Pago arriba para poder cobrar reservas online.
+        </p>
+      )}
+      <form action={(fd) => run(() => updateBookingCharge(fd))} className="space-y-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {(
+            [
+              { v: "full", l: "Total del turno" },
+              { v: "percent", l: "Seña (% del turno)" },
+              { v: "fixed", l: "Seña (monto fijo)" },
+            ] as const
+          ).map((o) => (
+            <label
+              key={o.v}
+              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm ${
+                type === o.v
+                  ? "border-accent bg-accent/10 text-ink"
+                  : "border-border-strong text-muted"
+              }`}
+            >
+              <input
+                type="radio"
+                name="booking_charge_type"
+                value={o.v}
+                checked={type === o.v}
+                onChange={() => setType(o.v)}
+                className="accent-accent"
+              />
+              {o.l}
+            </label>
+          ))}
+        </div>
+        {type !== "full" && (
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-ink">
+              {type === "percent" ? "Porcentaje a cobrar (1–100)" : "Monto de la seña ($)"}
+            </span>
+            <input
+              name="booking_charge_value"
+              type="number"
+              min={1}
+              max={type === "percent" ? 100 : undefined}
+              defaultValue={chargeValue ?? ""}
+              placeholder={type === "percent" ? "Ej: 50" : "Ej: 15000"}
+              className={inputCls}
+            />
+          </label>
+        )}
+        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+        <Button type="submit" size="sm" variant="outline" disabled={pending}>
+          {pending ? "Guardando…" : "Guardar cobro de reservas"}
+        </Button>
+      </form>
+    </div>
   );
 }
 

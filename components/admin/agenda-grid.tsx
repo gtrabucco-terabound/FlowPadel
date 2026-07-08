@@ -29,6 +29,17 @@ export interface AgendaBooking {
   status: string;
   kind: string;
   customer_name: string | null;
+  customer_phone: string | null;
+  checkout_url: string | null;
+  amount_charged: number | null;
+}
+
+/** Normaliza un teléfono AR a formato wa.me (54 + área + número). */
+function waNumber(phone: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  return digits.startsWith("54") ? digits : `54${digits}`;
 }
 type View = "dia" | "semana" | "mes";
 
@@ -274,13 +285,17 @@ export function AgendaGrid({
   // Slot en edición: `${courtId}:${startMin}`
   const [editing, setEditing] = useState<string | null>(null);
   // Link de pago recién generado (para copiar / mandar por WhatsApp).
-  const [payLink, setPayLink] = useState<{ url: string; name: string } | null>(null);
+  const [payLink, setPayLink] = useState<
+    { url: string; name: string; phone: string | null } | null
+  >(null);
   const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const generatePayLink = (form: HTMLFormElement) => {
     setError(null);
     const fd = new FormData(form);
     const name = String(fd.get("customer_name") ?? "").trim();
+    const phone = String(fd.get("customer_phone") ?? "").trim() || null;
     start(async () => {
       const r = await createBookingWithPayment(fd);
       if (!r.ok) {
@@ -289,9 +304,17 @@ export function AgendaGrid({
       }
       setEditing(null);
       setCopied(false);
-      setPayLink({ url: r.checkoutUrl, name });
+      setPayLink({ url: r.checkoutUrl, name, phone });
       router.refresh();
     });
+  };
+
+  const waHref = (url: string, name: string, phone: string | null) => {
+    const text = encodeURIComponent(
+      `Hola ${name}, reservá tu turno pagando acá: ${url}`
+    );
+    const num = waNumber(phone);
+    return num ? `https://wa.me/${num}?text=${text}` : `https://wa.me/?text=${text}`;
   };
 
   const dow = dowOf(date);
@@ -379,14 +402,12 @@ export function AgendaGrid({
               {copied ? "¡Copiado!" : "Copiar"}
             </Button>
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(
-                `Hola ${payLink.name}, reservá tu turno pagando acá: ${payLink.url}`
-              )}`}
+              href={waHref(payLink.url, payLink.name, payLink.phone)}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-semibold text-white"
             >
-              WhatsApp
+              WhatsApp{payLink.phone ? " →" : ""}
             </a>
           </div>
         </div>
@@ -423,7 +444,7 @@ export function AgendaGrid({
                       return (
                         <div
                           key={min}
-                          className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                          className={`rounded-lg border px-3 py-2 text-sm ${
                             b.status === "blocked"
                               ? "border-border-soft bg-surface text-muted"
                               : b.status === "held"
@@ -431,29 +452,62 @@ export function AgendaGrid({
                                 : "border-accent/40 bg-surface"
                           }`}
                         >
-                          <span>
-                            <span className="font-mono text-xs text-muted">
-                              {hhmm(min)}
-                            </span>{" "}
-                            <span className="font-medium text-ink">
-                              {b.status === "blocked"
-                                ? "Bloqueado"
-                                : b.customer_name || "Reservado"}
-                            </span>
-                            {b.status === "held" && (
-                              <span className="ml-1 text-xs font-semibold text-amber-700">
-                                · Esperando pago
+                          <div className="flex items-center justify-between">
+                            <span>
+                              <span className="font-mono text-xs text-muted">
+                                {hhmm(min)}
+                              </span>{" "}
+                              <span className="font-medium text-ink">
+                                {b.status === "blocked"
+                                  ? "Bloqueado"
+                                  : b.customer_name || "Reservado"}
                               </span>
-                            )}
-                          </span>
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => run(() => cancelBooking(b.id))}
-                            className="text-xs font-semibold text-red-600"
-                          >
-                            Liberar
-                          </button>
+                              {b.status === "held" && (
+                                <span className="ml-1 text-xs font-semibold text-amber-700">
+                                  · Esperando pago
+                                </span>
+                              )}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => run(() => cancelBooking(b.id))}
+                              className="text-xs font-semibold text-red-600"
+                            >
+                              Liberar
+                            </button>
+                          </div>
+                          {b.status === "held" && b.checkout_url && (
+                            <div className="mt-2 flex items-center gap-2">
+                              {b.amount_charged != null && (
+                                <span className="text-[11px] text-amber-800">
+                                  Cobra ${b.amount_charged}
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(b.checkout_url!);
+                                  setCopiedId(b.id);
+                                }}
+                                className="rounded-md border border-amber-300 px-2 py-1 text-[11px] font-semibold text-amber-900"
+                              >
+                                {copiedId === b.id ? "¡Copiado!" : "Copiar link"}
+                              </button>
+                              <a
+                                href={waHref(
+                                  b.checkout_url,
+                                  b.customer_name || "",
+                                  b.customer_phone
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="rounded-md bg-[#25D366] px-2 py-1 text-[11px] font-semibold text-white"
+                              >
+                                WhatsApp{waNumber(b.customer_phone) ? " →" : ""}
+                              </a>
+                            </div>
+                          )}
                         </div>
                       );
                     }
