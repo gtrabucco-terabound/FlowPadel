@@ -7,6 +7,7 @@ import {
   createBooking,
   cancelBooking,
   createBookingWithPayment,
+  generateBookingPaymentLink,
 } from "@/app/admin/agenda/actions";
 
 export interface AgendaCourt {
@@ -32,6 +33,7 @@ export interface AgendaBooking {
   customer_phone: string | null;
   checkout_url: string | null;
   amount_charged: number | null;
+  paid_at: string | null;
 }
 
 /** Normaliza un teléfono AR a formato wa.me (54 + área + número). */
@@ -477,8 +479,13 @@ export function AgendaGrid({
                               Liberar
                             </button>
                           </div>
-                          {b.status === "held" && b.checkout_url && (
-                            <div className="mt-2 flex items-center gap-2">
+                          {b.paid_at ? (
+                            <p className="mt-1 text-[11px] font-semibold text-emerald-600">
+                              ✓ Pagado
+                              {b.amount_charged != null ? ` ($${b.amount_charged})` : ""}
+                            </p>
+                          ) : b.checkout_url ? (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
                               {b.amount_charged != null && (
                                 <span className="text-[11px] text-amber-800">
                                   Cobra ${b.amount_charged}
@@ -507,6 +514,21 @@ export function AgendaGrid({
                                 WhatsApp{waNumber(b.customer_phone) ? " →" : ""}
                               </a>
                             </div>
+                          ) : (
+                            b.status === "reserved" &&
+                            court.price_per_slot != null &&
+                            court.price_per_slot > 0 && (
+                              <button
+                                type="button"
+                                disabled={pending}
+                                onClick={() =>
+                                  run(() => generateBookingPaymentLink(b.id))
+                                }
+                                className="mt-2 rounded-md border border-accent px-2 py-1 text-[11px] font-semibold text-ink"
+                              >
+                                Cobrar online
+                              </button>
+                            )
                           )}
                         </div>
                       );

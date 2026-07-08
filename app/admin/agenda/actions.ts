@@ -123,6 +123,47 @@ export async function createBookingWithPayment(
   return { ok: true, checkoutUrl: pref.checkout_url as string, bookingId };
 }
 
+/**
+ * Genera el link de pago de MP para una reserva YA existente (reservada a mano)
+ * sin tener que liberarla ni rehacerla.
+ */
+export async function generateBookingPaymentLink(
+  bookingId: string
+): Promise<PayResult> {
+  if (!bookingId) return { ok: false, error: "Reserva inválida." };
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+
+  const { data: b } = await supabase
+    .from("court_bookings")
+    .select("id, status, price, paid_at")
+    .eq("id", bookingId)
+    .eq("club_id", clubId)
+    .maybeSingle();
+  if (!b) return { ok: false, error: "No encontramos la reserva." };
+  if (b.paid_at) return { ok: false, error: "Esta reserva ya está pagada." };
+  if (!b.price || Number(b.price) <= 0)
+    return {
+      ok: false,
+      error: "La cancha no tiene precio por turno configurado.",
+    };
+
+  const { data: pref, error: fnError } = await supabase.functions.invoke(
+    "mp-booking-preference",
+    { body: { booking_id: bookingId } }
+  );
+  if (fnError || !pref?.checkout_url) {
+    return {
+      ok: false,
+      error:
+        "No pudimos generar el link. Verificá que el club tenga Mercado Pago conectado en Ajustes.",
+    };
+  }
+
+  revalidatePath("/admin/agenda");
+  return { ok: true, checkoutUrl: pref.checkout_url as string, bookingId };
+}
+
 /** Cancela (libera) un turno. */
 export async function cancelBooking(id: string): Promise<Result> {
   const { clubId } = await requireClubAccess();

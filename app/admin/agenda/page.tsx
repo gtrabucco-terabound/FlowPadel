@@ -55,7 +55,7 @@ export default async function AgendaPage({
       .order("name"),
     supabase
       .from("court_bookings")
-      .select("id, court_id, booking_date, start_minutes, slot_minutes, status, kind, customer_name, customer_phone, checkout_url, amount_charged")
+      .select("id, court_id, booking_date, start_minutes, slot_minutes, status, kind, customer_name, customer_phone, checkout_url, amount_charged, paid_at")
       .eq("club_id", ctx.activeClubId)
       .gte("booking_date", from)
       .lte("booking_date", to)
