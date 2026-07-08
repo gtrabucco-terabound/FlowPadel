@@ -415,7 +415,7 @@ export function AgendaGrid({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         {courts.map((court) => {
           const operates = (court.operating_days ?? []).includes(dow);
           const slots = slotsFor(court);
