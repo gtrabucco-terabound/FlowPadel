@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -9,11 +10,16 @@ export const metadata: Metadata = {
     "Inscribite a torneos y canchas abiertas de pádel, seguí los resultados en vivo y tu ranking.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // El panel /admin tiene su propio header (gestión); ocultamos el público
+  // para que no se vean dos capas encimadas.
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  const isAdmin = pathname.startsWith("/admin");
+
   return (
     <html lang="es" suppressHydrationWarning>
       <head>
@@ -26,9 +32,9 @@ export default function RootLayout({
         />
       </head>
       <body className="flex min-h-screen flex-col">
-        <SiteHeader />
+        {!isAdmin && <SiteHeader />}
         <main className="flex-1">{children}</main>
-        <SiteFooter />
+        {!isAdmin && <SiteFooter />}
       </body>
     </html>
   );
