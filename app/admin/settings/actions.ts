@@ -122,9 +122,18 @@ export async function createCourt(formData: FormData): Promise<ActionResult> {
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Inválido");
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
+  // Número auto-asignado: el más alto del club + 1.
+  const { data: last } = await supabase
+    .from("courts")
+    .select("number")
+    .eq("club_id", clubId)
+    .order("number", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  const nextNumber = (last?.number ?? 0) + 1;
   const { error } = await supabase
     .from("courts")
-    .insert({ club_id: clubId, name: parsed.data.name.trim() });
+    .insert({ club_id: clubId, name: parsed.data.name.trim(), number: nextNumber });
   if (error) return fail("No pudimos crear la cancha.");
   refresh();
   return { ok: true };
@@ -194,7 +203,7 @@ export async function updateCourtConfig(
     .from("courts")
     .update({
       name,
-      number: numOrNull(formData.get("number")),
+      // El número es automático: no se edita a mano (evita duplicados).
       enclosure_type: enclosure === "" ? null : (enclosure as "blindex" | "muro" | "mixta"),
       surface: surface === "" ? null : (surface as "cesped_sintetico" | "cemento" | "otro"),
       covered: formData.get("covered") === "on",

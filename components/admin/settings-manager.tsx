@@ -549,16 +549,12 @@ function CourtEditForm({
           <span className="text-xs font-medium text-ink">Nombre</span>
           <input name="name" defaultValue={court.name} required className={inputCls} />
         </label>
-        <label className="block space-y-1">
+        <div className="block space-y-1">
           <span className="text-xs font-medium text-ink">Nº de cancha</span>
-          <input
-            name="number"
-            type="number"
-            min={0}
-            defaultValue={court.number ?? ""}
-            className={inputCls}
-          />
-        </label>
+          <div className={`${inputCls} flex items-center text-muted`}>
+            #{court.number ?? "—"} · asignado automáticamente
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
