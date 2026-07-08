@@ -82,9 +82,18 @@ export default async function EventDetailPage({
       .order("position", { ascending: true, nullsFirst: false }),
     supabase
       .from("courts")
-      .select("id, name")
-      .eq("club_id", ctx.activeClubId),
+      .select("id, name, number, open_hour, close_hour, slot_minutes, is_active")
+      .eq("club_id", ctx.activeClubId)
+      .order("number", { ascending: true, nullsFirst: false }),
   ]);
+
+  // Bloqueos de cancha de este torneo (para el tab Horarios).
+  const { data: courtBlocks } = await supabase
+    .from("court_bookings")
+    .select("id, court_id, booking_date, start_minutes, slot_minutes, status")
+    .eq("event_id", id)
+    .eq("kind", "tournament")
+    .neq("status", "cancelled");
 
   // Clubs disponibles como rival (todos menos el organizador) para Ajustes interclub.
   const { data: clubData } = await supabase
@@ -164,6 +173,7 @@ export default async function EventDetailPage({
           playerStandings: playerStandings ?? [],
           players,
           courts: courts ?? [],
+          courtBlocks: courtBlocks ?? [],
           rivalClubs,
         }}
       />

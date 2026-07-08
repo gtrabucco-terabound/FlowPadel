@@ -274,6 +274,7 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          event_id: string | null
           fixed_booking_id: string | null
           hold_expires_at: string | null
           id: string
@@ -298,6 +299,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          event_id?: string | null
           fixed_booking_id?: string | null
           hold_expires_at?: string | null
           id?: string
@@ -322,6 +324,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          event_id?: string | null
           fixed_booking_id?: string | null
           hold_expires_at?: string | null
           id?: string
@@ -349,6 +352,13 @@ export type Database = {
             columns: ["court_id"]
             isOneToOne: false
             referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "court_bookings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
             referencedColumns: ["id"]
           },
           {

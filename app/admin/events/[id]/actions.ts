@@ -879,3 +879,114 @@ export async function startTournament(eventId: string): Promise<ActionResult> {
   revalidatePath("/admin/events");
   return { ok: true };
 }
+
+/* ------------------------------------------------------------------ */
+/* Bloqueo de canchas por torneo                                       */
+/* ------------------------------------------------------------------ */
+
+type BlockResult =
+  | { ok: true; blocked: number; conflicts: string[] }
+  | { ok: false; error: string };
+
+const hhmmA = (m: number) =>
+  `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/**
+ * Bloquea canchas para el torneo en su fecha, en la franja [inicio, fin).
+ * Solo bloquea slots reales de cada cancha (respeta su grilla) y reporta los
+ * turnos que ya estaban reservados sin pisarlos.
+ */
+export async function blockTournamentCourts(
+  eventId: string,
+  formData: FormData
+): Promise<BlockResult> {
+  const { supabase, clubId, event } = await loadEvent(eventId);
+  if (!event) return { ok: false, error: "Evento no encontrado." };
+
+  const date = String(formData.get("date") ?? "");
+  const startMin = Number(formData.get("start_minutes") ?? -1);
+  const endMin = Number(formData.get("end_minutes") ?? -1);
+  const courtIds = formData.getAll("court_ids").map(String).filter(Boolean);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { ok: false, error: "Fecha inválida." };
+  if (startMin < 0 || endMin < 0 || endMin <= startMin)
+    return { ok: false, error: "La hora de fin debe ser posterior a la de inicio." };
+  if (courtIds.length === 0)
+    return { ok: false, error: "Elegí al menos una cancha." };
+
+  const { data: courts } = await supabase
+    .from("courts")
+    .select("id, name, number, open_hour, close_hour, slot_minutes")
+    .eq("club_id", clubId)
+    .in("id", courtIds);
+
+  // Turnos ya ocupados (reservados/fijos/held) en esas canchas y fecha.
+  const { data: existing } = await supabase
+    .from("court_bookings")
+    .select("court_id, start_minutes, slot_minutes, status, kind")
+    .eq("booking_date", date)
+    .in("court_id", courtIds)
+    .neq("status", "cancelled");
+  const taken = existing ?? [];
+
+  const rows: TablesInsert<"court_bookings">[] = [];
+  const conflicts: string[] = [];
+
+  for (const c of courts ?? []) {
+    const step = c.slot_minutes || 90;
+    const label = `${c.number ? `#${c.number} ` : ""}${c.name}`;
+    for (let m = (c.open_hour ?? 8) * 60; m + step <= (c.close_hour ?? 24) * 60; m += step) {
+      // El slot [m, m+step) se solapa con la franja del torneo.
+      const overlaps = m < endMin && m + step > startMin;
+      if (!overlaps) continue;
+      const occupied = taken.find(
+        (t) =>
+          t.court_id === c.id &&
+          m < t.start_minutes + (t.slot_minutes || step) &&
+          m + step > t.start_minutes
+      );
+      if (occupied) {
+        if (occupied.kind !== "tournament")
+          conflicts.push(`${label} ${hhmmA(m)} (ya reservado)`);
+        continue;
+      }
+      rows.push({
+        club_id: clubId,
+        court_id: c.id,
+        booking_date: date,
+        start_minutes: m,
+        slot_minutes: step,
+        status: "blocked",
+        kind: "tournament",
+        event_id: eventId,
+        note: "Torneo",
+      });
+    }
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase.from("court_bookings").insert(rows);
+    if (error) return { ok: false, error: "No pudimos bloquear las canchas." };
+  }
+
+  refresh(eventId);
+  revalidatePath("/admin/agenda");
+  return { ok: true, blocked: rows.length, conflicts };
+}
+
+/** Libera todos los bloqueos de cancha de este torneo. */
+export async function unblockTournamentCourts(eventId: string): Promise<ActionResult> {
+  const { supabase, clubId, event } = await loadEvent(eventId);
+  if (!event) return fail("Evento no encontrado.");
+  const { error } = await supabase
+    .from("court_bookings")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("event_id", eventId)
+    .eq("kind", "tournament")
+    .eq("club_id", clubId);
+  if (error) return fail("No pudimos liberar las canchas.");
+  refresh(eventId);
+  revalidatePath("/admin/agenda");
+  return { ok: true };
+}

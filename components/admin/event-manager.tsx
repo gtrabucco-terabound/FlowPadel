@@ -30,6 +30,8 @@ import {
   recordLeagueResult,
   generateBracket,
   generatePaymentLink,
+  blockTournamentCourts,
+  unblockTournamentCourts,
 } from "@/app/admin/events/[id]/actions";
 import { BracketView, isBracketMatch } from "@/components/bracket-view";
 import type { Enums, Tables } from "@/lib/database.types";
@@ -43,7 +45,14 @@ type Payment = Tables<"payments">;
 type Round = Tables<"rounds">;
 type PlayerStanding = Tables<"player_standings">;
 type PlayerName = Pick<Tables<"players">, "id" | "full_name">;
-type CourtName = Pick<Tables<"courts">, "id" | "name">;
+type CourtName = Pick<
+  Tables<"courts">,
+  "id" | "name" | "number" | "open_hour" | "close_hour" | "slot_minutes" | "is_active"
+>;
+export type CourtBlock = Pick<
+  Tables<"court_bookings">,
+  "id" | "court_id" | "booking_date" | "start_minutes" | "slot_minutes" | "status"
+>;
 
 const LEAGUE_FORMATS: ReadonlyArray<Enums<"tournament_format">> = [
   "liga_ida",
@@ -78,6 +87,7 @@ export interface EventManagerData {
   playerStandings: PlayerStanding[];
   players: PlayerName[];
   courts: CourtName[];
+  courtBlocks: CourtBlock[];
   rivalClubs: { id: string; name: string }[];
   mpCollected: number;
 }
@@ -1349,7 +1359,213 @@ function timeOf(iso: string | null): string {
   }
 }
 
-function CalendarTab({
+function CourtBlockSection({ data }: { data: EventManagerData }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [msg, setMsg] = useState<{ blocked: number; conflicts: string[] } | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const eventId = data.event.id;
+  const hhmm = (m: number) =>
+    `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const eventDate = (data.event.start_date ?? "").slice(0, 10);
+
+  const activeCourts = data.courts.filter((c) => c.is_active);
+  const [date, setDate] = useState(eventDate);
+  const [selected, setSelected] = useState<string[]>(activeCourts.map((c) => c.id));
+
+  // Opciones de inicio/fin alineadas a la grilla real de las canchas.
+  const startsSet = new Set<number>();
+  const endsSet = new Set<number>();
+  for (const c of activeCourts) {
+    const step = c.slot_minutes || 90;
+    for (let m = (c.open_hour ?? 8) * 60; m + step <= (c.close_hour ?? 24) * 60; m += step) {
+      startsSet.add(m);
+      endsSet.add(m + step);
+    }
+  }
+  const startOpts = Array.from(startsSet).sort((a, b) => a - b);
+  const endOpts = Array.from(endsSet).sort((a, b) => a - b);
+  const [startMin, setStartMin] = useState<number>(startOpts[0] ?? 480);
+  const [endMin, setEndMin] = useState<number>(endOpts[endOpts.length - 1] ?? 1440);
+
+  const blocksByCourt = new Map<string, number>();
+  for (const b of data.courtBlocks) {
+    blocksByCourt.set(b.court_id, (blocksByCourt.get(b.court_id) ?? 0) + 1);
+  }
+  const totalBlocks = data.courtBlocks.length;
+
+  const toggle = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const submit = () => {
+    setErr(null);
+    setMsg(null);
+    const fd = new FormData();
+    fd.set("date", date);
+    fd.set("start_minutes", String(startMin));
+    fd.set("end_minutes", String(endMin));
+    selected.forEach((id) => fd.append("court_ids", id));
+    start(async () => {
+      const r = await blockTournamentCourts(eventId, fd);
+      if (!r.ok) setErr(r.error);
+      else {
+        setMsg({ blocked: r.blocked, conflicts: r.conflicts });
+        router.refresh();
+      }
+    });
+  };
+
+  const release = () => {
+    setErr(null);
+    setMsg(null);
+    start(async () => {
+      const r = await unblockTournamentCourts(eventId);
+      if (!r.ok) setErr(r.error);
+      else router.refresh();
+    });
+  };
+
+  if (activeCourts.length === 0) {
+    return (
+      <div className="rounded-xl border border-border-soft bg-surface px-4 py-6 text-sm text-muted">
+        Cargá canchas activas en Ajustes → Canchas para poder bloquearlas durante el torneo.
+      </div>
+    );
+  }
+
+  const selCls =
+    "rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink";
+
+  return (
+    <div className="rounded-2xl border border-border-soft bg-canvas p-5">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-bold text-ink">Bloqueo de canchas del torneo</h3>
+        {totalBlocks > 0 && (
+          <span className="rounded-md bg-accent/15 px-2 py-1 text-xs font-semibold text-ink">
+            {totalBlocks} turno{totalBlocks === 1 ? "" : "s"} bloqueado{totalBlocks === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+      <p className="mb-4 text-sm text-muted">
+        Reservá las canchas para el torneo: quedan bloqueadas en la Agenda y no se
+        pueden alquilar en esa franja. Los horarios se ajustan a la grilla de cada cancha.
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-ink">Fecha</span>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className={`${selCls} w-full`}
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-ink">Desde</span>
+          <select
+            value={startMin}
+            onChange={(e) => setStartMin(Number(e.target.value))}
+            className={`${selCls} w-full`}
+          >
+            {startOpts.map((m) => (
+              <option key={m} value={m}>{hhmm(m)}</option>
+            ))}
+          </select>
+        </label>
+        <label className="space-y-1">
+          <span className="text-xs font-medium text-ink">Hasta</span>
+          <select
+            value={endMin}
+            onChange={(e) => setEndMin(Number(e.target.value))}
+            className={`${selCls} w-full`}
+          >
+            {endOpts.map((m) => (
+              <option key={m} value={m}>{hhmm(m)}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mt-4">
+        <span className="text-xs font-medium text-ink">Canchas del torneo</span>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {activeCourts.map((c) => {
+            const on = selected.includes(c.id);
+            const blocked = blocksByCourt.get(c.id) ?? 0;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => toggle(c.id)}
+                className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+                  on
+                    ? "border-accent bg-accent/10 text-ink"
+                    : "border-border-strong text-muted"
+                }`}
+              >
+                {c.number ? `#${c.number} · ` : ""}{c.name}
+                {blocked > 0 && (
+                  <span className="ml-1 text-[10px] font-semibold text-accent-ink">●</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {err && <p className="mt-3 text-sm font-semibold text-red-500">{err}</p>}
+      {msg && (
+        <div className="mt-3 rounded-lg border border-border-soft bg-surface p-3 text-sm">
+          <p className="font-semibold text-ink">
+            {msg.blocked > 0
+              ? `Se bloquearon ${msg.blocked} turnos.`
+              : "No se bloqueó ningún turno nuevo."}
+          </p>
+          {msg.conflicts.length > 0 && (
+            <div className="mt-1 text-xs text-amber-300">
+              <p className="font-semibold">No se pudieron bloquear (ya reservados):</p>
+              <ul className="mt-0.5 list-inside list-disc">
+                {msg.conflicts.slice(0, 8).map((c, i) => (
+                  <li key={i}>{c}</li>
+                ))}
+                {msg.conflicts.length > 8 && <li>…y {msg.conflicts.length - 8} más</li>}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button type="button" onClick={submit} disabled={pending || selected.length === 0}>
+          {pending ? "Procesando…" : "Bloquear canchas"}
+        </Button>
+        {totalBlocks > 0 && (
+          <Button type="button" variant="ghost" onClick={release} disabled={pending}>
+            Liberar canchas del torneo
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CalendarTab(props: {
+  data: EventManagerData;
+  teamName: (id: string | null) => string;
+  hasFixture: boolean;
+  americano: boolean;
+}) {
+  return (
+    <div className="space-y-6">
+      <CourtBlockSection data={props.data} />
+      <CalendarFixture {...props} />
+    </div>
+  );
+}
+
+function CalendarFixture({
   data,
   teamName,
   hasFixture,
@@ -1365,7 +1581,7 @@ function CalendarTab({
 
   if (!hasFixture) {
     return (
-      <EmptyState text="Disponible para torneos de liga o americano; configurá el formato en Economía." />
+      <EmptyState text="El fixture automático está disponible para liga o americano. Para torneos de un día, cargá los horarios de los partidos en la pestaña Partidos." />
     );
   }
 
