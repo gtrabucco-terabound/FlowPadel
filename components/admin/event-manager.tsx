@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Tabs } from "@/components/ui/tabs";
@@ -126,6 +126,7 @@ export function EventManager({ data }: { data: EventManagerData }) {
 
   return (
     <div className="space-y-6">
+      <ShareCard event={data.event} />
       <Tabs tabs={tabs} value={tab} onValueChange={setTab} />
       {tab === "registrations" && <RegistrationsTab data={data} />}
       {tab === "teams" && <TeamsTab data={data} />}
@@ -1357,6 +1358,84 @@ function timeOf(iso: string | null): string {
   } catch {
     return "—";
   }
+}
+
+function ShareCard({ event }: { event: Tables<"events"> }) {
+  const [origin, setOrigin] = useState("");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => setOrigin(window.location.origin), []);
+
+  const url = `${origin}/event/${event.slug}`;
+  const isOpen = event.status === "open";
+  const isDraft = event.status === "draft";
+  const canShare = event.public_visible && !isDraft;
+
+  const waText = encodeURIComponent(
+    `🎾 ¡Inscribite a ${event.name}!\nEntrá y anotá tu pareja acá:\n${url}`
+  );
+
+  return (
+    <div className="rounded-2xl border border-accent/40 bg-accent/5 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-lg font-bold text-ink">Compartir inscripción</h3>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-semibold text-padel-600 hover:text-padel-700"
+        >
+          Ver página pública →
+        </a>
+      </div>
+      <p className="mt-1 text-sm text-muted">
+        Este link lleva a la página pública del torneo (con el flyer) donde
+        cualquiera se inscribe, use o no la app. Al pegarlo en WhatsApp, el flyer
+        aparece solo como vista previa.
+      </p>
+
+      {!canShare ? (
+        <p className="mt-3 rounded-lg bg-amber-400/15 px-3 py-2 text-sm font-semibold text-amber-300">
+          {isDraft
+            ? "El torneo está en borrador. Cambiá el estado a “Abierto” y dejalo “Visible en la app pública” (en Ajustes) para poder compartirlo."
+            : "El torneo no está visible en la app pública. Activá “Visible en la app pública” en Ajustes."}
+        </p>
+      ) : (
+        <>
+          {!isOpen && (
+            <p className="mt-3 text-xs font-medium text-amber-300">
+              Ojo: el botón “Inscribirme” solo aparece cuando el estado es
+              “Abierto”. Ahora se ve la info del torneo pero no se pueden anotar.
+            </p>
+          )}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              readOnly
+              value={url}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink"
+            />
+            <Button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(url);
+                setCopied(true);
+              }}
+            >
+              {copied ? "¡Copiado!" : "Copiar link"}
+            </Button>
+            <a
+              href={`https://wa.me/?text=${waText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-lg bg-[#25D366] px-4 py-2 text-sm font-semibold text-white hover:brightness-95"
+            >
+              Compartir por WhatsApp
+            </a>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function CourtBlockSection({ data }: { data: EventManagerData }) {
