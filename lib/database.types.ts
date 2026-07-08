@@ -1804,6 +1804,15 @@ export type Database = {
         Args: { p_club_id: string; p_event_id: string }
         Returns: boolean
       }
+      find_player_by_phone: {
+        Args: { p_phone: string }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       generate_americano: {
         Args: {
           p_courts?: number

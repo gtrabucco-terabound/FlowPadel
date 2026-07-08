@@ -40,6 +40,11 @@ export interface FixedChargeRow {
   due_date: string | null;
   checkout_url: string | null;
 }
+export interface ClientSuggestion {
+  name: string;
+  phone: string | null;
+  player_id: string | null;
+}
 
 const DOW = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const inputCls =
@@ -64,11 +69,13 @@ export function FixedBookingsManager({
   courts,
   fixedBookings,
   charges,
+  clients,
   period,
 }: {
   courts: FixedCourt[];
   fixedBookings: FixedBookingRow[];
   charges: FixedChargeRow[];
+  clients: ClientSuggestion[];
   period: string;
 }) {
   const router = useRouter();
@@ -77,6 +84,26 @@ export function FixedBookingsManager({
   const [courtId, setCourtId] = useState(courts[0]?.id ?? "");
   const [newLink, setNewLink] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Buscador de cliente
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientPlayerId, setClientPlayerId] = useState<string>("");
+  const [showSug, setShowSug] = useState(false);
+  const suggestions =
+    clientName.trim().length >= 2
+      ? clients
+          .filter((c) =>
+            c.name.toLowerCase().includes(clientName.trim().toLowerCase())
+          )
+          .slice(0, 6)
+      : [];
+  const pickClient = (c: ClientSuggestion) => {
+    setClientName(c.name);
+    setClientPhone(c.phone ?? "");
+    setClientPlayerId(c.player_id ?? "");
+    setShowSug(false);
+  };
 
   const court = courts.find((c) => c.id === courtId) ?? courts[0];
   const chargeByFb = new Map(charges.map((c) => [c.fixed_booking_id, c]));
@@ -127,6 +154,9 @@ export function FixedBookingsManager({
                   return;
                 }
                 if (r.checkoutUrl) setNewLink(r.checkoutUrl);
+                setClientName("");
+                setClientPhone("");
+                setClientPlayerId("");
                 router.refresh();
               })
             }
@@ -178,9 +208,42 @@ export function FixedBookingsManager({
                 className={inputCls}
               />
             </label>
-            <label className="space-y-1">
+            <label className="relative space-y-1">
               <span className="text-xs font-medium text-ink">Cliente</span>
-              <input name="customer_name" placeholder="Nombre y apellido" className={inputCls} />
+              <input
+                name="customer_name"
+                autoComplete="off"
+                placeholder="Buscá o escribí el nombre"
+                value={clientName}
+                onChange={(e) => {
+                  setClientName(e.target.value);
+                  setClientPlayerId("");
+                  setShowSug(true);
+                }}
+                onFocus={() => setShowSug(true)}
+                onBlur={() => setTimeout(() => setShowSug(false), 150)}
+                className={inputCls}
+              />
+              <input type="hidden" name="player_id" value={clientPlayerId} />
+              {showSug && suggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-lg border border-border-strong bg-surface shadow-lg">
+                  {suggestions.map((c, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => pickClient(c)}
+                      className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-surface-2"
+                    >
+                      <span className="font-medium text-ink">{c.name}</span>
+                      <span className="text-xs text-muted">
+                        {c.phone ?? "sin tel."}
+                        {c.player_id ? " · perfil" : ""}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </label>
             <label className="space-y-1">
               <span className="text-xs font-medium text-ink">Teléfono (WhatsApp)</span>
@@ -188,6 +251,8 @@ export function FixedBookingsManager({
                 name="customer_phone"
                 inputMode="numeric"
                 placeholder="Ej: 1122334455"
+                value={clientPhone}
+                onChange={(e) => setClientPhone(e.target.value)}
                 className={inputCls}
               />
             </label>
