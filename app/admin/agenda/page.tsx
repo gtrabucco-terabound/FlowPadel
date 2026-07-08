@@ -1,20 +1,46 @@
 import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
-import { AgendaGrid, type AgendaCourt, type AgendaBooking } from "@/components/admin/agenda-grid";
+import { AgendaView, type AgendaCourt, type AgendaBooking } from "@/components/admin/agenda-grid";
 
 export const dynamic = "force-dynamic";
 
+type View = "dia" | "semana" | "mes";
+const pad = (n: number) => String(n).padStart(2, "0");
+const iso = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return iso(new Date());
+}
+function rangeFor(view: View, dateISO: string): [string, string] {
+  const d = new Date(dateISO + "T12:00:00");
+  if (view === "semana") {
+    const js = d.getDay(); // 0=Dom
+    const monOffset = js === 0 ? -6 : 1 - js;
+    const mon = new Date(d);
+    mon.setDate(d.getDate() + monOffset);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    return [iso(mon), iso(sun)];
+  }
+  if (view === "mes") {
+    const first = new Date(d.getFullYear(), d.getMonth(), 1);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    return [iso(first), iso(last)];
+  }
+  return [dateISO, dateISO];
 }
 
 export default async function AgendaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; view?: string }>;
 }) {
-  const { date } = await searchParams;
+  const { date, view: viewRaw } = await searchParams;
   const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayISO();
+  const view: View =
+    viewRaw === "semana" || viewRaw === "mes" ? viewRaw : "dia";
+  const [from, to] = rangeFor(view, day);
+
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
@@ -29,9 +55,10 @@ export default async function AgendaPage({
       .order("name"),
     supabase
       .from("court_bookings")
-      .select("id, court_id, start_minutes, slot_minutes, status, kind, customer_name")
+      .select("id, court_id, booking_date, start_minutes, slot_minutes, status, kind, customer_name")
       .eq("club_id", ctx.activeClubId)
-      .eq("booking_date", day)
+      .gte("booking_date", from)
+      .lte("booking_date", to)
       .neq("status", "cancelled"),
   ]);
 
@@ -43,8 +70,8 @@ export default async function AgendaPage({
       <div>
         <h1 className="text-2xl font-semibold text-ink">Agenda de canchas</h1>
         <p className="mt-1 text-sm text-muted">
-          Reservá o bloqueá turnos. Tocá un turno libre para reservarlo; los
-          ocupados los podés liberar.
+          Reservá o bloqueá turnos y mirá la disponibilidad de la semana o el mes
+          de un vistazo.
         </p>
       </div>
       {courts.length === 0 ? (
@@ -53,7 +80,7 @@ export default async function AgendaPage({
           precio por turno) para ver la agenda.
         </div>
       ) : (
-        <AgendaGrid date={day} courts={courts} bookings={bookings} />
+        <AgendaView date={day} view={view} courts={courts} bookings={bookings} />
       )}
     </div>
   );

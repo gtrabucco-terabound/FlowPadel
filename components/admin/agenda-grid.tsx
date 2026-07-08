@@ -19,12 +19,14 @@ export interface AgendaCourt {
 export interface AgendaBooking {
   id: string;
   court_id: string;
+  booking_date: string;
   start_minutes: number;
   slot_minutes: number;
   status: string;
   kind: string;
   customer_name: string | null;
 }
+type View = "dia" | "semana" | "mes";
 
 const hhmm = (min: number) =>
   `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
@@ -55,6 +57,202 @@ function slotsFor(court: AgendaCourt): number[] {
   const step = court.slot_minutes || 90;
   for (let m = start; m + step <= end; m += step) out.push(m);
   return out;
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const isoOf = (d: Date) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/** Enumera los días a mostrar en la vista semana (7) o mes (grilla de 6 semanas). */
+function overviewDays(view: View, dateISO: string): string[] {
+  const d = new Date(dateISO + "T12:00:00");
+  if (view === "semana") {
+    const js = d.getDay();
+    const off = js === 0 ? -6 : 1 - js;
+    const mon = new Date(d);
+    mon.setDate(d.getDate() + off);
+    return Array.from({ length: 7 }, (_, i) => {
+      const x = new Date(mon);
+      x.setDate(mon.getDate() + i);
+      return isoOf(x);
+    });
+  }
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const js = first.getDay();
+  const off = js === 0 ? -6 : 1 - js;
+  const gridStart = new Date(first);
+  gridStart.setDate(first.getDate() + off);
+  return Array.from({ length: 42 }, (_, i) => {
+    const x = new Date(gridStart);
+    x.setDate(gridStart.getDate() + i);
+    return isoOf(x);
+  });
+}
+
+/** Ocupación de un día: total de turnos, tomados y libres. */
+function occupancyOf(
+  dayISO: string,
+  courts: AgendaCourt[],
+  bookings: AgendaBooking[]
+): { total: number; taken: number; free: number } {
+  const dow = dowOf(dayISO);
+  const total = courts.reduce(
+    (s, c) => s + ((c.operating_days ?? []).includes(dow) ? slotsFor(c).length : 0),
+    0
+  );
+  const taken = bookings.filter((b) => b.booking_date === dayISO).length;
+  return { total, taken, free: Math.max(0, total - taken) };
+}
+
+const DOW_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+/** Vista completa de la agenda con selector Día / Semana / Mes. */
+export function AgendaView({
+  date,
+  view,
+  courts,
+  bookings,
+}: {
+  date: string;
+  view: View;
+  courts: AgendaCourt[];
+  bookings: AgendaBooking[];
+}) {
+  const router = useRouter();
+  const go = (v: View) => router.push(`/admin/agenda?view=${v}&date=${date}`);
+  const tabCls = (v: View) =>
+    `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+      view === v ? "bg-accent text-accent-ink" : "text-muted hover:bg-surface-2"
+    }`;
+
+  return (
+    <div className="space-y-4">
+      <div className="inline-flex gap-1 rounded-xl border border-border-soft bg-surface p-1">
+        <button type="button" className={tabCls("dia")} onClick={() => go("dia")}>
+          Día
+        </button>
+        <button type="button" className={tabCls("semana")} onClick={() => go("semana")}>
+          Semana
+        </button>
+        <button type="button" className={tabCls("mes")} onClick={() => go("mes")}>
+          Mes
+        </button>
+      </div>
+
+      {view === "dia" ? (
+        <AgendaGrid
+          date={date}
+          courts={courts}
+          bookings={bookings.filter((b) => b.booking_date === date)}
+        />
+      ) : (
+        <Overview date={date} view={view} courts={courts} bookings={bookings} />
+      )}
+    </div>
+  );
+}
+
+function Overview({
+  date,
+  view,
+  courts,
+  bookings,
+}: {
+  date: string;
+  view: View;
+  courts: AgendaCourt[];
+  bookings: AgendaBooking[];
+}) {
+  const router = useRouter();
+  const days = overviewDays(view, date);
+  const month = new Date(date + "T12:00:00").getMonth();
+
+  const barColor = (ratio: number) =>
+    ratio >= 0.85
+      ? "bg-red-500"
+      : ratio >= 0.5
+        ? "bg-amber-500"
+        : "bg-accent";
+
+  const goDay = (d: string) => router.push(`/admin/agenda?view=dia&date=${d}`);
+
+  if (view === "semana") {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {days.map((d) => {
+          const { total, taken, free } = occupancyOf(d, courts, bookings);
+          const ratio = total > 0 ? taken / total : 0;
+          const dd = new Date(d + "T12:00:00");
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => goDay(d)}
+              className="rounded-xl border border-border-soft bg-surface p-3 text-left transition-colors hover:border-accent"
+            >
+              <p className="text-xs font-semibold uppercase text-muted">
+                {DOW_LABELS[dowOf(d) - 1]} {dd.getDate()}
+              </p>
+              <p className="mt-1 text-lg font-bold text-ink">{free} libres</p>
+              <p className="text-xs text-muted">
+                {taken}/{total} tomados
+              </p>
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border-soft">
+                <div
+                  className={`h-full ${barColor(ratio)}`}
+                  style={{ width: `${Math.round(ratio * 100)}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Mes: grilla de 6 semanas (Lun–Dom)
+  return (
+    <div>
+      <div className="mb-2 grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-muted">
+        {DOW_LABELS.map((l) => (
+          <div key={l}>{l}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {days.map((d) => {
+          const dd = new Date(d + "T12:00:00");
+          const inMonth = dd.getMonth() === month;
+          const { total, taken, free } = occupancyOf(d, courts, bookings);
+          const ratio = total > 0 ? taken / total : 0;
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => goDay(d)}
+              className={`min-h-[64px] rounded-lg border p-1.5 text-left transition-colors hover:border-accent ${
+                inMonth
+                  ? "border-border-soft bg-surface"
+                  : "border-transparent bg-transparent opacity-40"
+              }`}
+            >
+              <p className="text-xs font-semibold text-ink">{dd.getDate()}</p>
+              {inMonth && total > 0 && (
+                <>
+                  <p className="mt-0.5 text-[11px] text-muted">{free} libres</p>
+                  <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-border-soft">
+                    <div
+                      className={`h-full ${barColor(ratio)}`}
+                      style={{ width: `${Math.round(ratio * 100)}%` }}
+                    />
+                  </div>
+                </>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function AgendaGrid({
