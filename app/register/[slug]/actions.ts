@@ -149,27 +149,28 @@ export async function submitRegistration(
     }
   }
 
-  const { data: inserted, error: insertErr } = await supabase
-    .from("registrations")
-    .insert({
-      club_id: event.club_id,
-      event_id: event.id,
-      status: "pending",
-      player_1_name: data.player_1_name.trim(),
-      player_1_phone: data.player_1_phone.trim(),
-      player_1_gender: data.player_1_gender,
-      player_1_category: data.player_1_category,
-      player_2_name: data.player_2_name?.trim() || null,
-      player_2_phone: data.player_2_phone?.trim() || null,
-      player_2_gender: data.player_2_gender ?? null,
-      player_2_category: data.player_2_category ?? null,
-      modality: storedModality,
-      partner_claim_code: claimCode,
-    })
-    .select("id")
-    .single();
+  // Generamos el id nosotros para NO depender de leer la fila recién insertada:
+  // el usuario anónimo tiene permiso de INSERT pero no de SELECT sobre
+  // registrations, así que un insert().select() fallaba desde la app pública.
+  const newId = crypto.randomUUID();
+  const { error: insertErr } = await supabase.from("registrations").insert({
+    id: newId,
+    club_id: event.club_id,
+    event_id: event.id,
+    status: "pending",
+    player_1_name: data.player_1_name.trim(),
+    player_1_phone: data.player_1_phone.trim(),
+    player_1_gender: data.player_1_gender,
+    player_1_category: data.player_1_category,
+    player_2_name: data.player_2_name?.trim() || null,
+    player_2_phone: data.player_2_phone?.trim() || null,
+    player_2_gender: data.player_2_gender ?? null,
+    player_2_category: data.player_2_category ?? null,
+    modality: storedModality,
+    partner_claim_code: claimCode,
+  });
 
-  if (insertErr || !inserted) {
+  if (insertErr) {
     return {
       ok: false,
       error: "No pudimos registrar tu inscripción. Intentá de nuevo.",
@@ -180,7 +181,7 @@ export async function submitRegistration(
   return {
     ok: true,
     claimCode: claimCode ?? undefined,
-    registrationId: inserted.id,
+    registrationId: newId,
     onlinePayment,
   };
 }
