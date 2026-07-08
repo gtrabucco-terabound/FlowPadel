@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/server";
 import { logoutAction } from "@/app/(auth)/actions";
+import { MobileMenu } from "@/components/site-header-mobile";
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -46,32 +47,24 @@ export async function SiteHeader() {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Selector de club (placeholder — multi-club en fase siguiente) */}
-          <button
-            type="button"
-            disabled
-            className="hidden items-center gap-1 rounded-xl border border-border-soft px-3 py-1.5 text-sm font-medium text-muted sm:inline-flex"
-            title="Selección de club (próximamente)"
-          >
-            Todos los clubes
-          </button>
-
+          {/* --- Barra completa: solo desktop --- */}
           <Link
             href="/torneos"
-            className="px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600"
+            className="hidden px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600 sm:inline"
           >
             Torneos
           </Link>
-
           <Link
             href="/ranking"
-            className="px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600"
+            className="hidden px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600 sm:inline"
           >
             Ranking
           </Link>
+          <div className="hidden sm:block">
+            <ThemeToggle />
+          </div>
 
-          <ThemeToggle />
-
+          {/* Campana: en móvil y desktop */}
           {user && (
             <Link
               href="/notificaciones"
@@ -97,20 +90,23 @@ export async function SiteHeader() {
 
           {user ? (
             <>
-              <Link href="/perfil">
+              <Link href="/perfil" className="hidden sm:inline">
                 <Button size="sm">Mi perfil</Button>
               </Link>
-              <form action={logoutAction}>
+              <form action={logoutAction} className="hidden sm:block">
                 <Button type="submit" variant="ghost" size="sm">
                   Salir
                 </Button>
               </form>
             </>
           ) : (
-            <Link href="/login">
+            <Link href="/login" className="hidden sm:inline">
               <Button size="sm">Ingresar</Button>
             </Link>
           )}
+
+          {/* --- Menú hamburguesa: solo móvil --- */}
+          <MobileMenu user={!!user} isAdmin={isAdmin} />
         </div>
       </div>
     </header>
