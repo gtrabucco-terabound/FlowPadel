@@ -66,6 +66,12 @@ export async function SiteHeader() {
             Torneos
           </Link>
           <Link
+            href="/reservar"
+            className="hidden px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600 sm:inline"
+          >
+            Reservar
+          </Link>
+          <Link
             href="/ranking"
             className="hidden px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600 sm:inline"
           >

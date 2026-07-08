@@ -53,6 +53,9 @@ export function MobileMenu({
             <Link href="/torneos" onClick={close} className={linkCls}>
               Torneos
             </Link>
+            <Link href="/reservar" onClick={close} className={linkCls}>
+              Reservar cancha
+            </Link>
             <Link href="/ranking" onClick={close} className={linkCls}>
               Ranking
             </Link>

@@ -1809,6 +1809,17 @@ export type Database = {
         Args: { p_registration_id: string }
         Returns: undefined
       }
+      create_public_hold: {
+        Args: {
+          p_court_id: string
+          p_date: string
+          p_name: string
+          p_phone: string
+          p_slug: string
+          p_start: number
+        }
+        Returns: Json
+      }
       event_approved_count: { Args: { p_event_id: string }; Returns: number }
       event_open_for_registration: {
         Args: { p_club_id: string; p_event_id: string }
@@ -1881,6 +1892,11 @@ export type Database = {
       notify_registration_status: {
         Args: { p_kind: string; p_registration_id: string }
         Returns: number
+      }
+      public_booking_clubs: { Args: never; Returns: Json }
+      public_court_day: {
+        Args: { p_date: string; p_slug: string }
+        Returns: Json
       }
       recompute_player_standings: {
         Args: { p_event_id: string }
