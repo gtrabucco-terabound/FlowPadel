@@ -33,12 +33,25 @@ export default async function ReservarClubPage({
   const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayAR();
 
   const supabase = await createClient();
-  const { data } = await supabase.rpc("public_court_day", {
-    p_slug: slug,
-    p_date: day,
-  });
+  const [{ data }, { data: auth }] = await Promise.all([
+    supabase.rpc("public_court_day", { p_slug: slug, p_date: day }),
+    supabase.auth.getUser(),
+  ]);
   const parsed = (data ?? null) as unknown as DayData | null;
   if (!parsed || !parsed.club) notFound();
+
+  // Si está logueado, precargamos su nombre/teléfono para reservar directo.
+  let me: { name: string; phone: string } | null = null;
+  if (auth?.user) {
+    const { data: player } = await supabase
+      .from("players")
+      .select("full_name, phone")
+      .eq("profile_id", auth.user.id)
+      .maybeSingle();
+    if (player?.full_name) {
+      me = { name: player.full_name, phone: player.phone ?? "" };
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -55,6 +68,7 @@ export default async function ReservarClubPage({
         date={day}
         courts={parsed.courts ?? []}
         bookings={parsed.bookings ?? []}
+        me={me}
       />
     </div>
   );

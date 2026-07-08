@@ -52,19 +52,22 @@ export function PublicBooking({
   date,
   courts,
   bookings,
+  me = null,
 }: {
   slug: string;
   date: string;
   courts: PublicCourt[];
   bookings: PublicBookingRow[];
+  me?: { name: string; phone: string } | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Turno elegido: `${courtId}:${min}`
   const [picked, setPicked] = useState<{ courtId: string; min: number } | null>(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(me?.name ?? "");
+  const [phone, setPhone] = useState(me?.phone ?? "");
+  const loggedIn = !!me?.name;
 
   const dow = dowOf(date);
   const takenAt = (courtId: string, min: number, slot: number) =>
@@ -143,10 +146,10 @@ export function PublicBooking({
                       return (
                         <div
                           key={min}
-                          className="flex items-center justify-between rounded-lg border border-border-soft bg-surface px-3 py-2 text-sm text-faint"
+                          className="flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300/80"
                         >
                           <span className="font-mono text-xs">{hhmm(min)}</span>
-                          <span className="text-xs">Ocupado</span>
+                          <span className="text-xs font-semibold">Reservada</span>
                         </div>
                       );
                     }
@@ -185,21 +188,27 @@ export function PublicBooking({
               return `${c?.number ? `#${c.number} ` : ""}${c?.name ?? ""} · ${hhmm(picked.min)}`;
             })()}
           </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <input
-              placeholder="Tu nombre"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink"
-            />
-            <input
-              placeholder="Tu teléfono (WhatsApp)"
-              inputMode="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink"
-            />
-          </div>
+          {loggedIn ? (
+            <p className="mt-2 text-sm text-muted">
+              Reservás como <span className="font-semibold text-ink">{me?.name}</span>.
+            </p>
+          ) : (
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <input
+                placeholder="Tu nombre"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink"
+              />
+              <input
+                placeholder="Tu teléfono (WhatsApp)"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink"
+              />
+            </div>
+          )}
           <div className="mt-3 flex items-center gap-2">
             <Button onClick={submit} disabled={pending || name.trim().length < 2}>
               {pending ? "Redirigiendo…" : "Reservar y pagar"}
