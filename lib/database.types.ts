@@ -257,6 +257,94 @@ export type Database = {
         }
         Relationships: []
       }
+      court_bookings: {
+        Row: {
+          booking_date: string
+          club_id: string
+          court_id: string
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          hold_expires_at: string | null
+          id: string
+          kind: string
+          mp_payment_id: string | null
+          note: string | null
+          paid_at: string | null
+          player_id: string | null
+          price: number | null
+          slot_minutes: number
+          start_minutes: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          booking_date: string
+          club_id: string
+          court_id: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          hold_expires_at?: string | null
+          id?: string
+          kind?: string
+          mp_payment_id?: string | null
+          note?: string | null
+          paid_at?: string | null
+          player_id?: string | null
+          price?: number | null
+          slot_minutes?: number
+          start_minutes: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          booking_date?: string
+          club_id?: string
+          court_id?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          hold_expires_at?: string | null
+          id?: string
+          kind?: string
+          mp_payment_id?: string | null
+          note?: string | null
+          paid_at?: string | null
+          player_id?: string | null
+          price?: number | null
+          slot_minutes?: number
+          start_minutes?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "court_bookings_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "court_bookings_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "court_bookings_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courts: {
         Row: {
           close_hour: number
@@ -1551,6 +1639,10 @@ export type Database = {
           total_points: number
           tournaments_count: number
         }[]
+      }
+      confirm_paid_registration: {
+        Args: { p_registration_id: string }
+        Returns: undefined
       }
       event_approved_count: { Args: { p_event_id: string }; Returns: number }
       event_open_for_registration: {
