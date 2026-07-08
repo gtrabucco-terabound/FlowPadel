@@ -16,6 +16,7 @@ export default async function RankingPage() {
       supabase
         .from("players")
         .select("id, full_name, elo_rating, matches_played, matches_won")
+        .gt("matches_played", 0) // solo aparecen quienes ya jugaron
         .order("elo_rating", { ascending: false })
         .limit(50),
       supabase.rpc("club_ranking"),
@@ -28,14 +29,16 @@ export default async function RankingPage() {
     (clubsData ?? []).map((c) => [c.id, c.city])
   );
 
-  const clubs: ClubRankingRow[] = (clubRankingData ?? []).map((c) => ({
-    club_id: c.club_id,
-    club_name: c.club_name,
-    city: cityById.get(c.club_id) ?? null,
-    total_points: c.total_points,
-    players_count: c.players_count,
-    tournaments_count: c.tournaments_count,
-  }));
+  const clubs: ClubRankingRow[] = (clubRankingData ?? [])
+    .filter((c) => Number(c.total_points) > 0) // solo clubes con actividad
+    .map((c) => ({
+      club_id: c.club_id,
+      club_name: c.club_name,
+      city: cityById.get(c.club_id) ?? null,
+      total_points: c.total_points,
+      players_count: c.players_count,
+      tournaments_count: c.tournaments_count,
+    }));
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">

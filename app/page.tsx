@@ -22,6 +22,7 @@ export default async function HomePage() {
     supabase
       .from("players")
       .select("id, full_name, elo_rating, club:clubs(name)")
+      .gt("matches_played", 0) // solo jugadores que ya compitieron
       .order("elo_rating", { ascending: false })
       .limit(6),
   ]);
