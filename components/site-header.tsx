@@ -16,8 +16,9 @@ export async function SiteHeader() {
   let unread = 0;
   // ¿Es admin/staff de algún club o superadmin? → mostrar acceso al Panel.
   let isAdmin = false;
+  let displayName = "";
   if (user) {
-    const [{ count }, { data: membership }, { data: profile }] =
+    const [{ count }, { data: membership }, { data: profile }, { data: player }] =
       await Promise.all([
         supabase
           .from("notifications")
@@ -34,9 +35,19 @@ export async function SiteHeader() {
           .select("global_role")
           .eq("id", user.id)
           .maybeSingle(),
+        supabase
+          .from("players")
+          .select("first_name, full_name")
+          .eq("profile_id", user.id)
+          .maybeSingle(),
       ]);
     unread = count ?? 0;
     isAdmin = !!membership || profile?.global_role === "superadmin";
+    displayName =
+      player?.first_name?.trim() ||
+      player?.full_name?.trim().split(" ")[0] ||
+      user.email?.split("@")[0] ||
+      "";
   }
 
   return (
@@ -91,7 +102,9 @@ export async function SiteHeader() {
           {user ? (
             <>
               <Link href="/perfil" className="hidden sm:inline">
-                <Button size="sm">Mi perfil</Button>
+                <Button size="sm">
+                  {displayName ? `Hola, ${displayName}` : "Mi perfil"}
+                </Button>
               </Link>
               <form action={logoutAction} className="hidden sm:block">
                 <Button type="submit" variant="ghost" size="sm">
@@ -106,7 +119,7 @@ export async function SiteHeader() {
           )}
 
           {/* --- Menú hamburguesa: solo móvil --- */}
-          <MobileMenu user={!!user} isAdmin={isAdmin} />
+          <MobileMenu user={!!user} isAdmin={isAdmin} name={displayName} />
         </div>
       </div>
     </header>

@@ -10,9 +10,11 @@ import { logoutAction } from "@/app/(auth)/actions";
 export function MobileMenu({
   user,
   isAdmin,
+  name = "",
 }: {
   user: boolean;
   isAdmin: boolean;
+  name?: string;
 }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
@@ -43,6 +45,11 @@ export function MobileMenu({
             className="fixed inset-0 z-40 cursor-default bg-black/20"
           />
           <div className="absolute right-4 top-16 z-50 w-56 overflow-hidden rounded-2xl border border-border-soft bg-canvas p-2 shadow-xl">
+            {user && name && (
+              <div className="border-b border-border-soft px-3 pb-2 pt-1 text-sm font-semibold text-ink">
+                Hola, {name}
+              </div>
+            )}
             <Link href="/torneos" onClick={close} className={linkCls}>
               Torneos
             </Link>
