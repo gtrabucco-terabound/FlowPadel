@@ -469,6 +469,11 @@ export function AgendaGrid({
                                   · Esperando pago
                                 </span>
                               )}
+                              {b.kind === "fixed" && (
+                                <span className="ml-1 rounded bg-accent/15 px-1 text-[10px] font-semibold uppercase text-ink">
+                                  fijo
+                                </span>
+                              )}
                             </span>
                             <button
                               type="button"
@@ -516,6 +521,7 @@ export function AgendaGrid({
                             </div>
                           ) : (
                             b.status === "reserved" &&
+                            b.kind !== "fixed" &&
                             court.price_per_slot != null &&
                             court.price_per_slot > 0 && (
                               <button

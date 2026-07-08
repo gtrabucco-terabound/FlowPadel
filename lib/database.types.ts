@@ -274,6 +274,7 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          fixed_booking_id: string | null
           hold_expires_at: string | null
           id: string
           kind: string
@@ -297,6 +298,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          fixed_booking_id?: string | null
           hold_expires_at?: string | null
           id?: string
           kind?: string
@@ -320,6 +322,7 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          fixed_booking_id?: string | null
           hold_expires_at?: string | null
           id?: string
           kind?: string
@@ -346,6 +349,13 @@ export type Database = {
             columns: ["court_id"]
             isOneToOne: false
             referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "court_bookings_fixed_booking_id_fkey"
+            columns: ["fixed_booking_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_bookings"
             referencedColumns: ["id"]
           },
           {
@@ -613,6 +623,139 @@ export type Database = {
             columns: ["rival_club_id"]
             isOneToOne: false
             referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_booking_charges: {
+        Row: {
+          amount: number
+          checkout_url: string | null
+          club_id: string
+          created_at: string
+          due_date: string | null
+          fixed_booking_id: string
+          id: string
+          mp_payment_id: string | null
+          paid_at: string | null
+          period: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          checkout_url?: string | null
+          club_id: string
+          created_at?: string
+          due_date?: string | null
+          fixed_booking_id: string
+          id?: string
+          mp_payment_id?: string | null
+          paid_at?: string | null
+          period: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          checkout_url?: string | null
+          club_id?: string
+          created_at?: string
+          due_date?: string | null
+          fixed_booking_id?: string
+          id?: string
+          mp_payment_id?: string | null
+          paid_at?: string | null
+          period?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_booking_charges_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_booking_charges_fixed_booking_id_fkey"
+            columns: ["fixed_booking_id"]
+            isOneToOne: false
+            referencedRelation: "fixed_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fixed_bookings: {
+        Row: {
+          active: boolean
+          club_id: string
+          court_id: string
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          monthly_price: number
+          player_id: string | null
+          slot_minutes: number
+          start_minutes: number
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          active?: boolean
+          club_id: string
+          court_id: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          monthly_price: number
+          player_id?: string | null
+          slot_minutes?: number
+          start_minutes: number
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          active?: boolean
+          club_id?: string
+          court_id?: string
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          monthly_price?: number
+          player_id?: string | null
+          slot_minutes?: number
+          start_minutes?: number
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_bookings_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_bookings_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fixed_bookings_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
             referencedColumns: ["id"]
           },
         ]
