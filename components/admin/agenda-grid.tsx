@@ -450,7 +450,7 @@ export function AgendaGrid({
                             b.status === "blocked"
                               ? "border-border-soft bg-surface text-muted"
                               : b.status === "held"
-                                ? "border-amber-400/60 bg-amber-50"
+                                ? "border-amber-400/50 bg-amber-400/10"
                                 : "border-accent/40 bg-surface"
                           }`}
                         >
@@ -465,7 +465,7 @@ export function AgendaGrid({
                                   : b.customer_name || "Reservado"}
                               </span>
                               {b.status === "held" && (
-                                <span className="ml-1 text-xs font-semibold text-amber-700">
+                                <span className="ml-1 text-xs font-semibold text-amber-300">
                                   · Esperando pago
                                 </span>
                               )}
@@ -485,14 +485,14 @@ export function AgendaGrid({
                             </button>
                           </div>
                           {b.paid_at ? (
-                            <p className="mt-1 text-[11px] font-semibold text-emerald-600">
+                            <p className="mt-1 text-[11px] font-semibold text-emerald-400">
                               ✓ Pagado
                               {b.amount_charged != null ? ` ($${b.amount_charged})` : ""}
                             </p>
                           ) : b.checkout_url ? (
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               {b.amount_charged != null && (
-                                <span className="text-[11px] text-amber-800">
+                                <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[11px] font-semibold text-amber-300">
                                   Cobra ${b.amount_charged}
                                 </span>
                               )}
@@ -502,7 +502,7 @@ export function AgendaGrid({
                                   navigator.clipboard?.writeText(b.checkout_url!);
                                   setCopiedId(b.id);
                                 }}
-                                className="rounded-md border border-amber-300 px-2 py-1 text-[11px] font-semibold text-amber-900"
+                                className="rounded-md bg-amber-400 px-2 py-1 text-[11px] font-semibold text-[#1a1200] hover:bg-amber-300"
                               >
                                 {copiedId === b.id ? "¡Copiado!" : "Copiar link"}
                               </button>
@@ -514,7 +514,7 @@ export function AgendaGrid({
                                 )}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="rounded-md bg-[#25D366] px-2 py-1 text-[11px] font-semibold text-white"
+                                className="rounded-md bg-[#25D366] px-2 py-1 text-[11px] font-semibold text-white hover:brightness-95"
                               >
                                 WhatsApp{waNumber(b.customer_phone) ? " →" : ""}
                               </a>

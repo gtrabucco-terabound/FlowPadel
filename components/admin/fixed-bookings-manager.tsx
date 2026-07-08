@@ -43,6 +43,7 @@ export interface FixedChargeRow {
 export interface ClientSuggestion {
   name: string;
   phone: string | null;
+  email: string | null;
   player_id: string | null;
 }
 
@@ -88,6 +89,7 @@ export function FixedBookingsManager({
   // Buscador de cliente
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [clientPlayerId, setClientPlayerId] = useState<string>("");
   const [showSug, setShowSug] = useState(false);
   const suggestions =
@@ -101,6 +103,7 @@ export function FixedBookingsManager({
   const pickClient = (c: ClientSuggestion) => {
     setClientName(c.name);
     setClientPhone(c.phone ?? "");
+    setClientEmail(c.email ?? "");
     setClientPlayerId(c.player_id ?? "");
     setShowSug(false);
   };
@@ -156,6 +159,7 @@ export function FixedBookingsManager({
                 if (r.checkoutUrl) setNewLink(r.checkoutUrl);
                 setClientName("");
                 setClientPhone("");
+                setClientEmail("");
                 setClientPlayerId("");
                 router.refresh();
               })
@@ -258,7 +262,14 @@ export function FixedBookingsManager({
             </label>
             <label className="space-y-1 sm:col-span-2">
               <span className="text-xs font-medium text-ink">Email (opcional)</span>
-              <input name="customer_email" type="email" className={inputCls} />
+              <input
+                name="customer_email"
+                type="email"
+                value={clientEmail}
+                onChange={(e) => setClientEmail(e.target.value)}
+                placeholder="Se completa solo si el jugador ya tiene perfil"
+                className={inputCls}
+              />
             </label>
             {error && (
               <p className="text-sm font-semibold text-red-600 sm:col-span-2">{error}</p>
@@ -328,12 +339,12 @@ export function FixedBookingsManager({
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     {paid ? (
-                      <span className="rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700">
+                      <span className="rounded-md bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-300">
                         ✓ Pagado {period}
                       </span>
                     ) : charge?.checkout_url ? (
                       <>
-                        <span className="text-xs text-amber-800">
+                        <span className="rounded-md bg-amber-400/15 px-2 py-1 text-xs font-semibold text-amber-300">
                           Impago · vence {charge.due_date}
                         </span>
                         <button
@@ -342,7 +353,7 @@ export function FixedBookingsManager({
                             navigator.clipboard?.writeText(charge.checkout_url!);
                             setCopiedId(fb.id);
                           }}
-                          className="rounded-md border border-amber-300 px-2 py-1 text-xs font-semibold text-amber-900"
+                          className="rounded-md bg-amber-400 px-2.5 py-1 text-xs font-semibold text-[#1a1200] hover:bg-amber-300"
                         >
                           {copiedId === fb.id ? "¡Copiado!" : "Copiar link"}
                         </button>
@@ -350,7 +361,7 @@ export function FixedBookingsManager({
                           href={waHref(charge.checkout_url, fb.customer_name, fb.customer_phone)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="rounded-md bg-[#25D366] px-2 py-1 text-xs font-semibold text-white"
+                          className="rounded-md bg-[#25D366] px-2.5 py-1 text-xs font-semibold text-white hover:brightness-95"
                         >
                           WhatsApp{waNumber(fb.customer_phone) ? " →" : ""}
                         </a>
@@ -370,7 +381,7 @@ export function FixedBookingsManager({
                       type="button"
                       disabled={pending}
                       onClick={() => run(() => deactivateFixedBooking(fb.id))}
-                      className="text-xs font-semibold text-red-600"
+                      className="text-xs font-semibold text-red-400 hover:text-red-300"
                     >
                       Dar de baja
                     </button>

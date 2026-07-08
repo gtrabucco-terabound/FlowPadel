@@ -46,12 +46,12 @@ export default async function TurnosFijosPage() {
   const [{ data: clubPlayers }, { data: pastCustomers }] = await Promise.all([
     supabase
       .from("players")
-      .select("id, full_name, phone")
+      .select("id, full_name, phone, email")
       .eq("home_club_id", ctx.activeClubId)
       .limit(500),
     supabase
       .from("court_bookings")
-      .select("customer_name, customer_phone")
+      .select("customer_name, customer_phone, customer_email")
       .eq("club_id", ctx.activeClubId)
       .not("customer_name", "is", null)
       .limit(500),
@@ -61,13 +61,23 @@ export default async function TurnosFijosPage() {
   for (const p of clubPlayers ?? []) {
     if (!p.full_name) continue;
     const key = (p.phone || p.full_name).toLowerCase();
-    clientMap.set(key, { name: p.full_name, phone: p.phone, player_id: p.id });
+    clientMap.set(key, {
+      name: p.full_name,
+      phone: p.phone,
+      email: (p.email as string | null) ?? null,
+      player_id: p.id,
+    });
   }
   for (const c of pastCustomers ?? []) {
     if (!c.customer_name) continue;
     const key = (c.customer_phone || c.customer_name).toLowerCase();
     if (!clientMap.has(key))
-      clientMap.set(key, { name: c.customer_name, phone: c.customer_phone, player_id: null });
+      clientMap.set(key, {
+        name: c.customer_name,
+        phone: c.customer_phone,
+        email: c.customer_email ?? null,
+        player_id: null,
+      });
   }
   const clients = Array.from(clientMap.values()).sort((a, b) =>
     a.name.localeCompare(b.name)
