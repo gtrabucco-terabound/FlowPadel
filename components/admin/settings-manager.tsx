@@ -94,6 +94,7 @@ export function SettingsManager({
   mpConnected,
   bookingChargeType,
   bookingChargeValue,
+  bookingPayAtClub,
 }: {
   courts: Court[];
   club: Club | null;
@@ -101,6 +102,7 @@ export function SettingsManager({
   mpConnected: boolean;
   bookingChargeType: "full" | "percent" | "fixed";
   bookingChargeValue: number | null;
+  bookingPayAtClub: boolean;
 }) {
   return (
     <div className="max-w-2xl space-y-6">
@@ -110,6 +112,7 @@ export function SettingsManager({
           connected={mpConnected}
           chargeType={bookingChargeType}
           chargeValue={bookingChargeValue}
+          payAtClub={bookingPayAtClub}
         />
       )}
       <CourtsCard courts={courts} />
@@ -121,10 +124,12 @@ function PaymentsCard({
   connected,
   chargeType,
   chargeValue,
+  payAtClub,
 }: {
   connected: boolean;
   chargeType: "full" | "percent" | "fixed";
   chargeValue: number | null;
+  payAtClub: boolean;
 }) {
   const { run, pending, error } = useAction();
   const formRef = useRef<HTMLFormElement>(null);
@@ -198,6 +203,7 @@ function PaymentsCard({
           connected={connected}
           chargeType={chargeType}
           chargeValue={chargeValue}
+          payAtClub={payAtClub}
         />
       </CardContent>
     </Card>
@@ -208,27 +214,55 @@ function BookingChargeForm({
   connected,
   chargeType,
   chargeValue,
+  payAtClub,
 }: {
   connected: boolean;
   chargeType: "full" | "percent" | "fixed";
   chargeValue: number | null;
+  payAtClub: boolean;
 }) {
   const { run, pending, error } = useAction();
   const [type, setType] = useState<"full" | "percent" | "fixed">(chargeType);
+  const [atClub, setAtClub] = useState<boolean>(payAtClub);
 
   return (
     <div className="border-t border-border-soft pt-4">
       <h3 className="text-sm font-bold text-ink">Cobro de reservas de cancha</h3>
       <p className="mb-3 text-xs text-muted">
-        Cuánto se cobra online al reservar un turno. El resto (si es seña) se
-        paga en el club.
+        Cómo se cobra al reservar un turno desde la app.
       </p>
-      {!connected && (
-        <p className="mb-3 text-xs font-medium text-amber-700">
-          Conectá Mercado Pago arriba para poder cobrar reservas online.
-        </p>
-      )}
       <form action={(fd) => run(() => updateBookingCharge(fd))} className="space-y-3">
+        <label className="flex items-start gap-2 rounded-lg border border-border-strong p-3">
+          <input
+            type="checkbox"
+            name="booking_pay_at_club"
+            checked={atClub}
+            onChange={(e) => setAtClub(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-accent"
+          />
+          <span className="text-sm text-ink">
+            Abonar en el club (sin pago online)
+            <span className="mt-0.5 block text-xs text-muted">
+              La reserva queda confirmada al instante y el jugador paga en el club.
+              No se cobra por Mercado Pago.
+            </span>
+          </span>
+        </label>
+
+        {atClub ? (
+          <p className="text-xs text-muted">
+            Con esta opción, las reservas se confirman sin pago online.
+          </p>
+        ) : (
+        <>
+        {!connected && (
+          <p className="text-xs font-medium text-amber-700">
+            Conectá Mercado Pago arriba para poder cobrar reservas online.
+          </p>
+        )}
+        <p className="text-xs text-muted">
+          Cuánto se cobra online al reservar. El resto (si es seña) se paga en el club.
+        </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {(
             [
@@ -272,6 +306,8 @@ function BookingChargeForm({
               className={inputCls}
             />
           </label>
+        )}
+        </>
         )}
         {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
         <Button type="submit" size="sm" variant="outline" disabled={pending}>

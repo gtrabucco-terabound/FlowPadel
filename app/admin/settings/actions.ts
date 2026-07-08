@@ -93,6 +93,7 @@ export async function updateBookingCharge(formData: FormData): Promise<ActionRes
         club_id: clubId,
         booking_charge_type: type as "full" | "percent" | "fixed",
         booking_charge_value: type === "full" ? null : value,
+        booking_pay_at_club: formData.get("booking_pay_at_club") === "on",
         updated_at: new Date().toISOString(),
       },
       { onConflict: "club_id" }

@@ -29,7 +29,7 @@ export default async function SettingsPage() {
     canEditClub
       ? supabase
           .from("club_payment_settings")
-          .select("mp_connected, booking_charge_type, booking_charge_value")
+          .select("mp_connected, booking_charge_type, booking_charge_value, booking_pay_at_club")
           .eq("club_id", ctx.activeClubId)
           .maybeSingle()
       : Promise.resolve({ data: null }),
@@ -38,6 +38,7 @@ export default async function SettingsPage() {
     mp_connected: boolean;
     booking_charge_type: "full" | "percent" | "fixed" | null;
     booking_charge_value: number | null;
+    booking_pay_at_club: boolean | null;
   } | null;
   const mpConnected = Boolean(pay?.mp_connected);
 
@@ -54,6 +55,7 @@ export default async function SettingsPage() {
         mpConnected={mpConnected}
         bookingChargeType={pay?.booking_charge_type ?? "full"}
         bookingChargeValue={pay?.booking_charge_value ?? null}
+        bookingPayAtClub={pay?.booking_pay_at_club ?? false}
       />
     </div>
   );

@@ -3,7 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 
 type Result =
-  | { ok: true; checkoutUrl: string }
+  | { ok: true; mode: "pay"; checkoutUrl: string }
+  | { ok: true; mode: "confirmed" }
   | { ok: false; error: string };
 
 /**
@@ -29,9 +30,16 @@ export async function createPublicBooking(input: {
     p_phone: input.phone,
   });
 
-  const res = hold as { ok: boolean; id?: string; error?: string } | null;
+  const res = hold as
+    | { ok: boolean; id?: string; error?: string; pay_at_club?: boolean }
+    | null;
   if (error || !res?.ok || !res.id) {
     return { ok: false, error: res?.error ?? "No pudimos reservar el turno." };
+  }
+
+  // Club que cobra en el club: la reserva ya quedó confirmada, sin Mercado Pago.
+  if (res.pay_at_club) {
+    return { ok: true, mode: "confirmed" };
   }
 
   const { data: pref, error: fnError } = await supabase.functions.invoke(
@@ -43,5 +51,5 @@ export async function createPublicBooking(input: {
     return { ok: false, error: "No pudimos generar el pago. Probá de nuevo." };
   }
 
-  return { ok: true, checkoutUrl: pref.checkout_url as string };
+  return { ok: true, mode: "pay", checkoutUrl: pref.checkout_url as string };
 }

@@ -178,6 +178,7 @@ export type Database = {
         Row: {
           booking_charge_type: string
           booking_charge_value: number | null
+          booking_pay_at_club: boolean
           club_id: string
           mp_access_token: string | null
           mp_connected: boolean | null
@@ -187,6 +188,7 @@ export type Database = {
         Insert: {
           booking_charge_type?: string
           booking_charge_value?: number | null
+          booking_pay_at_club?: boolean
           club_id: string
           mp_access_token?: string | null
           mp_connected?: boolean | null
@@ -196,6 +198,7 @@ export type Database = {
         Update: {
           booking_charge_type?: string
           booking_charge_value?: number | null
+          booking_pay_at_club?: boolean
           club_id?: string
           mp_access_token?: string | null
           mp_connected?: boolean | null

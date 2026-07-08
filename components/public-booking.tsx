@@ -19,6 +19,7 @@ export interface PublicBookingRow {
   court_id: string;
   start_minutes: number;
   slot_minutes: number;
+  status: string;
 }
 
 const hhmm = (m: number) =>
@@ -53,12 +54,14 @@ export function PublicBooking({
   courts,
   bookings,
   me = null,
+  payAtClub = false,
 }: {
   slug: string;
   date: string;
   courts: PublicCourt[];
   bookings: PublicBookingRow[];
   me?: { name: string; phone: string } | null;
+  payAtClub?: boolean;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -70,13 +73,14 @@ export function PublicBooking({
   const loggedIn = !!me?.name;
 
   const dow = dowOf(date);
-  const takenAt = (courtId: string, min: number, slot: number) =>
-    bookings.some(
+  const [confirmed, setConfirmed] = useState(false);
+  const bookingAt = (courtId: string, min: number, slot: number) =>
+    bookings.find(
       (b) =>
         b.court_id === courtId &&
         min < b.start_minutes + b.slot_minutes &&
         min + slot > b.start_minutes
-    );
+    ) ?? null;
 
   const go = (d: string) => router.push(`/reservar/${slug}?date=${d}`);
 
@@ -93,7 +97,11 @@ export function PublicBooking({
         phone,
       });
       if (!r.ok) setError(r.error);
-      else window.location.href = r.checkoutUrl;
+      else if (r.mode === "pay") window.location.href = r.checkoutUrl;
+      else {
+        setConfirmed(true);
+        setPicked(null);
+      }
     });
   };
 
@@ -120,6 +128,17 @@ export function PublicBooking({
 
       {error && <p className="text-sm font-semibold text-red-500">{error}</p>}
 
+      {confirmed && (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-4">
+          <p className="text-sm font-semibold text-emerald-300">
+            ✓ ¡Turno reservado! Abonás en el club.
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            Tu turno quedó confirmado. Coordiná el pago directamente con el club.
+          </p>
+        </div>
+      )}
+
       {openCourts.length === 0 ? (
         <div className="rounded-xl border border-border-soft bg-surface px-4 py-10 text-center text-sm text-muted">
           No hay canchas disponibles este día.
@@ -140,16 +159,23 @@ export function PublicBooking({
                 </div>
                 <div className="space-y-1.5">
                   {slots.map((min) => {
-                    const taken = takenAt(court.id, min, court.slot_minutes);
+                    const b = bookingAt(court.id, min, court.slot_minutes);
                     const isPicked = picked?.courtId === court.id && picked?.min === min;
-                    if (taken) {
+                    if (b) {
+                      const held = b.status === "held";
                       return (
                         <div
                           key={min}
-                          className="flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300/80"
+                          className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                            held
+                              ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                              : "border-red-500/30 bg-red-500/10 text-red-300/80"
+                          }`}
                         >
                           <span className="font-mono text-xs">{hhmm(min)}</span>
-                          <span className="text-xs font-semibold">Reservada</span>
+                          <span className="text-xs font-semibold">
+                            {held ? "En proceso" : "Reservada"}
+                          </span>
                         </div>
                       );
                     }
@@ -211,15 +237,20 @@ export function PublicBooking({
           )}
           <div className="mt-3 flex items-center gap-2">
             <Button onClick={submit} disabled={pending || name.trim().length < 2}>
-              {pending ? "Redirigiendo…" : "Reservar y pagar"}
+              {pending
+                ? "Procesando…"
+                : payAtClub
+                  ? "Reservar"
+                  : "Reservar y pagar"}
             </Button>
             <Button variant="ghost" onClick={() => setPicked(null)} disabled={pending}>
               Cancelar
             </Button>
           </div>
           <p className="mt-2 text-xs text-muted">
-            El turno queda reservado 30 min mientras pagás. Si no completás el pago,
-            se libera automáticamente.
+            {payAtClub
+              ? "Tu turno queda confirmado y abonás en el club."
+              : "El turno queda reservado 30 min mientras pagás. Si no completás el pago, se libera automáticamente."}
           </p>
         </div>
       )}

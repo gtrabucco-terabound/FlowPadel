@@ -16,7 +16,7 @@ function todayAR(): string {
 }
 
 type DayData = {
-  club: { name: string; city: string | null } | null;
+  club: { name: string; city: string | null; pay_at_club: boolean } | null;
   courts: PublicCourt[];
   bookings: PublicBookingRow[];
 };
@@ -69,6 +69,7 @@ export default async function ReservarClubPage({
         courts={parsed.courts ?? []}
         bookings={parsed.bookings ?? []}
         me={me}
+        payAtClub={parsed.club.pay_at_club}
       />
     </div>
   );
