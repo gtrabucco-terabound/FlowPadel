@@ -1365,7 +1365,11 @@ function ShareCard({ event }: { event: Tables<"events"> }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => setOrigin(window.location.origin), []);
 
-  const url = `${origin}/event/${event.slug}`;
+  // Versión basada en la última edición: cambia el link cuando cambia el flyer
+  // o los datos, así WhatsApp refresca la vista previa (no muestra caché viejo).
+  const version = (event.updated_at ?? "").replace(/\D/g, "").slice(-10);
+  const base = `${origin}/event/${event.slug}`;
+  const url = version ? `${base}?v=${version}` : base;
   const isOpen = event.status === "open";
   const isDraft = event.status === "draft";
   const canShare = event.public_visible && !isDraft;

@@ -23,7 +23,7 @@ export function Tabs({
     <div
       role="tablist"
       className={cn(
-        "flex gap-1 rounded-2xl border border-border-soft bg-surface p-1 text-sm font-medium",
+        "flex gap-1 overflow-x-auto rounded-2xl border border-border-soft bg-surface p-1 text-sm font-medium",
         className
       )}
     >
@@ -36,7 +36,7 @@ export function Tabs({
             aria-selected={active}
             onClick={() => onValueChange(tab.value)}
             className={cn(
-              "flex-1 rounded-xl px-3 py-2 transition-colors",
+              "flex-1 whitespace-nowrap rounded-xl px-3 py-2 transition-colors",
               active
                 ? "bg-accent text-accent-ink"
                 : "text-muted hover:bg-surface-2 hover:text-ink"
