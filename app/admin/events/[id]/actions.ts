@@ -820,7 +820,7 @@ export async function saveEventEconomics(
   const nowIso = new Date().toISOString();
   for (const p of pays ?? []) {
     if (p.status === "paid" && Number(p.amount) > 0) continue; // ya cobrado real
-    const pc = pcOf.get(p.registration_id) ?? 2;
+    const pc = (p.registration_id ? pcOf.get(p.registration_id) : 2) ?? 2;
     let newAmount = 0;
     let newPool = 0;
     if (p.kind === "inscription") {
