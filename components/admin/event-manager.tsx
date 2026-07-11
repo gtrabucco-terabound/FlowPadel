@@ -444,6 +444,13 @@ function RegistrationsTab({ data }: { data: EventManagerData }) {
                 phone={r.player_1_phone}
                 eventName={data.event.name}
               />
+              {r.partner_claim_code && !r.player_2_name && (
+                <PartnerLinkButton
+                  code={r.partner_claim_code}
+                  phone={r.player_2_phone ?? r.player_1_phone}
+                  eventName={data.event.name}
+                />
+              )}
               {r.status !== "approved" && (
                 <Button
                   size="sm"
@@ -478,6 +485,58 @@ function RegistrationsTab({ data }: { data: EventManagerData }) {
         </Card>
       ))}
     </div>
+  );
+}
+
+function PartnerLinkButton({
+  code,
+  phone,
+  eventName,
+}: {
+  code: string;
+  phone: string | null;
+  eventName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const link =
+    typeof window !== "undefined" ? `${window.location.origin}/sumarme/${code}` : "";
+  const wa = (phone ?? "").replace(/\D/g, "");
+  const waHref = wa
+    ? `https://wa.me/${wa.startsWith("54") ? wa : "549" + wa}?text=${encodeURIComponent(
+        `Hola! Te inscribí en ${eventName}. Confirmá tus datos y creá tu cuenta acá: ${link}`
+      )}`
+    : null;
+
+  if (!open) {
+    return (
+      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+        Link de pareja
+      </Button>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1">
+      <Button
+        size="sm"
+        onClick={() => {
+          navigator.clipboard?.writeText(link);
+          setCopied(true);
+        }}
+      >
+        {copied ? "¡Copiado!" : "Copiar link"}
+      </Button>
+      {waHref && (
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-lg bg-[#25D366] px-2.5 py-1 text-xs font-semibold text-white"
+        >
+          WhatsApp
+        </a>
+      )}
+    </span>
   );
 }
 

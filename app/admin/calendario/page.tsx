@@ -72,7 +72,7 @@ export default async function CalendarioPage() {
                 key={e.id}
                 className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${
                   hasClash
-                    ? "border-amber-300 bg-amber-50"
+                    ? "border-amber-400/50 bg-amber-400/10"
                     : "border-border-soft bg-surface"
                 }`}
               >

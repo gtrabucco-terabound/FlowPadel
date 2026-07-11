@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireClubAccess } from "@/lib/admin/club";
+import { validatePair, effectiveModality } from "@/app/register/[slug]/schema";
 import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -19,7 +20,7 @@ async function loadEvent(eventId: string) {
   const { data: event } = await supabase
     .from("events")
     .select(
-      "id, club_id, registration_fee, currency, long_format, charge_court, inscription_per_person, court_fee_per_person, court_pool_per_person, modality, category_value"
+      "id, club_id, registration_fee, currency, long_format, charge_court, inscription_per_person, court_fee_per_person, court_pool_per_person, modality, category_value, category_system, event_type"
     )
     .eq("id", eventId)
     .eq("club_id", clubId)
@@ -1047,6 +1048,34 @@ export async function addManualRegistration(
     event.modality === "combinado"
       ? (gTxt(formData.get("modality")) as Enums<"tournament_modality"> | null)
       : null;
+
+  // Validación de pareja (género/categoría) según la modalidad del torneo.
+  const isTournament = event.event_type === "tournament";
+  const pairCtx = {
+    isTournament,
+    eventModality: event.modality,
+    categorySystem: event.category_system,
+    categoryValue: event.category_value,
+  };
+  if (hasP2) {
+    const pairError = validatePair(pairCtx, {
+      player_1_gender: p1Gender,
+      player_1_category: p1Category,
+      player_2_gender: p2Gender,
+      player_2_category: p2Category,
+      modality,
+    });
+    if (pairError) return { ok: false, error: pairError };
+  } else if (isTournament) {
+    // Solo J1: validamos que su género encaje con la modalidad del torneo.
+    const mod = effectiveModality(pairCtx, modality);
+    if (event.modality === "combinado" && !mod)
+      return { ok: false, error: "Elegí la modalidad de la pareja." };
+    if (mod === "caballeros" && p1Gender !== "male")
+      return { ok: false, error: "En caballeros el jugador debe ser hombre." };
+    if (mod === "damas" && p1Gender !== "female")
+      return { ok: false, error: "En damas la jugadora debe ser mujer." };
+  }
 
   const claimCode = hasP2 ? null : makeClaimCode();
 
