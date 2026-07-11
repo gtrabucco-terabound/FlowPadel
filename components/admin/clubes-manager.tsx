@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { createClub } from "@/app/admin/clubes/actions";
+import { createClub, setClubActive, deleteClub } from "@/app/admin/clubes/actions";
 
 const inputCls =
   "w-full rounded-xl border border-border-strong bg-surface px-3.5 py-2.5 text-ink placeholder:text-faint outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/30";
@@ -13,6 +14,8 @@ export interface ClubRow {
   name: string;
   city: string | null;
   admins: number;
+  is_active: boolean;
+  has_data: boolean;
 }
 export interface LeadRow {
   id: string;
@@ -26,6 +29,76 @@ const ADMIN_MSG: Record<string, string> = {
     "Club creado. Ese email todavía no tiene cuenta — pediles que se registren y después los asignás como admin desde Miembros.",
   sin_admin: "Club creado. Asignale un admin cuando quieras.",
 };
+
+function ClubItem({ club: c }: { club: ClubRow }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
+    setError(null);
+    start(async () => {
+      const r = await fn();
+      if (!r.ok) setError(r.error ?? "Error");
+      else router.refresh();
+    });
+  };
+
+  const onDelete = () => {
+    if (
+      !window.confirm(
+        `¿Eliminar "${c.name}" definitivamente? Esta acción no se puede deshacer.`
+      )
+    )
+      return;
+    run(() => deleteClub(c.id));
+  };
+
+  return (
+    <div
+      className={`flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 ${
+        c.is_active ? "border-border-soft bg-surface" : "border-border-soft bg-surface/50 opacity-70"
+      }`}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold text-ink">
+          {c.name}{" "}
+          {!c.is_active && (
+            <span className="align-middle text-xs font-normal text-muted">· inactivo</span>
+          )}
+        </p>
+        <p className="text-xs text-muted">
+          {c.city ?? "Sin ciudad"} · {c.admins} {c.admins === 1 ? "miembro" : "miembros"}
+        </p>
+        {error && <p className="mt-1 text-xs font-semibold text-red-500">{error}</p>}
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => run(() => setClubActive(c.id, !c.is_active))}
+        >
+          {c.is_active ? "Desactivar" : "Activar"}
+        </Button>
+        <button
+          type="button"
+          disabled={pending || c.has_data}
+          onClick={onDelete}
+          title={
+            c.has_data
+              ? "Tiene eventos o reservas: desactivalo en lugar de eliminarlo"
+              : "Eliminar definitivamente"
+          }
+          className="text-xs font-semibold text-red-500 disabled:cursor-not-allowed disabled:text-faint"
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function ClubesManager({
   clubs,
@@ -150,18 +223,7 @@ export function ClubesManager({
         </h2>
         <div className="space-y-2">
           {clubs.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-center gap-3 rounded-xl border border-border-soft bg-surface px-4 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-ink">{c.name}</p>
-                <p className="text-xs text-muted">{c.city ?? "Sin ciudad"}</p>
-              </div>
-              <span className="text-xs text-muted">
-                {c.admins} {c.admins === 1 ? "miembro" : "miembros"}
-              </span>
-            </div>
+            <ClubItem key={c.id} club={c} />
           ))}
         </div>
       </div>

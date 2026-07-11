@@ -1788,6 +1788,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_club: { Args: { p_club_id: string }; Returns: string }
       apply_elo_for_match: { Args: { p_match_id: string }; Returns: undefined }
       claim_partner_spot: {
         Args: {

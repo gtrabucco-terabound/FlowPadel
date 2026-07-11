@@ -62,3 +62,41 @@ export async function createClub(
   revalidatePath("/admin/prospectos");
   return { ok: true, adminStatus };
 }
+
+/* ---- Gestión de clubes (superadmin): activar / eliminar ---- */
+
+type SimpleResult = { ok: true } | { ok: false; error: string };
+
+/** Activa o desactiva (archiva) un club. Solo superadmin (RLS). */
+export async function setClubActive(
+  clubId: string,
+  active: boolean
+): Promise<SimpleResult> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("clubs")
+    .update({ is_active: active, updated_at: new Date().toISOString() })
+    .eq("id", clubId);
+  if (error) return { ok: false, error: "No pudimos actualizar el club." };
+  revalidatePath("/admin/clubes");
+  return { ok: true };
+}
+
+/** Elimina un club (cascada de config). Bloquea si tiene eventos o reservas. */
+export async function deleteClub(clubId: string): Promise<SimpleResult> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("admin_delete_club", {
+    p_club_id: clubId,
+  });
+  if (error) return { ok: false, error: "No pudimos eliminar el club." };
+  if (data === "forbidden")
+    return { ok: false, error: "Solo un superadmin puede eliminar clubes." };
+  if (data === "has_data")
+    return {
+      ok: false,
+      error:
+        "Este club tiene eventos o reservas. Desactivalo en lugar de eliminarlo (así no perdés el historial).",
+    };
+  revalidatePath("/admin/clubes");
+  return { ok: true };
+}
