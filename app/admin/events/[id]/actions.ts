@@ -808,6 +808,38 @@ export async function saveEventEconomics(
     .eq("id", eventId);
   if (error) return fail("No pudimos guardar la configuración.");
 
+  // Recalcular los cobros de Finanzas con la nueva economía. Solo toca los que
+  // NO están cobrados de verdad (status paid con monto > 0 se preservan).
+  const [{ data: regs }, { data: pays }] = await Promise.all([
+    supabase.from("registrations").select("id, player_2_name").eq("event_id", eventId),
+    supabase.from("payments").select("id, registration_id, kind, amount, status").eq("event_id", eventId),
+  ]);
+  const pcOf = new Map(
+    (regs ?? []).map((r) => [r.id, r.player_2_name?.trim() ? 2 : 1] as const)
+  );
+  const nowIso = new Date().toISOString();
+  for (const p of pays ?? []) {
+    if (p.status === "paid" && Number(p.amount) > 0) continue; // ya cobrado real
+    const pc = pcOf.get(p.registration_id) ?? 2;
+    let newAmount = 0;
+    let newPool = 0;
+    if (p.kind === "inscription") {
+      newAmount = Number(parsed.data.inscription_per_person) * pc;
+    } else if (p.kind === "court_fee") {
+      newAmount = charge_court ? courtFeePerPerson * pc : 0;
+      newPool = charge_court ? courtPoolPerPerson * pc : 0;
+    }
+    await supabase
+      .from("payments")
+      .update({
+        amount: newAmount,
+        pool_amount: newPool,
+        status: newAmount === 0 ? "paid" : "pending",
+        paid_at: newAmount === 0 ? nowIso : null,
+      })
+      .eq("id", p.id);
+  }
+
   refresh(eventId);
   return { ok: true };
 }
