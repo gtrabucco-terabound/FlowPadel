@@ -990,3 +990,97 @@ export async function unblockTournamentCourts(eventId: string): Promise<ActionRe
   revalidatePath("/admin/agenda");
   return { ok: true };
 }
+
+/* ------------------------------------------------------------------ */
+/* Carga manual de inscripciones (comercial / club)                    */
+/* ------------------------------------------------------------------ */
+
+const CLAIM_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+function makeClaimCode(len = 7): string {
+  let s = "";
+  for (let i = 0; i < len; i++) s += CLAIM_ABC[Math.floor(Math.random() * CLAIM_ABC.length)];
+  return s;
+}
+const gTxt = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").trim();
+  return s === "" ? null : s;
+};
+const gNum = (v: FormDataEntryValue | null) => {
+  const s = String(v ?? "").trim();
+  const n = Number(s);
+  return s !== "" && Number.isFinite(n) ? n : null;
+};
+
+type ManualResult =
+  | { ok: true; claimCode?: string }
+  | { ok: false; error: string };
+
+/**
+ * El club/comercial carga una inscripción a mano. Si carga la pareja completa,
+ * queda aprobada al instante (crea el equipo). Si deja la pareja libre, genera
+ * un link de validación para que el jugador 2 confirme sus datos y cree cuenta.
+ */
+export async function addManualRegistration(
+  eventId: string,
+  formData: FormData
+): Promise<ManualResult> {
+  const { supabase, clubId, event } = await loadEvent(eventId);
+  if (!event) return { ok: false, error: "Evento no encontrado." };
+
+  const p1Name = gTxt(formData.get("p1_name"));
+  const p1Gender = gTxt(formData.get("p1_gender")) as
+    | Enums<"gender">
+    | null;
+  const p1Category = gNum(formData.get("p1_category"));
+  if (!p1Name) return { ok: false, error: "Ingresá el nombre del jugador 1." };
+  if (!p1Gender || p1Category == null)
+    return { ok: false, error: "Completá género y categoría del jugador 1." };
+
+  const p2Name = gTxt(formData.get("p2_name"));
+  const p2Gender = gTxt(formData.get("p2_gender")) as Enums<"gender"> | null;
+  const p2Category = gNum(formData.get("p2_category"));
+  const hasP2 = !!p2Name;
+  if (hasP2 && (!p2Gender || p2Category == null))
+    return { ok: false, error: "Completá género y categoría del jugador 2." };
+
+  const modality =
+    event.modality === "combinado"
+      ? (gTxt(formData.get("modality")) as Enums<"tournament_modality"> | null)
+      : null;
+
+  const claimCode = hasP2 ? null : makeClaimCode();
+
+  const { data: inserted, error } = await supabase
+    .from("registrations")
+    .insert({
+      club_id: clubId,
+      event_id: eventId,
+      status: "pending",
+      player_1_name: p1Name,
+      player_1_phone: gTxt(formData.get("p1_phone")),
+      player_1_gender: p1Gender,
+      player_1_category: p1Category,
+      player_2_name: p2Name,
+      player_2_phone: gTxt(formData.get("p2_phone")),
+      player_2_gender: hasP2 ? p2Gender : null,
+      player_2_category: hasP2 ? p2Category : null,
+      modality,
+      partner_claim_code: claimCode,
+    } satisfies TablesInsert<"registrations">)
+    .select("id")
+    .single();
+  if (error || !inserted)
+    return { ok: false, error: "No pudimos cargar la inscripción." };
+
+  // Pareja completa → aprobar directo (crea equipo + jugadores por teléfono).
+  if (hasP2) {
+    const res = await approveRegistration(eventId, inserted.id);
+    if (!res.ok) return { ok: false, error: res.error };
+    refresh(eventId);
+    return { ok: true };
+  }
+
+  // Solo J1 → queda pendiente y se manda el link para que J2 valide y se sume.
+  refresh(eventId);
+  return { ok: true, claimCode: claimCode ?? undefined };
+}

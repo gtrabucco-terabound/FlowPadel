@@ -32,6 +32,7 @@ import {
   generatePaymentLink,
   blockTournamentCourts,
   unblockTournamentCourts,
+  addManualRegistration,
 } from "@/app/admin/events/[id]/actions";
 import { BracketView, isBracketMatch } from "@/components/bracket-view";
 import type { Enums, Tables } from "@/lib/database.types";
@@ -238,6 +239,139 @@ const REG_TONE: Record<Enums<"registration_status">, "open" | "live" | "closed" 
   cancelled: "neutral",
 };
 
+const MANUAL_CATS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+const manualInput =
+  "w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink";
+
+function ManualAddForm({ data }: { data: EventManagerData }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [pending, startT] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [claimCode, setClaimCode] = useState<string | null>(null);
+  const [p2Phone, setP2Phone] = useState("");
+  const [copied, setCopied] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const combinado = data.event.modality === "combinado";
+  const link =
+    claimCode && typeof window !== "undefined"
+      ? `${window.location.origin}/sumarme/${claimCode}`
+      : "";
+  const waNum = (() => {
+    const d = p2Phone.replace(/\D/g, "");
+    if (d.length < 8) return "";
+    return d.startsWith("54") ? d : `54${d}`;
+  })();
+
+  const submit = (fd: FormData) => {
+    setError(null);
+    setClaimCode(null);
+    setP2Phone(String(fd.get("p2_phone") ?? ""));
+    startT(async () => {
+      const r = await addManualRegistration(data.event.id, fd);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      setCopied(false);
+      if (r.claimCode) setClaimCode(r.claimCode);
+      else {
+        formRef.current?.reset();
+        setOpen(false);
+      }
+      router.refresh();
+    });
+  };
+
+  return (
+    <div className="rounded-xl border border-border-soft bg-surface">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-bold text-padel-600"
+      >
+        <span>+ Agregar inscripción a mano</span>
+        <span className="text-faint">{open ? "−" : "+"}</span>
+      </button>
+
+      {open && (
+        <form ref={formRef} action={submit} className="space-y-4 px-4 pb-4">
+          {combinado && (
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Modalidad de la pareja</span>
+              <select name="modality" className={manualInput} defaultValue="">
+                <option value="">Elegí…</option>
+                <option value="caballeros">Caballeros</option>
+                <option value="damas">Damas</option>
+                <option value="mixto">Mixto</option>
+              </select>
+            </label>
+          )}
+
+          {[1, 2].map((n) => (
+            <fieldset key={n} className="space-y-2 rounded-lg border border-border-soft p-3">
+              <legend className="px-1 text-xs font-bold text-padel-600">
+                {n === 1 ? "Jugador 1" : "Jugador 2 (opcional)"}
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input name={`p${n}_name`} placeholder="Nombre y apellido" className={manualInput} />
+                <input name={`p${n}_phone`} inputMode="tel" placeholder="Teléfono (WhatsApp)" className={manualInput} />
+                <select name={`p${n}_gender`} className={manualInput} defaultValue="">
+                  <option value="">Género…</option>
+                  <option value="male">Hombre</option>
+                  <option value="female">Mujer</option>
+                </select>
+                <select name={`p${n}_category`} className={manualInput} defaultValue="">
+                  <option value="">Categoría…</option>
+                  {MANUAL_CATS.map((c) => (
+                    <option key={c} value={c}>{c}ma</option>
+                  ))}
+                </select>
+              </div>
+              {n === 2 && (
+                <p className="text-[11px] text-muted">
+                  Dejá el Jugador 2 vacío para generar un link y que se sume/valide él mismo.
+                </p>
+              )}
+            </fieldset>
+          ))}
+
+          {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+
+          {claimCode ? (
+            <div className="space-y-2 rounded-lg border border-accent/40 bg-accent/5 p-3">
+              <p className="text-sm font-semibold text-ink">
+                Inscripción cargada. Mandá este link para que la pareja valide y cree su cuenta:
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} className={`${manualInput} min-w-0 flex-1`} />
+                <Button type="button" size="sm" onClick={() => { navigator.clipboard?.writeText(link); setCopied(true); }}>
+                  {copied ? "¡Copiado!" : "Copiar"}
+                </Button>
+                <a
+                  href={`https://wa.me/${waNum}?text=${encodeURIComponent(`Te inscribí en ${data.event.name}. Confirmá tus datos y creá tu cuenta acá: ${link}`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="rounded-lg bg-[#25D366] px-3 py-1.5 text-sm font-semibold text-white"
+                >
+                  WhatsApp
+                </a>
+              </div>
+              <Button type="button" size="sm" variant="ghost" onClick={() => { setClaimCode(null); formRef.current?.reset(); setOpen(false); }}>
+                Listo
+              </Button>
+            </div>
+          ) : (
+            <Button type="submit" disabled={pending}>
+              {pending ? "Cargando…" : "Cargar inscripción"}
+            </Button>
+          )}
+        </form>
+      )}
+    </div>
+  );
+}
+
 function RegistrationsTab({ data }: { data: EventManagerData }) {
   const { run, pending, error } = useAction();
   const eventId = data.event.id;
@@ -268,6 +402,7 @@ function RegistrationsTab({ data }: { data: EventManagerData }) {
     return (
       <div className="space-y-3">
         {summary}
+        <ManualAddForm data={data} />
         <EmptyState text="Todavía no hay inscripciones." />
       </div>
     );
@@ -275,6 +410,7 @@ function RegistrationsTab({ data }: { data: EventManagerData }) {
   return (
     <div className="space-y-3">
       {summary}
+      <ManualAddForm data={data} />
       {full && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
           El cupo está completo. Las inscripciones nuevas entran como “en espera”
