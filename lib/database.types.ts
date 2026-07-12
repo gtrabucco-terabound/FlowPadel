@@ -1812,6 +1812,7 @@ export type Database = {
       admin_delete_club: { Args: { p_club_id: string }; Returns: string }
       apply_elo_for_match: { Args: { p_match_id: string }; Returns: undefined }
       bot_get_session: { Args: { p_phone: string }; Returns: Json }
+      bot_player_status: { Args: { p_phone: string }; Returns: Json }
       bot_set_session: {
         Args: { p_data: Json; p_phone: string; p_step: string }
         Returns: Json
