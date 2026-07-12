@@ -38,7 +38,7 @@ export async function GET() {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={bg} alt="" width={1200} height={630} style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630, objectFit: "cover" }} />
         ) : null}
-        <div style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630, display: "flex", background: "linear-gradient(90deg, rgba(8,12,10,0.92), rgba(8,12,10,0.55))" }} />
+        <div style={{ position: "absolute", top: 0, left: 0, width: 1200, height: 630, display: "flex", background: "linear-gradient(90deg, rgba(8,12,10,0.80), rgba(8,12,10,0.40))" }} />
       <div
         style={{
           position: "relative",
