@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      bot_sessions: {
+        Row: {
+          data: Json
+          phone: string
+          step: string
+          updated_at: string
+        }
+        Insert: {
+          data?: Json
+          phone: string
+          step?: string
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          phone?: string
+          step?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       brackets: {
         Row: {
           club_id: string
@@ -1790,6 +1811,11 @@ export type Database = {
       }
       admin_delete_club: { Args: { p_club_id: string }; Returns: string }
       apply_elo_for_match: { Args: { p_match_id: string }; Returns: undefined }
+      bot_get_session: { Args: { p_phone: string }; Returns: Json }
+      bot_set_session: {
+        Args: { p_data: Json; p_phone: string; p_step: string }
+        Returns: Json
+      }
       claim_partner_spot: {
         Args: {
           p_category: number
@@ -1898,6 +1924,7 @@ export type Database = {
         Returns: number
       }
       public_booking_clubs: { Args: never; Returns: Json }
+      public_booking_payinfo: { Args: { p_id: string }; Returns: Json }
       public_court_day: {
         Args: { p_date: string; p_slug: string }
         Returns: Json
