@@ -1,8 +1,18 @@
+import { readFile } from "fs/promises";
+import path from "path";
+
 /**
- * URL pública del fondo del flyer (bucket `flyer-bg`). Se pasa directo al <img>
- * de next/og (que la descarga al renderizar). Debe ser JPEG o PNG real (Satori
- * no soporta AVIF/WebP). Nombres: torneos.jpg, ranking.jpg, pago.jpg.
+ * Fondo del flyer leído del disco (public/flyers/<name>.jpg) y devuelto como
+ * data URI para embeberlo en next/og. No depende de descargar nada por red
+ * (Satori a veces no puede fetch imágenes remotas en el runtime de Vercel).
+ * Debe ser JPEG o PNG real. Nombres: torneos, ranking, pago.
  */
-export function flyerBg(name: string): string {
-  return `https://ruppicqugjpnosuxyaoi.supabase.co/storage/v1/object/public/flyer-bg/${name}.jpg`;
+export async function flyerBg(name: string): Promise<string | null> {
+  try {
+    const file = path.join(process.cwd(), "public", "flyers", `${name}.jpg`);
+    const buf = await readFile(file);
+    return `data:image/jpeg;base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
 }
