@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { flyerBg } from "@/lib/flyer-bg";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const CAT = ["", "1ra", "2da", "3ra", "4ta", "5ta", "6ta", "7ma", "8va", "9na"];
 function prettyDate(d: string | null): string {
@@ -111,6 +112,6 @@ export async function GET() {
       </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    { width: 1200, height: 630, headers: { "Cache-Control": "no-store, max-age=0" } }
   );
 }
