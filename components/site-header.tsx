@@ -98,11 +98,11 @@ export async function SiteHeader() {
           )}
 
           {isAdmin && (
-            <Link href="/admin" className="hidden sm:inline">
+            <a href="/admin" className="hidden sm:inline">
               <Button size="sm" variant="outline">
                 Panel
               </Button>
-            </Link>
+            </a>
           )}
 
           {user ? (

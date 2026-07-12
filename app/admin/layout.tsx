@@ -38,11 +38,12 @@ export default async function AdminLayout({
               {roleLabel}
             </span>
             <ThemeToggle />
-            <Link href="/" className="hidden sm:inline">
+            {/* Recarga completa: el layout raíz se re-evalúa y muestra el header público. */}
+            <a href="/" className="hidden sm:inline">
               <Button variant="ghost" size="sm">
                 App pública
               </Button>
-            </Link>
+            </a>
             <form action={logoutAction}>
               <Button variant="outline" size="sm" type="submit">
                 Salir

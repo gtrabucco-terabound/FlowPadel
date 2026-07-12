@@ -60,9 +60,9 @@ export function MobileMenu({
               Ranking
             </Link>
             {isAdmin && (
-              <Link href="/admin" onClick={close} className={linkCls}>
+              <a href="/admin" onClick={close} className={linkCls}>
                 Panel del club
-              </Link>
+              </a>
             )}
             {user ? (
               <Link href="/perfil" onClick={close} className={linkCls}>
