@@ -60,6 +60,7 @@ export function MobileMenu({
               Ranking
             </Link>
             {isAdmin && (
+              // eslint-disable-next-line @next/next/no-html-link-for-pages
               <a href="/admin" onClick={close} className={linkCls}>
                 Panel del club
               </a>

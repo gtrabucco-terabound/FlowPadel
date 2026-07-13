@@ -98,6 +98,7 @@ export async function SiteHeader() {
           )}
 
           {isAdmin && (
+            // eslint-disable-next-line @next/next/no-html-link-for-pages
             <a href="/admin" className="hidden sm:inline">
               <Button size="sm" variant="outline">
                 Panel

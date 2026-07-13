@@ -38,7 +38,8 @@ export default async function AdminLayout({
               {roleLabel}
             </span>
             <ThemeToggle />
-            {/* Recarga completa: el layout raíz se re-evalúa y muestra el header público. */}
+            {/* Recarga completa a propósito: re-evalúa el layout raíz y muestra el header público. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/" className="hidden sm:inline">
               <Button variant="ghost" size="sm">
                 App pública
