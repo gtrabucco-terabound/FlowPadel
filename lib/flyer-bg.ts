@@ -1,18 +1,9 @@
-import { readFile } from "fs/promises";
-import path from "path";
-
 /**
- * Fondo del flyer leído del disco (public/flyers/<name>.jpg) y devuelto como
- * data URI para embeberlo en next/og. No depende de descargar nada por red
- * (Satori a veces no puede fetch imágenes remotas en el runtime de Vercel).
- * Debe ser JPEG o PNG real. Nombres: torneos, ranking, pago.
+ * URL (mismo origen, servida por Vercel desde /public/flyers) del fondo del
+ * flyer. Se pasa directo al <img> de next/og. Satori descarga y decodifica
+ * JPEG por URL (no soporta JPEG como data URI, ni AVIF/WebP).
+ * Archivos: public/flyers/{torneos,ranking,pago}.jpg
  */
-export async function flyerBg(name: string): Promise<string | null> {
-  try {
-    const file = path.join(process.cwd(), "public", "flyers", `${name}.jpg`);
-    const buf = await readFile(file);
-    return `data:image/jpeg;base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
-  }
+export function flyerBg(name: string): string {
+  return `https://flow-padel.vercel.app/flyers/${name}.jpg`;
 }
