@@ -195,6 +195,44 @@ export type Database = {
           },
         ]
       }
+      club_operator_requests: {
+        Row: {
+          club_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          operator_profile_id: string
+          status: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          operator_profile_id: string
+          status?: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          operator_profile_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_operator_requests_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_payment_settings: {
         Row: {
           booking_charge_type: string
@@ -1826,6 +1864,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      club_operator_pending: { Args: { p_club_id: string }; Returns: Json }
       club_ranking: {
         Args: never
         Returns: {
@@ -1924,6 +1963,11 @@ export type Database = {
         Args: { p_kind: string; p_registration_id: string }
         Returns: number
       }
+      operator_decide: {
+        Args: { p_accept: boolean; p_request_id: string }
+        Returns: Json
+      }
+      operator_request_club: { Args: { p_club_id: string }; Returns: Json }
       public_booking_clubs: { Args: never; Returns: Json }
       public_booking_payinfo: { Args: { p_id: string }; Returns: Json }
       public_court_day: {
@@ -1949,7 +1993,7 @@ export type Database = {
       app_role: "superadmin" | "club_admin" | "staff" | "player"
       bracket_type: "single_elimination"
       category_system: "fixed" | "suma"
-      club_member_role: "club_admin" | "staff"
+      club_member_role: "club_admin" | "staff" | "operator"
       event_status: "draft" | "open" | "in_progress" | "closed" | "cancelled"
       event_type: "tournament" | "open_play"
       gender: "male" | "female"
@@ -2112,7 +2156,7 @@ export const Constants = {
       app_role: ["superadmin", "club_admin", "staff", "player"],
       bracket_type: ["single_elimination"],
       category_system: ["fixed", "suma"],
-      club_member_role: ["club_admin", "staff"],
+      club_member_role: ["club_admin", "staff", "operator"],
       event_status: ["draft", "open", "in_progress", "closed", "cancelled"],
       event_type: ["tournament", "open_play"],
       gender: ["male", "female"],

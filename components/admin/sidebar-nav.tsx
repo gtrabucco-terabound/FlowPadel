@@ -22,7 +22,8 @@ const ITEMS: NavItem[] = [
   { href: "/admin/calendario", label: "Calendario", exact: false },
   { href: "/admin/players", label: "Jugadores", exact: false },
   { href: "/admin/miembros", label: "Miembros", exact: false, adminOnly: true },
-  { href: "/admin/proyeccion", label: "Proyección", exact: false },
+  { href: "/admin/operar", label: "Operar clubes", exact: false },
+  { href: "/admin/proyeccion", label: "Proyección", exact: false, adminOnly: true },
   { href: "/admin/prospectos", label: "Prospectos", exact: false, adminOnly: true },
   { href: "/admin/settings", label: "Ajustes", exact: false },
 ];

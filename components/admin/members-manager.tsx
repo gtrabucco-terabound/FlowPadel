@@ -21,6 +21,7 @@ export interface MemberRow {
 const ROLE_LABEL: Record<Role, string> = {
   club_admin: "Administrador",
   staff: "Staff",
+  operator: "Operador (comercial)",
 };
 
 const inputClass =
