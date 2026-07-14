@@ -103,6 +103,28 @@ export async function updateBookingCharge(formData: FormData): Promise<ActionRes
   return { ok: true };
 }
 
+/** Configura el motor de ocupación (publicación de turnos libres + ofertas). */
+export async function updateOccupancy(formData: FormData): Promise<ActionResult> {
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const discount = numOrNull(formData.get("discount_pct"));
+  const lead = numOrNull(formData.get("lead_minutes"));
+  const { error } = await supabase.from("club_occupancy").upsert(
+    {
+      club_id: clubId,
+      enabled: formData.get("enabled") === "on",
+      wa_target: txt(formData.get("wa_target")),
+      discount_pct: discount != null && discount >= 0 && discount <= 90 ? discount : 30,
+      lead_minutes: lead != null && lead > 0 ? lead : 120,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "club_id" }
+  );
+  if (error) return fail("No pudimos guardar el motor de ocupación.");
+  refresh();
+  return { ok: true };
+}
+
 /** Desconecta MP (borra el token). */
 export async function disconnectClubPayments(): Promise<ActionResult> {
   const { clubId } = await requireClubAccess();

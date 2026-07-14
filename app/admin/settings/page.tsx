@@ -42,6 +42,14 @@ export default async function SettingsPage() {
   } | null;
   const mpConnected = Boolean(pay?.mp_connected);
 
+  const { data: occ } = canEditClub
+    ? await supabase
+        .from("club_occupancy")
+        .select("enabled, wa_target, discount_pct, lead_minutes")
+        .eq("club_id", ctx.activeClubId)
+        .maybeSingle()
+    : { data: null };
+
   return (
     <div className="space-y-6">
       <div>
@@ -56,6 +64,12 @@ export default async function SettingsPage() {
         bookingChargeType={pay?.booking_charge_type ?? "full"}
         bookingChargeValue={pay?.booking_charge_value ?? null}
         bookingPayAtClub={pay?.booking_pay_at_club ?? false}
+        occupancy={{
+          enabled: occ?.enabled ?? false,
+          waTarget: occ?.wa_target ?? "",
+          discountPct: occ?.discount_pct ?? 30,
+          leadMinutes: occ?.lead_minutes ?? 120,
+        }}
       />
     </div>
   );

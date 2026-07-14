@@ -195,6 +195,41 @@ export type Database = {
           },
         ]
       }
+      club_occupancy: {
+        Row: {
+          club_id: string
+          discount_pct: number
+          enabled: boolean
+          lead_minutes: number
+          updated_at: string
+          wa_target: string | null
+        }
+        Insert: {
+          club_id: string
+          discount_pct?: number
+          enabled?: boolean
+          lead_minutes?: number
+          updated_at?: string
+          wa_target?: string | null
+        }
+        Update: {
+          club_id?: string
+          discount_pct?: number
+          enabled?: boolean
+          lead_minutes?: number
+          updated_at?: string
+          wa_target?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_occupancy_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: true
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_operator_requests: {
         Row: {
           club_id: string
@@ -435,6 +470,54 @@ export type Database = {
             columns: ["player_id"]
             isOneToOne: false
             referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      court_offers: {
+        Row: {
+          booking_date: string
+          club_id: string
+          court_id: string
+          created_at: string
+          discount_pct: number
+          expires_at: string
+          id: string
+          start_minutes: number
+        }
+        Insert: {
+          booking_date: string
+          club_id: string
+          court_id: string
+          created_at?: string
+          discount_pct: number
+          expires_at: string
+          id?: string
+          start_minutes: number
+        }
+        Update: {
+          booking_date?: string
+          club_id?: string
+          court_id?: string
+          created_at?: string
+          discount_pct?: number
+          expires_at?: string
+          id?: string
+          start_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "court_offers_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "court_offers_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
             referencedColumns: ["id"]
           },
         ]

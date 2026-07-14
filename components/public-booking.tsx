@@ -48,11 +48,18 @@ function slotsFor(c: PublicCourt): number[] {
   return out;
 }
 
+export interface PublicOffer {
+  court_id: string;
+  start_minutes: number;
+  discount_pct: number;
+}
+
 export function PublicBooking({
   slug,
   date,
   courts,
   bookings,
+  offers = [],
   me = null,
   payAtClub = false,
 }: {
@@ -60,6 +67,7 @@ export function PublicBooking({
   date: string;
   courts: PublicCourt[];
   bookings: PublicBookingRow[];
+  offers?: PublicOffer[];
   me?: { name: string; phone: string } | null;
   payAtClub?: boolean;
 }) {
@@ -74,6 +82,8 @@ export function PublicBooking({
 
   const dow = dowOf(date);
   const [confirmed, setConfirmed] = useState(false);
+  const offerAt = (courtId: string, min: number) =>
+    offers.find((o) => o.court_id === courtId && o.start_minutes === min) ?? null;
   const bookingAt = (courtId: string, min: number, slot: number) =>
     bookings.find(
       (b) =>
@@ -179,6 +189,12 @@ export function PublicBooking({
                         </div>
                       );
                     }
+                    const offer = offerAt(court.id, min);
+                    const base = court.price_per_slot;
+                    const offerPrice =
+                      offer && base != null
+                        ? Math.round(base * (1 - offer.discount_pct / 100))
+                        : null;
                     return (
                       <button
                         key={min}
@@ -189,11 +205,26 @@ export function PublicBooking({
                         className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
                           isPicked
                             ? "border-accent bg-accent/10 text-ink"
-                            : "border-dashed border-border-soft text-muted hover:border-accent hover:text-ink"
+                            : offer
+                              ? "border-orange-400/60 bg-orange-400/10 text-ink hover:border-orange-400"
+                              : "border-dashed border-border-soft text-muted hover:border-accent hover:text-ink"
                         }`}
                       >
                         <span className="font-mono text-xs">{hhmm(min)}</span>
-                        <span className="text-xs">{isPicked ? "Elegido ✓" : "Libre"}</span>
+                        {offer ? (
+                          <span className="flex items-center gap-1.5 text-xs">
+                            <span className="rounded bg-orange-500/20 px-1.5 py-0.5 font-bold text-orange-300">
+                              🔥 -{offer.discount_pct}%
+                            </span>
+                            {offerPrice != null && (
+                              <span className="font-semibold text-orange-200">
+                                ${offerPrice}
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-xs">{isPicked ? "Elegido ✓" : "Libre"}</span>
+                        )}
                       </button>
                     );
                   })}

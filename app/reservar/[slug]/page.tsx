@@ -19,6 +19,7 @@ type DayData = {
   club: { name: string; city: string | null; pay_at_club: boolean } | null;
   courts: PublicCourt[];
   bookings: PublicBookingRow[];
+  offers?: { court_id: string; start_minutes: number; discount_pct: number }[] | null;
 };
 
 export default async function ReservarClubPage({
@@ -68,6 +69,7 @@ export default async function ReservarClubPage({
         date={day}
         courts={parsed.courts ?? []}
         bookings={parsed.bookings ?? []}
+        offers={parsed.offers ?? []}
         me={me}
         payAtClub={parsed.club.pay_at_club}
       />

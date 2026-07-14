@@ -15,6 +15,7 @@ import {
   updateClubPayments,
   disconnectClubPayments,
   updateBookingCharge,
+  updateOccupancy,
 } from "@/app/admin/settings/actions";
 import type { Tables } from "@/lib/database.types";
 
@@ -95,6 +96,7 @@ export function SettingsManager({
   bookingChargeType,
   bookingChargeValue,
   bookingPayAtClub,
+  occupancy,
 }: {
   courts: Court[];
   club: Club | null;
@@ -103,6 +105,7 @@ export function SettingsManager({
   bookingChargeType: "full" | "percent" | "fixed";
   bookingChargeValue: number | null;
   bookingPayAtClub: boolean;
+  occupancy: { enabled: boolean; waTarget: string; discountPct: number; leadMinutes: number };
 }) {
   return (
     <div className="max-w-2xl space-y-6">
@@ -115,8 +118,91 @@ export function SettingsManager({
           payAtClub={bookingPayAtClub}
         />
       )}
+      {canEditClub && <OccupancyCard occupancy={occupancy} />}
       <CourtsCard courts={courts} />
     </div>
+  );
+}
+
+function OccupancyCard({
+  occupancy,
+}: {
+  occupancy: { enabled: boolean; waTarget: string; discountPct: number; leadMinutes: number };
+}) {
+  const { run, pending, error } = useAction();
+  const [enabled, setEnabled] = useState(occupancy.enabled);
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 py-5">
+        <div>
+          <h2 className="text-lg font-bold text-ink">Motor de ocupación (WhatsApp)</h2>
+          <p className="text-sm text-muted">
+            Publica automáticamente los turnos libres al grupo de WhatsApp del
+            club cada 2 h, y ofrece un descuento en los que están por empezar y
+            siguen vacíos (el descuento se aplica solo al reservar).
+          </p>
+        </div>
+        <form action={(fd) => run(() => updateOccupancy(fd))} className="space-y-3">
+          <label className="flex items-start gap-2 rounded-lg border border-border-strong p-3">
+            <input
+              type="checkbox"
+              name="enabled"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-accent"
+            />
+            <span className="text-sm text-ink">
+              Activar publicación automática de turnos libres
+            </span>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-xs font-medium text-ink">
+              Grupo de WhatsApp (JID) o número donde publicar
+            </span>
+            <input
+              name="wa_target"
+              defaultValue={occupancy.waTarget}
+              placeholder="Ej: 120363XXXXXXXX@g.us"
+              className={inputCls}
+            />
+            <span className="block text-xs text-muted">
+              Es el ID del grupo (termina en <b>@g.us</b>). Más abajo te explicamos cómo obtenerlo.
+            </span>
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Descuento last-minute (%)</span>
+              <input
+                name="discount_pct"
+                type="number"
+                min={0}
+                max={90}
+                defaultValue={occupancy.discountPct}
+                className={inputCls}
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">Ofrecer si arranca en (min)</span>
+              <input
+                name="lead_minutes"
+                type="number"
+                min={15}
+                defaultValue={occupancy.leadMinutes}
+                className={inputCls}
+              />
+            </label>
+          </div>
+
+          {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+          <Button type="submit" size="sm" disabled={pending}>
+            {pending ? "Guardando…" : "Guardar motor de ocupación"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
