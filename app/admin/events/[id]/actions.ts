@@ -451,6 +451,28 @@ export async function recordMatchResult(
 
   await recomputeStandings(eventId);
 
+  // Auto-siembra del cuadro: cuando se completan TODOS los partidos de zona en
+  // un torneo de un día (grupos + eliminación), se arma la llave sola con el
+  // top 2 de cada zona. Si faltan clasificados, la RPC falla silenciosa.
+  if (match.zone_id && !event.long_format) {
+    const [{ data: groupMatches }, { data: bracket }] = await Promise.all([
+      supabase
+        .from("matches")
+        .select("status")
+        .eq("event_id", eventId)
+        .not("zone_id", "is", null),
+      supabase.from("brackets").select("id").eq("event_id", eventId).maybeSingle(),
+    ]);
+    const gm = groupMatches ?? [];
+    const allDone = gm.length > 0 && gm.every((m) => m.status === "completed");
+    if (allDone && !bracket) {
+      await supabase.rpc("generate_bracket", {
+        p_event_id: eventId,
+        p_qualifiers_per_zone: 2,
+      });
+    }
+  }
+
   refresh(eventId);
   return { ok: true };
 }
