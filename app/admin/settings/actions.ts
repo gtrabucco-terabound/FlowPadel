@@ -109,6 +109,10 @@ export async function updateOccupancy(formData: FormData): Promise<ActionResult>
   const supabase = await createClient();
   const discount = numOrNull(formData.get("discount_pct"));
   const lead = numOrNull(formData.get("lead_minutes"));
+  const segDiscount = numOrNull(formData.get("segment_discount_pct"));
+  const segMin = numOrNull(formData.get("segment_min_matches"));
+  const segInactive = numOrNull(formData.get("segment_inactive_days"));
+  const segMax = numOrNull(formData.get("segment_max_per_run"));
   const { error } = await supabase.from("club_occupancy").upsert(
     {
       club_id: clubId,
@@ -116,6 +120,13 @@ export async function updateOccupancy(formData: FormData): Promise<ActionResult>
       wa_target: txt(formData.get("wa_target")),
       discount_pct: discount != null && discount >= 0 && discount <= 90 ? discount : 30,
       lead_minutes: lead != null && lead > 0 ? lead : 120,
+      segment_enabled: formData.get("segment_enabled") === "on",
+      segment_discount_pct:
+        segDiscount != null && segDiscount >= 0 && segDiscount <= 90 ? segDiscount : 20,
+      segment_min_matches: segMin != null && segMin >= 0 ? segMin : 3,
+      segment_inactive_days: segInactive != null && segInactive > 0 ? segInactive : 21,
+      segment_max_per_run:
+        segMax != null && segMax > 0 && segMax <= 200 ? segMax : 15,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "club_id" }

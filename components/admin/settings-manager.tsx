@@ -105,7 +105,7 @@ export function SettingsManager({
   bookingChargeType: "full" | "percent" | "fixed";
   bookingChargeValue: number | null;
   bookingPayAtClub: boolean;
-  occupancy: { enabled: boolean; waTarget: string; discountPct: number; leadMinutes: number };
+  occupancy: OccupancyConfig;
 }) {
   return (
     <div className="max-w-2xl space-y-6">
@@ -124,13 +124,22 @@ export function SettingsManager({
   );
 }
 
-function OccupancyCard({
-  occupancy,
-}: {
-  occupancy: { enabled: boolean; waTarget: string; discountPct: number; leadMinutes: number };
-}) {
+type OccupancyConfig = {
+  enabled: boolean;
+  waTarget: string;
+  discountPct: number;
+  leadMinutes: number;
+  segmentEnabled: boolean;
+  segmentDiscountPct: number;
+  segmentMinMatches: number;
+  segmentInactiveDays: number;
+  segmentMaxPerRun: number;
+};
+
+function OccupancyCard({ occupancy }: { occupancy: OccupancyConfig }) {
   const { run, pending, error } = useAction();
   const [enabled, setEnabled] = useState(occupancy.enabled);
+  const [segEnabled, setSegEnabled] = useState(occupancy.segmentEnabled);
 
   return (
     <Card>
@@ -138,62 +147,137 @@ function OccupancyCard({
         <div>
           <h2 className="text-lg font-bold text-ink">Motor de ocupación (WhatsApp)</h2>
           <p className="text-sm text-muted">
-            Publica automáticamente los turnos libres al grupo de WhatsApp del
-            club cada 2 h, y ofrece un descuento en los que están por empezar y
-            siguen vacíos (el descuento se aplica solo al reservar).
+            Ayuda a llenar los turnos vacíos. Todo lo definís vos: los descuentos,
+            a partir de cuándo se ofrecen y a quién. Si lo apagás, no se envía nada.
           </p>
         </div>
-        <form action={(fd) => run(() => updateOccupancy(fd))} className="space-y-3">
-          <label className="flex items-start gap-2 rounded-lg border border-border-strong p-3">
-            <input
-              type="checkbox"
-              name="enabled"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-accent"
-            />
-            <span className="text-sm text-ink">
-              Activar publicación automática de turnos libres
-            </span>
-          </label>
-
-          <label className="block space-y-1">
-            <span className="text-xs font-medium text-ink">
-              Grupo de WhatsApp (JID) o número donde publicar
-            </span>
-            <input
-              name="wa_target"
-              defaultValue={occupancy.waTarget}
-              placeholder="Ej: 120363XXXXXXXX@g.us"
-              className={inputCls}
-            />
-            <span className="block text-xs text-muted">
-              Es el ID del grupo (termina en <b>@g.us</b>). Más abajo te explicamos cómo obtenerlo.
-            </span>
-          </label>
-
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-ink">Descuento last-minute (%)</span>
+        <form action={(fd) => run(() => updateOccupancy(fd))} className="space-y-5">
+          {/* Canal 1: grupo por ocupación */}
+          <div className="space-y-3 rounded-xl border border-border-soft p-3">
+            <p className="text-sm font-semibold text-ink">1 · Publicar al grupo del club</p>
+            <label className="flex items-start gap-2">
               <input
-                name="discount_pct"
-                type="number"
-                min={0}
-                max={90}
-                defaultValue={occupancy.discountPct}
+                type="checkbox"
+                name="enabled"
+                checked={enabled}
+                onChange={(e) => setEnabled(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-accent"
+              />
+              <span className="text-sm text-ink">
+                Publicar automáticamente los turnos libres al grupo de WhatsApp (cada 2 h)
+              </span>
+            </label>
+
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-ink">
+                Grupo de WhatsApp (JID) o número donde publicar
+              </span>
+              <input
+                name="wa_target"
+                defaultValue={occupancy.waTarget}
+                placeholder="Ej: 120363XXXXXXXX@g.us"
                 className={inputCls}
               />
+              <span className="block text-xs text-muted">
+                Es el ID del grupo (termina en <b>@g.us</b>). Cuando el grupo le escribe al bot,
+                Evolution te devuelve ese ID.
+              </span>
             </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-ink">Ofrecer si arranca en (min)</span>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-ink">Descuento last-minute (%)</span>
+                <input
+                  name="discount_pct"
+                  type="number"
+                  min={0}
+                  max={90}
+                  defaultValue={occupancy.discountPct}
+                  className={inputCls}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-ink">Ofrecer si arranca en (min)</span>
+                <input
+                  name="lead_minutes"
+                  type="number"
+                  min={15}
+                  defaultValue={occupancy.leadMinutes}
+                  className={inputCls}
+                />
+              </label>
+            </div>
+            <p className="text-xs text-muted">
+              El descuento del {occupancy.discountPct}% se aplica solo a los turnos que arrancan
+              dentro de la ventana y siguen vacíos — y se cobra ya rebajado al reservar.
+            </p>
+          </div>
+
+          {/* Canal 2: invitaciones dirigidas a jugadores */}
+          <div className="space-y-3 rounded-xl border border-border-soft p-3">
+            <p className="text-sm font-semibold text-ink">2 · Invitar a jugadores del club</p>
+            <label className="flex items-start gap-2">
               <input
-                name="lead_minutes"
-                type="number"
-                min={15}
-                defaultValue={occupancy.leadMinutes}
-                className={inputCls}
+                type="checkbox"
+                name="segment_enabled"
+                checked={segEnabled}
+                onChange={(e) => setSegEnabled(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-accent"
               />
+              <span className="text-sm text-ink">
+                Cuando haya un turno con oferta, invitar por WhatsApp a jugadores del club
+              </span>
             </label>
+            <p className="text-xs text-muted">
+              Solo se les escribe a jugadores que <b>aceptaron recibir ofertas</b>. Se prioriza a
+              los <b>fieles</b> (muchos partidos) y a los <b>dormidos</b> (hace tiempo que no reservan).
+              Nunca se le escribe dos veces al mismo jugador el mismo día.
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-ink">Descuento de la invitación (%)</span>
+                <input
+                  name="segment_discount_pct"
+                  type="number"
+                  min={0}
+                  max={90}
+                  defaultValue={occupancy.segmentDiscountPct}
+                  className={inputCls}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-ink">Máx. invitaciones por envío</span>
+                <input
+                  name="segment_max_per_run"
+                  type="number"
+                  min={1}
+                  max={200}
+                  defaultValue={occupancy.segmentMaxPerRun}
+                  className={inputCls}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-ink">&quot;Fiel&quot; desde (partidos)</span>
+                <input
+                  name="segment_min_matches"
+                  type="number"
+                  min={0}
+                  defaultValue={occupancy.segmentMinMatches}
+                  className={inputCls}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs font-medium text-ink">&quot;Dormido&quot; desde (días)</span>
+                <input
+                  name="segment_inactive_days"
+                  type="number"
+                  min={1}
+                  defaultValue={occupancy.segmentInactiveDays}
+                  className={inputCls}
+                />
+              </label>
+            </div>
           </div>
 
           {error && <p className="text-sm font-semibold text-red-600">{error}</p>}

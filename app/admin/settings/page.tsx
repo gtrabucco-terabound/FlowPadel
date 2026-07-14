@@ -45,7 +45,9 @@ export default async function SettingsPage() {
   const { data: occ } = canEditClub
     ? await supabase
         .from("club_occupancy")
-        .select("enabled, wa_target, discount_pct, lead_minutes")
+        .select(
+          "enabled, wa_target, discount_pct, lead_minutes, segment_enabled, segment_discount_pct, segment_min_matches, segment_inactive_days, segment_max_per_run"
+        )
         .eq("club_id", ctx.activeClubId)
         .maybeSingle()
     : { data: null };
@@ -69,6 +71,11 @@ export default async function SettingsPage() {
           waTarget: occ?.wa_target ?? "",
           discountPct: occ?.discount_pct ?? 30,
           leadMinutes: occ?.lead_minutes ?? 120,
+          segmentEnabled: occ?.segment_enabled ?? false,
+          segmentDiscountPct: occ?.segment_discount_pct ?? 20,
+          segmentMinMatches: occ?.segment_min_matches ?? 3,
+          segmentInactiveDays: occ?.segment_inactive_days ?? 21,
+          segmentMaxPerRun: occ?.segment_max_per_run ?? 15,
         }}
       />
     </div>

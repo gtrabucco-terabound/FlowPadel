@@ -201,6 +201,11 @@ export type Database = {
           discount_pct: number
           enabled: boolean
           lead_minutes: number
+          segment_discount_pct: number
+          segment_enabled: boolean
+          segment_inactive_days: number
+          segment_max_per_run: number
+          segment_min_matches: number
           updated_at: string
           wa_target: string | null
         }
@@ -209,6 +214,11 @@ export type Database = {
           discount_pct?: number
           enabled?: boolean
           lead_minutes?: number
+          segment_discount_pct?: number
+          segment_enabled?: boolean
+          segment_inactive_days?: number
+          segment_max_per_run?: number
+          segment_min_matches?: number
           updated_at?: string
           wa_target?: string | null
         }
@@ -217,6 +227,11 @@ export type Database = {
           discount_pct?: number
           enabled?: boolean
           lead_minutes?: number
+          segment_discount_pct?: number
+          segment_enabled?: boolean
+          segment_inactive_days?: number
+          segment_max_per_run?: number
+          segment_min_matches?: number
           updated_at?: string
           wa_target?: string | null
         }
@@ -1262,6 +1277,48 @@ export type Database = {
           },
         ]
       }
+      player_offer_invites: {
+        Row: {
+          club_id: string
+          discount_pct: number | null
+          id: string
+          invite_date: string
+          player_id: string
+          sent_at: string
+        }
+        Insert: {
+          club_id: string
+          discount_pct?: number | null
+          id?: string
+          invite_date: string
+          player_id: string
+          sent_at?: string
+        }
+        Update: {
+          club_id?: string
+          discount_pct?: number | null
+          id?: string
+          invite_date?: string
+          player_id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_offer_invites_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_offer_invites_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_standings: {
         Row: {
           club_id: string
@@ -1972,6 +2029,20 @@ export type Database = {
           p_start: number
         }
         Returns: Json
+      }
+      eligible_offer_players: {
+        Args: {
+          p_club_id: string
+          p_inactive_days: number
+          p_max_n: number
+          p_min_matches: number
+        }
+        Returns: {
+          full_name: string
+          phone: string
+          player_id: string
+          reason: string
+        }[]
       }
       event_approved_count: { Args: { p_event_id: string }; Returns: number }
       event_open_for_registration: {
