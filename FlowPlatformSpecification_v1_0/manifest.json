@@ -1,0 +1,23 @@
+{
+  "name": "Flow Platform Specification",
+  "version": "1.0",
+  "date": "2026-07-15",
+  "status": "ready_for_claude_review",
+  "documents": [
+    "01_EXECUTIVE_SUMMARY.md",
+    "02_CURRENT_STATE_AND_GAPS.md",
+    "03_PRODUCT_AND_BUSINESS_ARCHITECTURE.md",
+    "04_TARGET_TECHNICAL_ARCHITECTURE.md",
+    "05_TECHNICAL_DEBT_REMEDIATION.md",
+    "06_AGENT_PLATFORM_AND_GOVERNANCE.md",
+    "07_FLOW_COS_COMMERCIAL_MVP.md",
+    "08_FLOW_MKT_AND_IMPORT_CENTER.md",
+    "09_FLOW_BOS_AND_AGENT_OFFICE.md",
+    "10_DELIVERY_PLAN_6_MONTHS.md",
+    "11_DEFINITION_OF_DONE_AND_QA.md",
+    "12_CLAUDE_EXECUTION_PROMPT.md",
+    "13_DATA_MODEL_BLUEPRINT.md",
+    "14_BACKLOG_PRIORITIZED.md",
+    "README.md"
+  ]
+}
