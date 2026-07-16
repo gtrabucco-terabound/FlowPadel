@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { listPublicBookingClubs } from "@/modules/reservations/repository";
 
 export const dynamic = "force-dynamic";
 
-type ClubRow = { name: string; slug: string; city: string | null };
-
 export default async function ReservarPage() {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("public_booking_clubs");
-  const clubs = (data ?? []) as unknown as ClubRow[];
+  const clubs = await listPublicBookingClubs(supabase);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">

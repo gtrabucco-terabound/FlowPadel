@@ -157,6 +157,20 @@ export async function listPlayerStandings(
   return (data ?? []) as unknown as StandingRow[];
 }
 
+/** Nombre y teléfono del jugador (para precargar formularios). */
+export async function getPlayerContact(
+  supabase: DB,
+  userId: string
+): Promise<{ name: string; phone: string } | null> {
+  const { data } = await supabase
+    .from("players")
+    .select("full_name, phone")
+    .eq("profile_id", userId)
+    .maybeSingle();
+  if (!data?.full_name) return null;
+  return { name: data.full_name, phone: data.phone ?? "" };
+}
+
 /** Id de la ficha de jugador del usuario (para acciones). */
 export async function getPlayerIdByProfile(
   supabase: DB,

@@ -1,6 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import {
+  createPublicHold,
+  requestBookingPaymentLink,
+} from "@/modules/reservations/repository";
 
 type Result =
   | { ok: true; mode: "pay"; checkoutUrl: string }
@@ -21,19 +25,8 @@ export async function createPublicBooking(input: {
 }): Promise<Result> {
   const supabase = await createClient();
 
-  const { data: hold, error } = await supabase.rpc("create_public_hold", {
-    p_slug: input.slug,
-    p_court_id: input.courtId,
-    p_date: input.date,
-    p_start: input.startMinutes,
-    p_name: input.name,
-    p_phone: input.phone,
-  });
-
-  const res = hold as
-    | { ok: boolean; id?: string; error?: string; pay_at_club?: boolean }
-    | null;
-  if (error || !res?.ok || !res.id) {
+  const res = await createPublicHold(supabase, input);
+  if (!res?.ok || !res.id) {
     return { ok: false, error: res?.error ?? "No pudimos reservar el turno." };
   }
 
@@ -42,14 +35,11 @@ export async function createPublicBooking(input: {
     return { ok: true, mode: "confirmed" };
   }
 
-  const { data: pref, error: fnError } = await supabase.functions.invoke(
-    "mp-booking-preference",
-    { body: { booking_id: res.id } }
-  );
-  if (fnError || !pref?.checkout_url) {
+  const checkoutUrl = await requestBookingPaymentLink(supabase, res.id);
+  if (!checkoutUrl) {
     // El hold expira solo en 30 min (cron), no queda el turno tomado indefinido.
     return { ok: false, error: "No pudimos generar el pago. Probá de nuevo." };
   }
 
-  return { ok: true, mode: "pay", checkoutUrl: pref.checkout_url as string };
+  return { ok: true, mode: "pay", checkoutUrl };
 }
