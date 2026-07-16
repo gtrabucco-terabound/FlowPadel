@@ -1,0 +1,1 @@
+alter type club_member_role add value if not exists 'operator';;

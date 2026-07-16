@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums, TablesUpdate } from "@/lib/database.types";
+import {
+  getPlayerIdByProfile,
+  upsertClubLead,
+  updatePlayer,
+} from "@/modules/players/repository";
 
 export type ProfileState = { error: string } | { ok: true } | null;
 
@@ -92,21 +97,14 @@ export async function updateMyPlayerProfile(
     return { error: parsed.error.issues[0]?.message ?? "Datos inválidos" };
   }
 
-  const { data: player } = await supabase
-    .from("players")
-    .select("id")
-    .eq("profile_id", user.id)
-    .maybeSingle();
-  if (!player) return { error: "No encontramos tu ficha de jugador." };
+  const playerId = await getPlayerIdByProfile(supabase, user.id);
+  if (!playerId) return { error: "No encontramos tu ficha de jugador." };
 
   // Resolver el club: si eligió uno registrado, ese manda y se limpia el lead.
   // Si no y escribió un nombre libre, se registra como lead (CRM).
   let clubLeadId: string | null = null;
   if (!parsed.data.home_club_id && parsed.data.club_other) {
-    const { data: leadId } = await supabase.rpc("upsert_club_lead", {
-      p_name: parsed.data.club_other,
-    });
-    clubLeadId = (leadId as string | null) ?? null;
+    clubLeadId = await upsertClubLead(supabase, parsed.data.club_other);
   }
 
   const update: TablesUpdate<"players"> = {
@@ -129,11 +127,7 @@ export async function updateMyPlayerProfile(
     receive_offers: parsed.data.receive_offers,
   };
 
-  const { error } = await supabase
-    .from("players")
-    .update(update)
-    .eq("id", player.id)
-    .eq("profile_id", user.id);
+  const { error } = await updatePlayer(supabase, playerId, user.id, update);
 
   if (error) {
     return { error: "No pudimos guardar los cambios. Probá de nuevo." };

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { listRecentNotifications } from "@/modules/notifications/repository";
 import { markAllNotificationsRead } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -25,12 +26,7 @@ export default async function NotificacionesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data } = await supabase
-    .from("notifications")
-    .select("id, type, title, body, url, read_at, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  const notifications = data ?? [];
+  const notifications = await listRecentNotifications(supabase);
   const hasUnread = notifications.some((n) => !n.read_at);
 
   return (

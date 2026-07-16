@@ -4,13 +4,14 @@ import {
 } from "@/components/events-grid-realtime";
 import type { EventCardData } from "@/components/event-card";
 import { TopRanking, type TopRankingPlayer } from "@/components/top-ranking";
+import { listTopPlayersWithClub } from "@/modules/ranking/repository";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const supabase = await createClient();
 
-  const [{ data }, { data: playersData }] = await Promise.all([
+  const [{ data }, topPlayersRaw] = await Promise.all([
     supabase
       .from("events")
       .select(
@@ -19,24 +20,12 @@ export default async function HomePage() {
       .eq("public_visible", true)
       .neq("status", "draft")
       .order("start_date", { ascending: true, nullsFirst: false }),
-    supabase
-      .from("players")
-      .select("id, full_name, elo_rating, club:clubs(name)")
-      .gt("matches_played", 0) // solo jugadores que ya compitieron
-      .order("elo_rating", { ascending: false })
-      .limit(6),
+    listTopPlayersWithClub(supabase, 6),
   ]);
 
   const events = (data ?? []) as unknown as EventCardData[];
 
-  const topPlayers: TopRankingPlayer[] = (
-    (playersData ?? []) as unknown as Array<{
-      id: string;
-      full_name: string;
-      elo_rating: number;
-      club: { name: string } | null;
-    }>
-  ).map((p) => ({
+  const topPlayers: TopRankingPlayer[] = topPlayersRaw.map((p) => ({
     id: p.id,
     full_name: p.full_name,
     elo_rating: p.elo_rating,

@@ -4,25 +4,16 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProfileForm } from "@/components/profile-form";
 import { formatModalityCategory } from "@/lib/format";
-import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
+import type { Enums } from "@/lib/database.types";
+import {
+  getProfileBasics,
+  ensurePlayerForProfile,
+  listClubsForSelect,
+  getClubLeadName,
+  listPlayerStandings,
+} from "@/modules/players/repository";
 
 export const dynamic = "force-dynamic";
-
-type StandingRow = Pick<
-  Tables<"player_standings">,
-  "id" | "played" | "won" | "lost" | "points" | "position"
-> & {
-  event: Pick<
-    Tables<"events">,
-    | "id"
-    | "name"
-    | "slug"
-    | "status"
-    | "modality"
-    | "category_system"
-    | "category_value"
-  > | null;
-};
 
 export default async function PerfilPage({
   searchParams,
@@ -40,84 +31,32 @@ export default async function PerfilPage({
   }
 
   // Profile (auth-backed). Should exist for any authenticated user.
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, player_id")
-    .eq("id", user.id)
-    .maybeSingle();
+  const profile = await getProfileBasics(supabase, user.id);
 
   const email = profile?.email ?? user.email ?? "";
   const profileName = profile?.full_name ?? user.email ?? "Jugador";
 
-  // Ensure a player row linked to this profile exists.
-  let { data: player } = await supabase
-    .from("players")
-    .select(
-      "id, full_name, phone, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, receive_offers, elo_rating, matches_played, matches_won"
-    )
-    .eq("profile_id", user.id)
-    .maybeSingle();
-
-  if (!player) {
-    const insert: TablesInsert<"players"> = {
-      profile_id: user.id,
-      full_name: profileName,
-      email,
-    };
-    const { data: created } = await supabase
-      .from("players")
-      .insert(insert)
-      .select(
-        "id, full_name, phone, first_name, birthdate, email, gender, category, hand, home_club_id, club_lead_id, photo_url, notify_enabled, notify_mixto, notify_inapp, notify_email, notify_telegram, notify_whatsapp, receive_offers, elo_rating, matches_played, matches_won"
-      )
-      .single();
-    player = created ?? null;
-
-    // Link profiles.player_id back to the new player row.
-    if (created) {
-      await supabase
-        .from("profiles")
-        .update({ player_id: created.id })
-        .eq("id", user.id);
-    }
-  } else if (profile && profile.player_id !== player.id) {
-    // Keep the profile link in sync.
-    await supabase
-      .from("profiles")
-      .update({ player_id: player.id })
-      .eq("id", user.id);
-  }
+  // Ensure a player row linked to this profile exists (y sincroniza el link).
+  const player = await ensurePlayerForProfile(
+    supabase,
+    user.id,
+    profile?.player_id ?? null,
+    profileName,
+    email
+  );
 
   // Clubs for the select.
-  const { data: clubsData } = await supabase
-    .from("clubs")
-    .select("id, name")
-    .order("name", { ascending: true });
-  const clubs = (clubsData ?? []) as { id: string; name: string }[];
+  const clubs = await listClubsForSelect(supabase);
 
   // Nombre del club-lead (si el jugador nombró un club no registrado).
-  let clubOther: string | null = null;
-  if (player?.club_lead_id) {
-    const { data: lead } = await supabase
-      .from("club_leads")
-      .select("name")
-      .eq("id", player.club_lead_id)
-      .maybeSingle();
-    clubOther = lead?.name ?? null;
-  }
+  const clubOther = player?.club_lead_id
+    ? await getClubLeadName(supabase, player.club_lead_id)
+    : null;
 
   // "Mi seguimiento": tournaments where the player has standings.
-  let standings: StandingRow[] = [];
-  if (player) {
-    const { data: standingsData } = await supabase
-      .from("player_standings")
-      .select(
-        "id, played, won, lost, points, position, event:events(id, name, slug, status, modality, category_system, category_value)"
-      )
-      .eq("player_id", player.id)
-      .order("created_at", { ascending: false });
-    standings = (standingsData ?? []) as unknown as StandingRow[];
-  }
+  const standings = player
+    ? await listPlayerStandings(supabase, player.id)
+    : [];
 
   // Puntos aportados al club que representa el jugador.
   let clubContribution: { clubName: string; points: number } | null = null;
