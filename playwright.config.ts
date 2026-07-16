@@ -30,6 +30,8 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: process.env.E2E_SUPABASE_URL ?? DEV_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY:
         process.env.E2E_SUPABASE_ANON_KEY ?? DEV_SUPABASE_ANON,
+      // Build aislado: no comparte `.next` con un preview corriendo en :3000.
+      NEXT_DIST_DIR: ".next-e2e",
     },
   },
 });

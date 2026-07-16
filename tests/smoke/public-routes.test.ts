@@ -17,6 +17,8 @@ const ROUTES = [
   "/torneos",
   "/ranking",
   "/login",
+  "/ranking/flyer",
+  "/torneos/flyer",
 ];
 
 let serverUp = false;

@@ -1,23 +1,13 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { flyerBg } from "@/lib/flyer-bg";
+import { listTopPlayersWithClub } from "@/modules/ranking/repository";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("players")
-    .select("full_name, elo_rating, club:clubs(name)")
-    .gt("matches_played", 0)
-    .order("elo_rating", { ascending: false })
-    .limit(10);
-
-  const players = (data ?? []) as unknown as Array<{
-    full_name: string;
-    elo_rating: number;
-    club: { name: string | null } | null;
-  }>;
+  const players = await listTopPlayersWithClub(supabase, 10);
 
   const LIME = "#C7F94B";
   const medal = (i: number) => (i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`);
