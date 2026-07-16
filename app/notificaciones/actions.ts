@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { markAllNotificationsReadFor } from "@/modules/notifications/repository";
 
 /** Marca todas las notificaciones del jugador como leídas. RLS restringe a las propias. */
 export async function markAllNotificationsRead(): Promise<void> {
@@ -11,10 +12,7 @@ export async function markAllNotificationsRead(): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  await supabase
-    .from("notifications")
-    .update({ read_at: new Date().toISOString() })
-    .is("read_at", null);
+  await markAllNotificationsReadFor(supabase);
 
   revalidatePath("/notificaciones");
   revalidatePath("/", "layout");
