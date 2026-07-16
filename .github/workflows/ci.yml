@@ -27,3 +27,6 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Tests (unit; smoke se saltea sin server)
+        run: npm test
