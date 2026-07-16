@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/database.types";
 
 /** Cliente Supabase server-side (RLS aplica sobre él). */
 type DB = Awaited<ReturnType<typeof createClient>>;
@@ -96,4 +97,141 @@ export async function requestBookingPaymentLink(
   );
   if (error || !data?.checkout_url) return null;
   return data.checkout_url as string;
+}
+
+/* ---- Agenda del club (panel admin) ---- */
+
+export type AgendaCourtRow = Pick<
+  Tables<"courts">,
+  | "id"
+  | "name"
+  | "number"
+  | "is_active"
+  | "open_hour"
+  | "close_hour"
+  | "slot_minutes"
+  | "operating_days"
+  | "price_per_slot"
+>;
+export type AgendaBookingRow = Pick<
+  Tables<"court_bookings">,
+  | "id"
+  | "court_id"
+  | "booking_date"
+  | "start_minutes"
+  | "slot_minutes"
+  | "status"
+  | "kind"
+  | "customer_name"
+  | "customer_phone"
+  | "checkout_url"
+  | "amount_charged"
+  | "paid_at"
+>;
+
+/** Canchas activas del club para la agenda. */
+export async function listActiveCourtsForClub(
+  supabase: DB,
+  clubId: string
+): Promise<AgendaCourtRow[]> {
+  const { data } = await supabase
+    .from("courts")
+    .select(
+      "id, name, number, is_active, open_hour, close_hour, slot_minutes, operating_days, price_per_slot"
+    )
+    .eq("club_id", clubId)
+    .eq("is_active", true)
+    .order("name");
+  return (data ?? []) as AgendaCourtRow[];
+}
+
+/** Reservas del club en un rango de fechas (excluye canceladas). */
+export async function listClubBookings(
+  supabase: DB,
+  clubId: string,
+  from: string,
+  to: string
+): Promise<AgendaBookingRow[]> {
+  const { data } = await supabase
+    .from("court_bookings")
+    .select(
+      "id, court_id, booking_date, start_minutes, slot_minutes, status, kind, customer_name, customer_phone, checkout_url, amount_charged, paid_at"
+    )
+    .eq("club_id", clubId)
+    .gte("booking_date", from)
+    .lte("booking_date", to)
+    .neq("status", "cancelled");
+  return (data ?? []) as AgendaBookingRow[];
+}
+
+export type NewBooking = {
+  club_id: string;
+  court_id: string;
+  booking_date: string;
+  start_minutes: number;
+  slot_minutes: number;
+  status: string;
+  kind: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  price: number | null;
+  paid_at: string | null;
+  hold_expires_at?: string | null;
+};
+
+/** Inserta una reserva/bloqueo manual. `conflict` = turno ya ocupado (23505). */
+export async function insertBooking(
+  supabase: DB,
+  row: NewBooking
+): Promise<{ error: boolean; conflict: boolean; id: string | null }> {
+  const { data, error } = await supabase
+    .from("court_bookings")
+    .insert(row)
+    .select("id")
+    .single();
+  return {
+    error: Boolean(error),
+    conflict: error?.code === "23505",
+    id: data?.id ?? null,
+  };
+}
+
+/** Datos mínimos de una reserva para cobrarla (verifica pertenencia al club). */
+export async function getBookingForPayment(
+  supabase: DB,
+  bookingId: string,
+  clubId: string
+): Promise<Pick<
+  Tables<"court_bookings">,
+  "id" | "status" | "price" | "paid_at"
+> | null> {
+  const { data } = await supabase
+    .from("court_bookings")
+    .select("id, status, price, paid_at")
+    .eq("id", bookingId)
+    .eq("club_id", clubId)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/** Borra una reserva (revertir un hold sin link de pago). */
+export async function deleteBooking(
+  supabase: DB,
+  bookingId: string
+): Promise<void> {
+  await supabase.from("court_bookings").delete().eq("id", bookingId);
+}
+
+/** Cancela (libera) un turno del club. */
+export async function cancelClubBooking(
+  supabase: DB,
+  bookingId: string,
+  clubId: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("court_bookings")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("id", bookingId)
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
 }
