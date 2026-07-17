@@ -1,6 +1,7 @@
 import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { OperarManager, type OperarClub } from "@/components/admin/operar-manager";
+import { listOperableClubs } from "@/modules/clubs/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -10,29 +11,7 @@ export default async function OperarPage() {
   const { data: auth } = await supabase.auth.getUser();
   const uid = auth?.user?.id ?? "";
 
-  const [{ data: clubs }, { data: myMemberships }, { data: myRequests }] =
-    await Promise.all([
-      supabase.from("clubs").select("id, name, city").eq("is_active", true).order("name"),
-      supabase.from("club_members").select("club_id").eq("profile_id", uid),
-      supabase
-        .from("club_operator_requests")
-        .select("club_id, status")
-        .eq("operator_profile_id", uid),
-    ]);
-
-  const memberOf = new Set((myMemberships ?? []).map((m) => m.club_id));
-  const reqStatus = new Map(
-    (myRequests ?? []).map((r) => [r.club_id, r.status as string])
-  );
-
-  const rows: OperarClub[] = (clubs ?? [])
-    .filter((c) => !memberOf.has(c.id))
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      city: c.city,
-      status: reqStatus.get(c.id) ?? null,
-    }));
+  const rows = (await listOperableClubs(supabase, uid)) as OperarClub[];
 
   return (
     <div className="space-y-6">

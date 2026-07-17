@@ -28,4 +28,18 @@ test("admin ingresa al panel y ve la agenda del club", async ({ page }) => {
   await page.goto("/admin/settings");
   await expect(page).toHaveURL(/\/admin\/settings/);
   await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
+
+  // Miembros carga (ejercita modules/clubs: listClubMembers + operator pending).
+  await page.goto("/admin/miembros");
+  await expect(page).toHaveURL(/\/admin\/miembros/);
+  await expect(
+    page.getByRole("heading", { name: "Miembros", exact: true })
+  ).toBeVisible();
+
+  // Operar clubes carga (ejercita modules/clubs: listOperableClubs).
+  await page.goto("/admin/operar");
+  await expect(page).toHaveURL(/\/admin\/operar/);
+  await expect(
+    page.getByRole("heading", { name: "Operar clubes" })
+  ).toBeVisible();
 });

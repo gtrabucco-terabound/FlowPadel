@@ -34,5 +34,11 @@ a medida que se necesite.
 
 ## Estado
 
-- [x] `notifications` — primer módulo de referencia.
-- [ ] resto de dominios (payments, reservations, tournaments, …) en próximas tajadas.
+- [x] `notifications` — avisos in-app + email transaccional.
+- [x] `ranking` — top de jugadores y ranking de clubes.
+- [x] `players` — perfil, ficha de jugador, club-lead, standings.
+- [x] `reservations` — reserva pública, agenda del club y turnos fijos
+      (`repository.ts` + `fixed-repository.ts`).
+- [x] `payments` — links de Checkout Pro, estado de pagos y config de cobro del club.
+- [ ] `tournaments` — el dominio de eventos/torneos sigue en `app/admin/events/*`
+      (es el más grande; se migrará cuando haya E2E que cubra su flujo completo).
