@@ -35,3 +35,28 @@ export async function markAllNotificationsReadFor(supabase: DB): Promise<void> {
     .update({ read_at: new Date().toISOString() })
     .is("read_at", null);
 }
+
+/** Crea una notificación in-app para un jugador. */
+export async function insertNotification(
+  supabase: DB,
+  n: {
+    player_id: string;
+    type: string;
+    title: string;
+    body: string | null;
+    url: string | null;
+  }
+): Promise<void> {
+  await supabase.from("notifications").insert(n);
+}
+
+/**
+ * Envía un email transaccional (Edge Function `send-email`).
+ * Fire-and-forget: nunca lanza, para no bloquear el flujo que la invoca.
+ */
+export async function sendTransactionalEmail(
+  supabase: DB,
+  mail: { to: string; subject: string; heading: string; body: string }
+): Promise<void> {
+  await supabase.functions.invoke("send-email", { body: mail }).catch(() => {});
+}

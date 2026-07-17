@@ -16,4 +16,11 @@ test("admin ingresa al panel y ve la agenda del club", async ({ page }) => {
   await page.goto("/admin/agenda");
   await expect(page).toHaveURL(/\/admin\/agenda/);
   await expect(page.getByText("Cancha 1").first()).toBeVisible();
+
+  // Turnos fijos carga (ejercita modules/reservations/fixed-repository).
+  await page.goto("/admin/turnos-fijos");
+  await expect(page).toHaveURL(/\/admin\/turnos-fijos/);
+  await expect(
+    page.getByRole("heading", { name: "Turnos fijos", exact: true })
+  ).toBeVisible();
 });
