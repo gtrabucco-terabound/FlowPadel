@@ -23,4 +23,9 @@ test("admin ingresa al panel y ve la agenda del club", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Turnos fijos", exact: true })
   ).toBeVisible();
+
+  // Ajustes carga (ejercita modules/payments getClubPaymentSettings).
+  await page.goto("/admin/settings");
+  await expect(page).toHaveURL(/\/admin\/settings/);
+  await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
 });

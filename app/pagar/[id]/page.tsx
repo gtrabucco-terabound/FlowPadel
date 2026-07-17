@@ -1,28 +1,19 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getBookingPayInfo,
+  type BookingPayInfo,
+} from "@/modules/payments/repository";
 
 export const dynamic = "force-dynamic";
 
 const hhmm = (m: number) =>
   `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-type PayInfo = {
-  checkout_url: string | null;
-  status: string;
-  paid: boolean;
-  amount: number | null;
-  date: string;
-  start: number;
-  club: string;
-  court: string | null;
-  court_number: number | null;
-} | null;
-
-async function load(id: string): Promise<PayInfo> {
+async function load(id: string): Promise<BookingPayInfo> {
   const supabase = await createClient();
-  const { data } = await supabase.rpc("public_booking_payinfo", { p_id: id });
-  return (data ?? null) as unknown as PayInfo;
+  return getBookingPayInfo(supabase, id);
 }
 
 export async function generateMetadata({

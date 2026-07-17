@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireClubAccess } from "@/lib/admin/club";
+import {
+  upsertClubPaymentTokens,
+  updateBookingChargePolicy,
+  disconnectClubPaymentTokens,
+} from "@/modules/payments/repository";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -55,19 +60,13 @@ export async function updateClubPayments(formData: FormData): Promise<ActionResu
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
 
-  // Upsert; sólo actualiza el token si vino algo (para no borrarlo sin querer).
-  const payload: {
-    club_id: string;
-    mp_access_token?: string;
-    mp_public_key?: string | null;
-    updated_at: string;
-  } = { club_id: clubId, updated_at: new Date().toISOString() };
-  if (token) payload.mp_access_token = token;
-  if (publicKey || formData.has("mp_public_key")) payload.mp_public_key = publicKey || null;
+  // Sólo actualiza el token si vino algo (para no borrarlo sin querer).
+  const tokens: { mp_access_token?: string; mp_public_key?: string | null } = {};
+  if (token) tokens.mp_access_token = token;
+  if (publicKey || formData.has("mp_public_key"))
+    tokens.mp_public_key = publicKey || null;
 
-  const { error } = await supabase
-    .from("club_payment_settings")
-    .upsert(payload, { onConflict: "club_id" });
+  const { error } = await upsertClubPaymentTokens(supabase, clubId, tokens);
   if (error) return fail("No pudimos guardar la configuración de pagos.");
   refresh();
   return { ok: true };
@@ -86,18 +85,11 @@ export async function updateBookingCharge(formData: FormData): Promise<ActionRes
 
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("club_payment_settings")
-    .upsert(
-      {
-        club_id: clubId,
-        booking_charge_type: type as "full" | "percent" | "fixed",
-        booking_charge_value: type === "full" ? null : value,
-        booking_pay_at_club: formData.get("booking_pay_at_club") === "on",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "club_id" }
-    );
+  const { error } = await updateBookingChargePolicy(supabase, clubId, {
+    booking_charge_type: type as "full" | "percent" | "fixed",
+    booking_charge_value: type === "full" ? null : value,
+    booking_pay_at_club: formData.get("booking_pay_at_club") === "on",
+  });
   if (error) return fail("No pudimos guardar la política de cobro.");
   refresh();
   return { ok: true };
@@ -140,10 +132,7 @@ export async function updateOccupancy(formData: FormData): Promise<ActionResult>
 export async function disconnectClubPayments(): Promise<ActionResult> {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("club_payment_settings")
-    .update({ mp_access_token: null, mp_public_key: null, updated_at: new Date().toISOString() })
-    .eq("club_id", clubId);
+  const { error } = await disconnectClubPaymentTokens(supabase, clubId);
   if (error) return fail("No pudimos desconectar.");
   refresh();
   return { ok: true };

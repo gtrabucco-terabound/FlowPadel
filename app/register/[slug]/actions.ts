@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { requestRegistrationPaymentLink } from "@/modules/payments/repository";
 import {
   registrationSchema,
   validatePair,
@@ -16,22 +17,7 @@ export type RegistrationResult =
 export async function createRegistrationPaymentLink(
   registrationId: string
 ): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!base || !anon) return { ok: false, error: "Config incompleta." };
-  try {
-    const res = await fetch(`${base}/functions/v1/mp-create-preference`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ registration_id: registrationId, kind: "deposit" }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.checkout_url)
-      return { ok: false, error: data.error ?? "No se pudo generar el pago." };
-    return { ok: true, url: data.checkout_url as string };
-  } catch {
-    return { ok: false, error: "No pudimos conectar con Mercado Pago." };
-  }
+  return requestRegistrationPaymentLink(registrationId, "deposit");
 }
 
 const CLAIM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";

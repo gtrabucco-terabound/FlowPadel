@@ -5,6 +5,10 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireClubAccess } from "@/lib/admin/club";
 import { validatePair, effectiveModality } from "@/app/register/[slug]/schema";
+import {
+  markPaymentStatus,
+  requestRegistrationPaymentLink,
+} from "@/modules/payments/repository";
 import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -262,11 +266,7 @@ export async function markPaymentPaid(
   const payment = await loadPayment(supabase, eventId, paymentId);
   if (!payment) return fail("Pago no encontrado.");
 
-  const { error } = await supabase
-    .from("payments")
-    .update({ status: "paid", paid_at: new Date().toISOString() })
-    .eq("id", paymentId)
-    .eq("event_id", eventId);
+  const { error } = await markPaymentStatus(supabase, eventId, paymentId, "paid");
   if (error) return fail("No pudimos marcar el pago.");
 
   refresh(eventId);
@@ -282,11 +282,12 @@ export async function markPaymentPending(
   const payment = await loadPayment(supabase, eventId, paymentId);
   if (!payment) return fail("Pago no encontrado.");
 
-  const { error } = await supabase
-    .from("payments")
-    .update({ status: "pending", paid_at: null })
-    .eq("id", paymentId)
-    .eq("event_id", eventId);
+  const { error } = await markPaymentStatus(
+    supabase,
+    eventId,
+    paymentId,
+    "pending"
+  );
   if (error) return fail("No pudimos actualizar el pago.");
 
   refresh(eventId);
@@ -302,24 +303,7 @@ export async function generatePaymentLink(
   const { event } = await loadEvent(eventId);
   if (!event) return { ok: false, error: "Evento no encontrado." };
 
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!base || !anon) return { ok: false, error: "Config incompleta." };
-
-  try {
-    const res = await fetch(`${base}/functions/v1/mp-create-preference`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ registration_id: registrationId, kind }),
-    });
-    const data = await res.json();
-    if (!res.ok || !data.checkout_url) {
-      return { ok: false, error: data.error ?? "No se pudo generar el link de pago." };
-    }
-    return { ok: true, url: data.checkout_url as string };
-  } catch {
-    return { ok: false, error: "No pudimos conectar con Mercado Pago." };
-  }
+  return requestRegistrationPaymentLink(registrationId, kind);
 }
 
 export async function rejectRegistration(
