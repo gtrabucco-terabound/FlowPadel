@@ -157,6 +157,35 @@ export async function listPlayerStandings(
   return (data ?? []) as unknown as StandingRow[];
 }
 
+export type DirectoryPlayer = Pick<
+  Tables<"players">,
+  | "id"
+  | "full_name"
+  | "email"
+  | "phone"
+  | "elo_rating"
+  | "matches_played"
+  | "matches_won"
+  | "home_club_id"
+> & { club: { name: string } | null };
+
+/** Directorio global de jugadores (top 200 por ELO), opcional filtro por nombre. */
+export async function listPlayersDirectory(
+  supabase: DB,
+  term: string
+): Promise<DirectoryPlayer[]> {
+  let query = supabase
+    .from("players")
+    .select(
+      "id, full_name, email, phone, elo_rating, matches_played, matches_won, home_club_id, club:clubs(name)"
+    )
+    .order("elo_rating", { ascending: false })
+    .limit(200);
+  if (term) query = query.ilike("full_name", `%${term}%`);
+  const { data } = await query;
+  return (data ?? []) as unknown as DirectoryPlayer[];
+}
+
 /** Nombre y teléfono del jugador (para precargar formularios). */
 export async function getPlayerContact(
   supabase: DB,

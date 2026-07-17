@@ -8,30 +8,14 @@ import {
   formatDate,
   formatMoney,
 } from "@/lib/format";
-import type { Enums, Tables } from "@/lib/database.types";
+import {
+  listClubProjectionEvents,
+  getProjectionAggregates,
+  type ProjectionEvent as EventRow,
+} from "@/modules/tournaments/repository";
+import type { Enums } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
-
-type EventRow = Pick<
-  Tables<"events">,
-  | "id"
-  | "name"
-  | "slug"
-  | "status"
-  | "start_date"
-  | "modality"
-  | "long_format"
-  | "max_teams"
-  | "inscription_per_person"
-  | "court_cost_month"
-  | "court_pool_per_person"
-  | "currency"
->;
-
-type PaymentRow = Pick<
-  Tables<"payments">,
-  "event_id" | "amount" | "pool_amount" | "status"
->;
 
 function modalityLabel(m: Enums<"tournament_modality"> | null): string {
   if (!m) return "—";
@@ -53,15 +37,7 @@ export default async function ProyeccionPage({
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const { data: eventData } = await supabase
-    .from("events")
-    .select(
-      "id, name, slug, status, start_date, modality, long_format, max_teams, inscription_per_person, court_cost_month, court_pool_per_person, currency"
-    )
-    .eq("club_id", ctx.activeClubId)
-    .order("start_date", { ascending: false, nullsFirst: false });
-
-  const allEvents = (eventData ?? []) as EventRow[];
+  const allEvents = await listClubProjectionEvents(supabase, ctx.activeClubId);
 
   // Años disponibles (según start_date) para el filtro.
   const years = Array.from(
@@ -81,38 +57,13 @@ export default async function ProyeccionPage({
   const currency = events[0]?.currency ?? "ARS";
   const money = (n: number) => formatMoney(Math.round(n), currency);
 
-  // Equipos aprobados por evento (fallback cuando no hay max_teams).
+  // Agregados por evento (equipos aprobados, recaudado y pozo real).
   const eventIds = events.map((e) => e.id);
-  const approvedTeamsByEvent = new Map<string, number>();
-  const collectedByEvent = new Map<string, number>();
-  const poolByEvent = new Map<string, number>();
-
-  if (eventIds.length > 0) {
-    const [{ data: teamData }, { data: payData }] = await Promise.all([
-      supabase.from("teams").select("event_id").in("event_id", eventIds),
-      supabase
-        .from("payments")
-        .select("event_id, amount, pool_amount, status")
-        .in("event_id", eventIds),
-    ]);
-    for (const t of (teamData ?? []) as { event_id: string }[]) {
-      approvedTeamsByEvent.set(
-        t.event_id,
-        (approvedTeamsByEvent.get(t.event_id) ?? 0) + 1
-      );
-    }
-    for (const p of (payData ?? []) as PaymentRow[]) {
-      if (p.status !== "paid" || !p.event_id) continue;
-      collectedByEvent.set(
-        p.event_id,
-        (collectedByEvent.get(p.event_id) ?? 0) + Number(p.amount)
-      );
-      poolByEvent.set(
-        p.event_id,
-        (poolByEvent.get(p.event_id) ?? 0) + Number(p.pool_amount)
-      );
-    }
-  }
+  const {
+    teamsByEvent: approvedTeamsByEvent,
+    collectedByEvent,
+    poolByEvent,
+  } = await getProjectionAggregates(supabase, eventIds);
 
   type Computed = {
     event: EventRow;

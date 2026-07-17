@@ -178,6 +178,28 @@ export async function listOpenClubLeads(
   return (data ?? []) as ClubLeadRow[];
 }
 
+export type ProspectLead = {
+  id: string;
+  name: string;
+  mention_count: number;
+  converted_club_id: string | null;
+  updated_at: string;
+};
+
+/** Clubes-lead sin convertir para la pantalla de Prospectos (CRM). */
+export async function listProspectLeads(
+  supabase: DB,
+  limit = 100
+): Promise<ProspectLead[]> {
+  const { data } = await supabase
+    .from("club_leads")
+    .select("id, name, mention_count, converted_club_id, updated_at")
+    .is("converted_club_id", null)
+    .order("mention_count", { ascending: false })
+    .limit(limit);
+  return (data ?? []) as ProspectLead[];
+}
+
 export type CreateClubOutcome =
   | { ok: true; adminStatus: string }
   | { ok: false; unauthorized: boolean };

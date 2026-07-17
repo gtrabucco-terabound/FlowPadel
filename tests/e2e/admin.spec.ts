@@ -49,4 +49,25 @@ test("admin ingresa al panel y ve la agenda del club", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Calendario" })
   ).toBeVisible();
+
+  // Jugadores carga (modules/players: listPlayersDirectory).
+  await page.goto("/admin/players");
+  await expect(page).toHaveURL(/\/admin\/players/);
+  await expect(
+    page.getByRole("heading", { name: "Jugadores" })
+  ).toBeVisible();
+
+  // Prospectos carga (modules/clubs + tournaments).
+  await page.goto("/admin/prospectos");
+  await expect(page).toHaveURL(/\/admin\/prospectos/);
+  await expect(
+    page.getByRole("heading", { name: "Prospectos" })
+  ).toBeVisible();
+
+  // Proyección carga (modules/tournaments: proyección + agregados).
+  await page.goto("/admin/proyeccion");
+  await expect(page).toHaveURL(/\/admin\/proyeccion/);
+  await expect(
+    page.getByRole("heading", { name: "Proyección anual" })
+  ).toBeVisible();
 });

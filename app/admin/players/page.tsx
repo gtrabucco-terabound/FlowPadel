@@ -2,7 +2,7 @@ import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
-import type { Tables } from "@/lib/database.types";
+import { listPlayersDirectory } from "@/modules/players/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -12,34 +12,13 @@ export default async function PlayersPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const ctx = await getAdminContext();
+  await getAdminContext();
   const supabase = await createClient();
   const term = (q ?? "").trim();
 
-  let query = supabase
-    .from("players")
-    .select(
-      "id, full_name, email, phone, elo_rating, matches_played, matches_won, home_club_id, club:clubs(name)"
-    )
-    .order("elo_rating", { ascending: false })
-    .limit(200);
-
   // Directorio global: mostramos TODOS los jugadores (potencial del mercado),
   // con el club que representan al lado. RLS sigue aplicando.
-  if (term) query = query.ilike("full_name", `%${term}%`);
-
-  const { data } = await query;
-  const players = (data ?? []) as (Pick<
-    Tables<"players">,
-    | "id"
-    | "full_name"
-    | "email"
-    | "phone"
-    | "elo_rating"
-    | "matches_played"
-    | "matches_won"
-    | "home_club_id"
-  > & { club: { name: string } | null })[];
+  const players = await listPlayersDirectory(supabase, term);
 
   return (
     <div className="space-y-6">

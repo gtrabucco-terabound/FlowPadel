@@ -2,6 +2,8 @@ import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { listProspectLeads } from "@/modules/clubs/repository";
+import { listClubEventInvites } from "@/modules/tournaments/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -9,34 +11,12 @@ export default async function ProspectosPage() {
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  // Clubes nombrados por jugadores que aún no están en FlowPadel (CRM).
-  const { data: leadsData } = await supabase
-    .from("club_leads")
-    .select("id, name, mention_count, converted_club_id, updated_at")
-    .is("converted_club_id", null)
-    .order("mention_count", { ascending: false })
-    .limit(100);
-  const leads = leadsData ?? [];
-
-  // Resumen de invitaciones automáticas de los eventos de este club.
-  const { data: invitesData } = await supabase
-    .from("tournament_invites")
-    .select("id, status, event:events!inner(id, name, club_id)")
-    .eq("event.club_id", ctx.activeClubId);
-  const invites = (invitesData ?? []) as unknown as Array<{
-    id: string;
-    status: string;
-    event: { id: string; name: string } | null;
-  }>;
-
-  const byEvent = new Map<string, { name: string; total: number }>();
-  for (const inv of invites) {
-    if (!inv.event) continue;
-    const cur = byEvent.get(inv.event.id) ?? { name: inv.event.name, total: 0 };
-    cur.total += 1;
-    byEvent.set(inv.event.id, cur);
-  }
-  const eventInvites = [...byEvent.values()].sort((a, b) => b.total - a.total);
+  const [leads, eventInvites] = await Promise.all([
+    // Clubes nombrados por jugadores que aún no están en FlowPadel (CRM).
+    listProspectLeads(supabase),
+    // Resumen de invitaciones automáticas de los eventos de este club.
+    listClubEventInvites(supabase, ctx.activeClubId),
+  ]);
 
   return (
     <div className="space-y-8">
