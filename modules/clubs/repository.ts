@@ -112,6 +112,129 @@ export async function decideOperatorRequest(
   return { ok: true };
 }
 
+/* ---- Administración de clubes (superadmin) ---- */
+
+export type ClubOverviewRow = {
+  id: string;
+  name: string;
+  city: string | null;
+  admins: number;
+  is_active: boolean;
+  /** Tiene eventos o reservas → no se puede eliminar, sólo desactivar. */
+  has_data: boolean;
+};
+
+export type ClubLeadRow = {
+  id: string;
+  name: string;
+  mention_count: number;
+};
+
+/** Clubes con su cantidad de miembros y si ya tienen datos (eventos/reservas). */
+export async function listClubsOverview(
+  supabase: DB
+): Promise<ClubOverviewRow[]> {
+  const [
+    { data: clubs },
+    { data: members },
+    { data: events },
+    { data: bookings },
+  ] = await Promise.all([
+    supabase.from("clubs").select("id, name, city, is_active").order("created_at"),
+    supabase.from("club_members").select("club_id"),
+    supabase.from("events").select("club_id"),
+    supabase.from("court_bookings").select("club_id"),
+  ]);
+
+  const counts = new Map<string, number>();
+  for (const m of members ?? []) {
+    counts.set(m.club_id, (counts.get(m.club_id) ?? 0) + 1);
+  }
+  const withData = new Set<string>();
+  for (const e of events ?? []) withData.add(e.club_id);
+  for (const b of bookings ?? []) withData.add(b.club_id);
+
+  return (clubs ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    city: c.city,
+    admins: counts.get(c.id) ?? 0,
+    is_active: c.is_active,
+    has_data: withData.has(c.id),
+  }));
+}
+
+/** Clubes-lead sin convertir, priorizados por menciones de jugadores (CRM). */
+export async function listOpenClubLeads(
+  supabase: DB,
+  limit = 100
+): Promise<ClubLeadRow[]> {
+  const { data } = await supabase
+    .from("club_leads")
+    .select("id, name, mention_count")
+    .is("converted_club_id", null)
+    .order("mention_count", { ascending: false })
+    .limit(limit);
+  return (data ?? []) as ClubLeadRow[];
+}
+
+export type CreateClubOutcome =
+  | { ok: true; adminStatus: string }
+  | { ok: false; unauthorized: boolean };
+
+/** Crea un club (la RPC valida que sea superadmin). */
+export async function adminCreateClub(
+  supabase: DB,
+  input: {
+    name: string;
+    city?: string;
+    adminEmail?: string;
+    leadId?: string;
+  }
+): Promise<CreateClubOutcome> {
+  const { data, error } = await supabase.rpc("admin_create_club", {
+    p_name: input.name,
+    p_city: input.city || undefined,
+    p_admin_email: input.adminEmail || undefined,
+    p_lead_id: input.leadId ?? undefined,
+  });
+  if (error) {
+    return { ok: false, unauthorized: error.message.includes("no autorizado") };
+  }
+  const adminStatus =
+    (data as { admin_status?: string } | null)?.admin_status ?? "sin_admin";
+  return { ok: true, adminStatus };
+}
+
+/** Activa o desactiva (archiva) un club. */
+export async function setClubActiveFlag(
+  supabase: DB,
+  clubId: string,
+  active: boolean
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("clubs")
+    .update({ is_active: active, updated_at: new Date().toISOString() })
+    .eq("id", clubId);
+  return { error: Boolean(error) };
+}
+
+export type DeleteClubOutcome = "ok" | "forbidden" | "has_data" | "error";
+
+/** Elimina un club. Bloquea si tiene eventos o reservas. */
+export async function adminDeleteClub(
+  supabase: DB,
+  clubId: string
+): Promise<DeleteClubOutcome> {
+  const { data, error } = await supabase.rpc("admin_delete_club", {
+    p_club_id: clubId,
+  });
+  if (error) return "error";
+  if (data === "forbidden") return "forbidden";
+  if (data === "has_data") return "has_data";
+  return "ok";
+}
+
 export type OperableClub = {
   id: string;
   name: string;
