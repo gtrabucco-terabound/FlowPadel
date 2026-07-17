@@ -3,6 +3,7 @@ import {
   TournamentsFiltered,
   type TournamentItem,
 } from "@/components/tournaments-filtered";
+import { listPublicTournaments } from "@/modules/tournaments/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -23,17 +24,7 @@ type EventRow = {
 export default async function TorneosPage() {
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("events")
-    .select(
-      "id, name, slug, event_type, status, start_date, end_date, modality, category_system, category_value, club:clubs!events_club_id_fkey(id, name, city)"
-    )
-    .eq("public_visible", true)
-    .eq("event_type", "tournament")
-    .neq("status", "draft")
-    .order("start_date", { ascending: false, nullsFirst: false });
-
-  const rows = (data ?? []) as unknown as EventRow[];
+  const rows = (await listPublicTournaments(supabase)) as unknown as EventRow[];
 
   const tournaments: TournamentItem[] = rows.map((r) => ({
     id: r.id,

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { eventStatusMeta, formatDate } from "@/lib/format";
-import type { Tables } from "@/lib/database.types";
+import { getClubDashboard } from "@/modules/tournaments/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -13,23 +13,10 @@ export default async function AdminDashboard() {
   const clubId = ctx.activeClubId;
   const supabase = await createClient();
 
-  const [{ data: events }, { count: pendingCount }] = await Promise.all([
-    supabase
-      .from("events")
-      .select("id, name, slug, status, start_date, event_type")
-      .eq("club_id", clubId)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("registrations")
-      .select("id", { count: "exact", head: true })
-      .eq("club_id", clubId)
-      .eq("status", "pending"),
-  ]);
-
-  const rows = (events ?? []) as Pick<
-    Tables<"events">,
-    "id" | "name" | "slug" | "status" | "start_date" | "event_type"
-  >[];
+  const { events: rows, pendingCount } = await getClubDashboard(
+    supabase,
+    clubId
+  );
 
   const total = rows.length;
   const inProgress = rows.filter((e) => e.status === "in_progress").length;

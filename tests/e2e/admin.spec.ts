@@ -42,4 +42,11 @@ test("admin ingresa al panel y ve la agenda del club", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Operar clubes" })
   ).toBeVisible();
+
+  // Calendario carga (ejercita modules/tournaments: listClubCalendarEvents).
+  await page.goto("/admin/calendario");
+  await expect(page).toHaveURL(/\/admin\/calendario/);
+  await expect(
+    page.getByRole("heading", { name: "Calendario" })
+  ).toBeVisible();
 });
