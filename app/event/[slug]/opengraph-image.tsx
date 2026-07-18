@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { formatModalityCategory, formatDateRange } from "@/lib/format";
+import { getEventFlyerData } from "@/modules/tournaments/repository";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -14,17 +15,10 @@ export default async function Image({
 }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: ev } = await supabase
-    .from("events")
-    .select(
-      "name, modality, category_system, category_value, start_date, end_date, venue, flyer_image_url, inscription_per_person, club:clubs!events_club_id_fkey(name, logo_url)"
-    )
-    .eq("slug", slug)
-    .eq("public_visible", true)
-    .maybeSingle();
+  const ev = await getEventFlyerData(supabase, slug);
 
   const name = ev?.name ?? "Torneo";
-  const club = (ev as { club?: { name: string | null; logo_url: string | null } | null } | null)?.club;
+  const club = ev?.club;
   const meta = ev ? formatModalityCategory(ev) : null;
   const dates = ev ? formatDateRange(ev.start_date, ev.end_date) : "";
   const price = Number(ev?.inscription_per_person ?? 0);

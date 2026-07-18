@@ -140,6 +140,250 @@ export async function listInterclubChallenges(
   }));
 }
 
+/* ---- Detalle público del evento (/event/[slug]) ---- */
+
+export type PublicEventMeta = {
+  name: string;
+  description: string | null;
+  modality: Tables<"events">["modality"];
+  category_system: Tables<"events">["category_system"];
+  category_value: string | null;
+  club: { name: string | null; logo_url: string | null } | null;
+};
+
+/** Datos del evento para las metatags (generateMetadata). */
+export async function getPublicEventMeta(
+  supabase: DB,
+  slug: string
+): Promise<PublicEventMeta | null> {
+  const { data } = await supabase
+    .from("events")
+    .select(
+      "name, description, modality, category_system, category_value, club:clubs!events_club_id_fkey(name, logo_url)"
+    )
+    .eq("slug", slug)
+    .eq("public_visible", true)
+    .maybeSingle();
+  return (data as unknown as PublicEventMeta) ?? null;
+}
+
+export type PublicEventDetailEvent = Pick<
+  Tables<"events">,
+  | "id"
+  | "name"
+  | "slug"
+  | "description"
+  | "event_type"
+  | "status"
+  | "start_date"
+  | "end_date"
+  | "public_visible"
+  | "long_format"
+  | "modality"
+  | "category_system"
+  | "category_value"
+  | "venue"
+  | "is_interclub"
+  | "rival_club_id"
+  | "rival_accepted"
+> & {
+  club: {
+    name: string | null;
+    logo_url: string | null;
+    city: string | null;
+    address: string | null;
+    phone: string | null;
+    contact_email: string | null;
+    instagram: string | null;
+    website: string | null;
+    description: string | null;
+  } | null;
+};
+
+export type PublicEventDetail = {
+  event: PublicEventDetailEvent;
+  rivalClubName: string | null;
+  zones: Tables<"zones">[];
+  matches: Tables<"matches">[];
+  standings: Tables<"standings">[];
+  teams: Pick<Tables<"teams">, "id" | "name">[];
+  hasBrackets: boolean;
+  rounds: Tables<"rounds">[];
+  playerStandings: Tables<"player_standings">[];
+  players: Pick<Tables<"players">, "id" | "full_name">[];
+  courts: Pick<Tables<"courts">, "id" | "name">[];
+};
+
+/**
+ * Detalle completo de un evento público por slug: evento + club, fase de grupos
+ * (zonas/partidos/posiciones/equipos/bracket), fase de liga (jornadas, ranking
+ * individual, canchas, jugadores) y el nombre del club rival si es interclub.
+ */
+export async function getPublicEventDetail(
+  supabase: DB,
+  slug: string
+): Promise<PublicEventDetail | null> {
+  const { data: event } = await supabase
+    .from("events")
+    .select(
+      "id, name, slug, description, event_type, status, start_date, end_date, public_visible, long_format, modality, category_system, category_value, venue, is_interclub, rival_club_id, rival_accepted, club:clubs!events_club_id_fkey(name, logo_url, city, address, phone, contact_email, instagram, website, description)"
+    )
+    .eq("slug", slug)
+    .eq("public_visible", true)
+    .maybeSingle();
+
+  if (!event) return null;
+
+  const [zonesRes, matchesRes, standingsRes, teamsRes, bracketsRes] =
+    await Promise.all([
+      supabase.from("zones").select("*").eq("event_id", event.id),
+      supabase
+        .from("matches")
+        .select("*")
+        .eq("event_id", event.id)
+        .order("scheduled_at", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("standings")
+        .select("*")
+        .order("points", { ascending: false }),
+      supabase.from("teams").select("id, name").eq("event_id", event.id),
+      supabase.from("brackets").select("id").eq("event_id", event.id),
+    ]);
+
+  const eventTeamIds = new Set((teamsRes.data ?? []).map((t) => t.id));
+  const standings = (standingsRes.data ?? []).filter((s) =>
+    eventTeamIds.has(s.team_id)
+  );
+
+  const isLeague = event.long_format != null;
+  let rounds: Tables<"rounds">[] = [];
+  let playerStandings: Tables<"player_standings">[] = [];
+  let players: Pick<Tables<"players">, "id" | "full_name">[] = [];
+  let courts: Pick<Tables<"courts">, "id" | "name">[] = [];
+  if (isLeague) {
+    const [roundsRes, psRes, courtsRes] = await Promise.all([
+      supabase
+        .from("rounds")
+        .select("*")
+        .eq("event_id", event.id)
+        .order("number", { ascending: true }),
+      supabase
+        .from("player_standings")
+        .select("*")
+        .eq("event_id", event.id)
+        .order("position", { ascending: true, nullsFirst: false }),
+      supabase.from("courts").select("id, name"),
+    ]);
+    rounds = (roundsRes.data ?? []) as Tables<"rounds">[];
+    playerStandings = (psRes.data ?? []) as Tables<"player_standings">[];
+    courts = (courtsRes.data ?? []) as Pick<Tables<"courts">, "id" | "name">[];
+
+    const playerIds = Array.from(
+      new Set(playerStandings.map((p) => p.player_id))
+    );
+    if (playerIds.length > 0) {
+      const { data: pl } = await supabase
+        .from("players")
+        .select("id, full_name")
+        .in("id", playerIds);
+      players = (pl ?? []) as Pick<Tables<"players">, "id" | "full_name">[];
+    }
+  }
+
+  let rivalClubName: string | null = null;
+  if (event.is_interclub && event.rival_club_id) {
+    const { data: rival } = await supabase
+      .from("clubs")
+      .select("name")
+      .eq("id", event.rival_club_id)
+      .maybeSingle();
+    rivalClubName = rival?.name ?? null;
+  }
+
+  return {
+    event: event as unknown as PublicEventDetail["event"],
+    rivalClubName,
+    zones: (zonesRes.data ?? []) as Tables<"zones">[],
+    matches: (matchesRes.data ?? []) as Tables<"matches">[],
+    standings: standings as Tables<"standings">[],
+    teams: (teamsRes.data ?? []) as Pick<Tables<"teams">, "id" | "name">[],
+    hasBrackets: (bracketsRes.data ?? []).length > 0,
+    rounds,
+    playerStandings,
+    players,
+    courts,
+  };
+}
+
+export type EventFlyerData = {
+  name: string;
+  modality: Tables<"events">["modality"];
+  category_system: Tables<"events">["category_system"];
+  category_value: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  venue: string | null;
+  flyer_image_url: string | null;
+  inscription_per_person: number | null;
+  club: { name: string | null; logo_url: string | null } | null;
+};
+
+/** Datos de un evento para su flyer OG (imagen para compartir). */
+export async function getEventFlyerData(
+  supabase: DB,
+  slug: string
+): Promise<EventFlyerData | null> {
+  const { data } = await supabase
+    .from("events")
+    .select(
+      "name, modality, category_system, category_value, start_date, end_date, venue, flyer_image_url, inscription_per_person, club:clubs!events_club_id_fkey(name, logo_url)"
+    )
+    .eq("slug", slug)
+    .eq("public_visible", true)
+    .maybeSingle();
+  return (data as unknown as EventFlyerData) ?? null;
+}
+
+export type OpenTournamentFlyerRow = {
+  name: string;
+  start_date: string | null;
+  category_value: string | null;
+  modality: string | null;
+  club: { name: string | null } | null;
+};
+
+/** Próximos torneos abiertos para el flyer de /torneos/flyer. */
+export async function listOpenTournamentsForFlyer(
+  supabase: DB,
+  limit = 6
+): Promise<OpenTournamentFlyerRow[]> {
+  const { data } = await supabase
+    .from("events")
+    .select(
+      "name, start_date, category_value, modality, club:clubs!events_club_id_fkey(name)"
+    )
+    .eq("public_visible", true)
+    .eq("status", "open")
+    .order("start_date", { ascending: true, nullsFirst: false })
+    .limit(limit);
+  return (data ?? []) as unknown as OpenTournamentFlyerRow[];
+}
+
+/** Eventos públicos (todos los tipos, no borrador) para la home. */
+export async function listPublicHomeEvents(
+  supabase: DB
+): Promise<unknown[]> {
+  const { data } = await supabase
+    .from("events")
+    .select(
+      "id, name, slug, event_type, status, start_date, end_date, modality, category_system, category_value, club:clubs!events_club_id_fkey(name)"
+    )
+    .eq("public_visible", true)
+    .neq("status", "draft")
+    .order("start_date", { ascending: true, nullsFirst: false });
+  return (data ?? []) as unknown[];
+}
+
 /* ---- Inscripción pública ---- */
 
 export type PublicEventForRegistration = Pick<

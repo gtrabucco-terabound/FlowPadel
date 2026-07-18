@@ -14,6 +14,10 @@ import {
   formatDateRange,
   formatModalityCategory,
 } from "@/lib/format";
+import {
+  getPublicEventMeta,
+  getPublicEventDetail,
+} from "@/modules/tournaments/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -24,17 +28,10 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: ev } = await supabase
-    .from("events")
-    .select(
-      "name, description, modality, category_system, category_value, club:clubs!events_club_id_fkey(name, logo_url)"
-    )
-    .eq("slug", slug)
-    .eq("public_visible", true)
-    .maybeSingle();
+  const ev = await getPublicEventMeta(supabase, slug);
 
   if (!ev) return { title: "FlowPadel" };
-  const club = (ev as { club?: { name: string | null; logo_url: string | null } | null }).club;
+  const club = ev.club;
   const meta = formatModalityCategory(ev);
   const title = `${ev.name}${club?.name ? " · " + club.name : ""} — FlowPadel`;
   const description =
@@ -66,123 +63,32 @@ export default async function EventDetailPage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select(
-      "id, name, slug, description, event_type, status, start_date, end_date, public_visible, long_format, modality, category_system, category_value, venue, is_interclub, rival_club_id, rival_accepted, club:clubs!events_club_id_fkey(name, logo_url, city, address, phone, contact_email, instagram, website, description)"
-    )
-    .eq("slug", slug)
-    .eq("public_visible", true)
-    .maybeSingle();
+  const detail = await getPublicEventDetail(supabase, slug);
+  if (!detail) notFound();
 
-  if (!event) notFound();
-
-  const [zonesRes, matchesRes, standingsRes, teamsRes, bracketsRes] =
-    await Promise.all([
-      supabase.from("zones").select("*").eq("event_id", event.id),
-      supabase
-        .from("matches")
-        .select("*")
-        .eq("event_id", event.id)
-        .order("scheduled_at", { ascending: true, nullsFirst: false }),
-      supabase
-        .from("standings")
-        .select("*")
-        .order("points", { ascending: false }),
-      supabase
-        .from("teams")
-        .select("id, name")
-        .eq("event_id", event.id),
-      supabase
-        .from("brackets")
-        .select("id")
-        .eq("event_id", event.id),
-    ]);
-
-  const eventTeamIds = new Set((teamsRes.data ?? []).map((t) => t.id));
-  const standings = (standingsRes.data ?? []).filter((s) =>
-    eventTeamIds.has(s.team_id)
-  );
-
-  // FASE 2 (liga larga): jornadas, ranking individual, canchas y jugadores.
+  const event = detail.event;
   const isLeague = event.long_format != null;
   const isAmericano = event.long_format === "americano";
-  let rounds: EventDetailData["rounds"] = [];
-  let playerStandings: EventDetailData["playerStandings"] = [];
-  let players: EventDetailData["players"] = [];
-  let courts: EventDetailData["courts"] = [];
-  if (isLeague) {
-    const [roundsRes, psRes, courtsRes] = await Promise.all([
-      supabase
-        .from("rounds")
-        .select("*")
-        .eq("event_id", event.id)
-        .order("number", { ascending: true }),
-      supabase
-        .from("player_standings")
-        .select("*")
-        .eq("event_id", event.id)
-        .order("position", { ascending: true, nullsFirst: false }),
-      supabase.from("courts").select("id, name"),
-    ]);
-    rounds = roundsRes.data ?? [];
-    playerStandings = psRes.data ?? [];
-    courts = courtsRes.data ?? [];
-
-    const playerIds = Array.from(
-      new Set(playerStandings.map((p) => p.player_id))
-    );
-    if (playerIds.length > 0) {
-      const { data: pl } = await supabase
-        .from("players")
-        .select("id, full_name")
-        .in("id", playerIds);
-      players = pl ?? [];
-    }
-  }
 
   const status = eventStatusMeta(event.status);
-  const club = (
-    event as {
-      club?: {
-        name: string | null;
-        logo_url: string | null;
-        city: string | null;
-        address: string | null;
-        phone: string | null;
-        contact_email: string | null;
-        instagram: string | null;
-        website: string | null;
-        description: string | null;
-      } | null;
-    }
-  ).club;
+  const club = event.club;
 
-  // Interclub: resolver el nombre del club rival para la cabecera.
-  let rivalClubName: string | null = null;
-  if (event.is_interclub && event.rival_club_id) {
-    const { data: rival } = await supabase
-      .from("clubs")
-      .select("name")
-      .eq("id", event.rival_club_id)
-      .maybeSingle();
-    rivalClubName = rival?.name ?? null;
-  }
+  const rivalClubName = detail.rivalClubName;
 
   const detailData: EventDetailData = {
     eventId: event.id,
-    zones: zonesRes.data ?? [],
-    matches: matchesRes.data ?? [],
-    standings,
-    teams: teamsRes.data ?? [],
-    hasBrackets: (bracketsRes.data ?? []).length > 0,
+    zones: detail.zones,
+    matches: detail.matches,
+    standings: detail.standings,
+    teams: detail.teams,
+    hasBrackets: detail.hasBrackets,
     isLeague,
     isAmericano,
     isCombinado: event.modality === "combinado",
-    rounds,
-    playerStandings,
-    players,
-    courts,
+    rounds: detail.rounds,
+    playerStandings: detail.playerStandings,
+    players: detail.players,
+    courts: detail.courts,
   };
 
   return (

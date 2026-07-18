@@ -1,6 +1,10 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { flyerBg } from "@/lib/flyer-bg";
+import {
+  listOpenTournamentsForFlyer,
+  type OpenTournamentFlyerRow,
+} from "@/modules/tournaments/repository";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,21 +17,9 @@ function prettyDate(d: string | null): string {
 
 export async function GET() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("events")
-    .select("name, start_date, category_value, modality, club:clubs!events_club_id_fkey(name)")
-    .eq("public_visible", true)
-    .eq("status", "open")
-    .order("start_date", { ascending: true, nullsFirst: false })
-    .limit(6);
-
-  const events = (data ?? []) as unknown as Array<{
-    name: string;
-    start_date: string | null;
-    category_value: string | null;
-    modality: string | null;
-    club: { name: string | null } | null;
-  }>;
+  const events: OpenTournamentFlyerRow[] = await listOpenTournamentsForFlyer(
+    supabase
+  );
 
   const LIME = "#C7F94B";
   const bg = await flyerBg("torneos");
