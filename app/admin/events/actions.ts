@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireClubAccess, slugify } from "@/lib/admin/club";
+import {
+  slugExists,
+  createDraftEvent,
+  acceptInterclub,
+} from "@/modules/tournaments/repository";
 
 const createEventSchema = z.object({
   name: z.string().min(2, "Ingresá un nombre").max(120),
@@ -56,40 +61,30 @@ export async function createEvent(formData: FormData): Promise<CreateEventResult
   let slug = base;
   // Ensure global slug uniqueness (slug is used in public routes).
   for (let i = 0; i < 50; i++) {
-    const { data: clash } = await supabase
-      .from("events")
-      .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
-    if (!clash) break;
+    if (!(await slugExists(supabase, slug))) break;
     slug = `${base}-${i + 2}`;
   }
 
-  const { data, error } = await supabase
-    .from("events")
-    .insert({
-      club_id: clubId,
-      name: parsed.data.name.trim(),
-      slug,
-      event_type: parsed.data.event_type,
-      status: "draft",
-      start_date: parsed.data.start_date ? parsed.data.start_date : null,
-      modality: parsed.data.modality,
-      category_system: parsed.data.category_system,
-      category_value: parsed.data.category_value,
-      is_interclub: parsed.data.is_interclub,
-      rival_club_id: parsed.data.rival_club_id,
-    })
-    .select("id")
-    .single();
+  const eventId = await createDraftEvent(supabase, {
+    clubId,
+    name: parsed.data.name.trim(),
+    slug,
+    eventType: parsed.data.event_type,
+    startDate: parsed.data.start_date ? parsed.data.start_date : null,
+    modality: parsed.data.modality,
+    categorySystem: parsed.data.category_system,
+    categoryValue: parsed.data.category_value,
+    isInterclub: parsed.data.is_interclub,
+    rivalClubId: parsed.data.rival_club_id,
+  });
 
-  if (error || !data) {
+  if (!eventId) {
     return { ok: false, error: "No pudimos crear el evento." };
   }
 
   revalidatePath("/admin/events");
   revalidatePath("/admin");
-  redirect(`/admin/events/${data.id}`);
+  redirect(`/admin/events/${eventId}`);
 }
 
 /**
@@ -101,10 +96,9 @@ export async function acceptInterclubChallenge(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase.rpc("accept_interclub", {
-    p_event_id: eventId,
-  });
-  if (error) return { ok: false, error: error.message || "No pudimos aceptar el desafío." };
+  const res = await acceptInterclub(supabase, eventId);
+  if (!res.ok)
+    return { ok: false, error: res.error || "No pudimos aceptar el desafío." };
   revalidatePath("/admin/events");
   return { ok: true };
 }

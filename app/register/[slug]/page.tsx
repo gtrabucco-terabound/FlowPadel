@@ -3,6 +3,14 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RegistrationForm } from "@/components/registration-form";
 import { eventTypeLabel, formatDateRange } from "@/lib/format";
+import {
+  getPublicEventForRegistration,
+  getEventApprovedCount,
+} from "@/modules/tournaments/repository";
+import {
+  listClubsForSelect,
+  getPlayerRegistrationPrefill,
+} from "@/modules/players/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -14,14 +22,7 @@ export default async function RegisterPage({
   const { slug } = await params;
   const supabase = await createClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select(
-      "id, name, slug, event_type, status, start_date, end_date, public_visible, modality, category_system, category_value, max_teams"
-    )
-    .eq("slug", slug)
-    .eq("public_visible", true)
-    .maybeSingle();
+  const event = await getPublicEventForRegistration(supabase, slug);
 
   if (!event) notFound();
 
@@ -29,36 +30,20 @@ export default async function RegisterPage({
   // las nuevas quedan en lista de espera.
   let cupoFull = false;
   if (event.max_teams != null) {
-    const { data: approvedCount } = await supabase.rpc("event_approved_count", {
-      p_event_id: event.id,
-    });
-    cupoFull = (approvedCount ?? 0) >= event.max_teams;
+    const approvedCount = await getEventApprovedCount(supabase, event.id);
+    cupoFull = approvedCount >= event.max_teams;
   }
 
-  const { data: clubs } = await supabase
-    .from("clubs")
-    .select("id, name")
-    .order("name");
+  const clubs = await listClubsForSelect(supabase);
 
   // Si el usuario está logueado, precargamos sus datos en "Jugador 1" y
   // ocultamos "Crear cuenta" (ya tiene una).
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  let me: {
-    full_name: string;
-    phone: string | null;
-    gender: string | null;
-    category: number | null;
-  } | null = null;
-  if (user) {
-    const { data: player } = await supabase
-      .from("players")
-      .select("full_name, phone, gender, category")
-      .eq("profile_id", user.id)
-      .maybeSingle();
-    me = player;
-  }
+  const me = user
+    ? await getPlayerRegistrationPrefill(supabase, user.id)
+    : null;
 
   if (event.status !== "open") {
     return (

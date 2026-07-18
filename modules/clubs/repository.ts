@@ -65,6 +65,19 @@ export async function removeClubMember(
   return { error: Boolean(error) };
 }
 
+/** Otros clubes (todos menos el dado) — ej. para elegir rival de interclub. */
+export async function listOtherClubs(
+  supabase: DB,
+  excludeClubId: string
+): Promise<{ id: string; name: string }[]> {
+  const { data } = await supabase
+    .from("clubs")
+    .select("id, name")
+    .neq("id", excludeClubId)
+    .order("name", { ascending: true });
+  return (data ?? []) as { id: string; name: string }[];
+}
+
 /* ---- Operadores (comerciales que operan clubes ajenos) ---- */
 
 /** Solicitudes de operador pendientes del club (RPC). */

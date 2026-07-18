@@ -200,6 +200,24 @@ export async function getPlayerContact(
   return { name: data.full_name, phone: data.phone ?? "" };
 }
 
+/** Datos del jugador para precargar el formulario de inscripción. */
+export async function getPlayerRegistrationPrefill(
+  supabase: DB,
+  userId: string
+): Promise<{
+  full_name: string;
+  phone: string | null;
+  gender: string | null;
+  category: number | null;
+} | null> {
+  const { data } = await supabase
+    .from("players")
+    .select("full_name, phone, gender, category")
+    .eq("profile_id", userId)
+    .maybeSingle();
+  return data ?? null;
+}
+
 /** Id de la ficha de jugador del usuario (para acciones). */
 export async function getPlayerIdByProfile(
   supabase: DB,

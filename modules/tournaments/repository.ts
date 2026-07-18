@@ -11,6 +11,180 @@ type DB = Awaited<ReturnType<typeof createClient>>;
  * y se migrará cuando tenga cobertura E2E propia.
  */
 
+/* ---- Creación y listado de eventos del club ---- */
+
+export type NewDraftEvent = {
+  clubId: string;
+  name: string;
+  slug: string;
+  eventType: "tournament" | "open_play";
+  startDate: string | null;
+  modality: Tables<"events">["modality"];
+  categorySystem: Tables<"events">["category_system"];
+  categoryValue: string | null;
+  isInterclub: boolean;
+  rivalClubId: string | null;
+};
+
+/** ¿Existe ya un evento con ese slug? (slug se usa en rutas públicas). */
+export async function slugExists(
+  supabase: DB,
+  slug: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("events")
+    .select("id")
+    .eq("slug", slug)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/** Crea un evento borrador. Devuelve su id. */
+export async function createDraftEvent(
+  supabase: DB,
+  e: NewDraftEvent
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("events")
+    .insert({
+      club_id: e.clubId,
+      name: e.name,
+      slug: e.slug,
+      event_type: e.eventType,
+      status: "draft",
+      start_date: e.startDate,
+      modality: e.modality,
+      category_system: e.categorySystem,
+      category_value: e.categoryValue,
+      is_interclub: e.isInterclub,
+      rival_club_id: e.rivalClubId,
+    })
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  return data.id as string;
+}
+
+/** Acepta un desafío interclub (RPC autoriza por admin del club rival). */
+export async function acceptInterclub(
+  supabase: DB,
+  eventId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc("accept_interclub", {
+    p_event_id: eventId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export type ClubEventListRow = Pick<
+  Tables<"events">,
+  "id" | "name" | "slug" | "status" | "start_date" | "event_type" | "max_teams"
+>;
+
+/** Eventos del club para el listado del panel. */
+export async function listClubEvents(
+  supabase: DB,
+  clubId: string
+): Promise<ClubEventListRow[]> {
+  const { data } = await supabase
+    .from("events")
+    .select("id, name, slug, status, start_date, event_type, max_teams")
+    .eq("club_id", clubId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as ClubEventListRow[];
+}
+
+export type InterclubChallenge = {
+  id: string;
+  name: string;
+  startDate: string | null;
+  organizerName: string;
+};
+
+/** Desafíos interclub recibidos por el club (nos retan y no aceptamos aún). */
+export async function listInterclubChallenges(
+  supabase: DB,
+  clubId: string
+): Promise<InterclubChallenge[]> {
+  const { data } = await supabase
+    .from("events")
+    .select("id, name, slug, start_date, modality, club_id")
+    .eq("rival_club_id", clubId)
+    .eq("is_interclub", true)
+    .eq("rival_accepted", false)
+    .order("created_at", { ascending: false });
+  const challenges = (data ?? []) as Array<{
+    id: string;
+    name: string;
+    start_date: string | null;
+    club_id: string;
+  }>;
+
+  const organizerIds = Array.from(new Set(challenges.map((c) => c.club_id)));
+  const names = new Map<string, string>();
+  if (organizerIds.length > 0) {
+    const { data: orgs } = await supabase
+      .from("clubs")
+      .select("id, name")
+      .in("id", organizerIds);
+    for (const o of (orgs ?? []) as { id: string; name: string }[]) {
+      names.set(o.id, o.name);
+    }
+  }
+  return challenges.map((c) => ({
+    id: c.id,
+    name: c.name,
+    startDate: c.start_date,
+    organizerName: names.get(c.club_id) ?? "Club",
+  }));
+}
+
+/* ---- Inscripción pública ---- */
+
+export type PublicEventForRegistration = Pick<
+  Tables<"events">,
+  | "id"
+  | "name"
+  | "slug"
+  | "event_type"
+  | "status"
+  | "start_date"
+  | "end_date"
+  | "public_visible"
+  | "modality"
+  | "category_system"
+  | "category_value"
+  | "max_teams"
+>;
+
+/** Evento público (visible) por slug, para la página de inscripción. */
+export async function getPublicEventForRegistration(
+  supabase: DB,
+  slug: string
+): Promise<PublicEventForRegistration | null> {
+  const { data } = await supabase
+    .from("events")
+    .select(
+      "id, name, slug, event_type, status, start_date, end_date, public_visible, modality, category_system, category_value, max_teams"
+    )
+    .eq("slug", slug)
+    .eq("public_visible", true)
+    .maybeSingle();
+  return (data as PublicEventForRegistration) ?? null;
+}
+
+/** Cantidad de inscripciones aprobadas de un evento (para el cupo). */
+export async function getEventApprovedCount(
+  supabase: DB,
+  eventId: string
+): Promise<number> {
+  const { data } = await supabase.rpc("event_approved_count", {
+    p_event_id: eventId,
+  });
+  return (data ?? 0) as number;
+}
+
 /** Torneos públicos de la comunidad (para /torneos). */
 export async function listPublicTournaments(supabase: DB): Promise<unknown[]> {
   const { data } = await supabase
