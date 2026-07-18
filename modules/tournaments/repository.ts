@@ -140,6 +140,176 @@ export async function listInterclubChallenges(
   }));
 }
 
+/* ---- Gestión del evento (panel admin /admin/events/[id]) ---- */
+
+export type EventManagementData = {
+  event: Tables<"events">;
+  registrations: Tables<"registrations">[];
+  teams: Tables<"teams">[];
+  zones: Tables<"zones">[];
+  zoneTeams: Tables<"zone_teams">[];
+  matches: Tables<"matches">[];
+  categories: Pick<Tables<"categories">, "id" | "name">[];
+  payments: Tables<"payments">[];
+  mpCollected: number;
+  rounds: Tables<"rounds">[];
+  playerStandings: Tables<"player_standings">[];
+  players: Pick<Tables<"players">, "id" | "full_name">[];
+  courts: Pick<
+    Tables<"courts">,
+    "id" | "name" | "number" | "open_hour" | "close_hour" | "slot_minutes" | "is_active"
+  >[];
+  courtBlocks: Pick<
+    Tables<"court_bookings">,
+    "id" | "court_id" | "booking_date" | "start_minutes" | "slot_minutes" | "status"
+  >[];
+  rivalClubs: { id: string; name: string }[];
+};
+
+/**
+ * Toda la data para la pantalla de gestión de un evento del club: el evento,
+ * inscripciones, equipos, zonas, partidos, categorías, pagos (+ cobrado por MP),
+ * fase de liga, canchas, bloqueos de cancha del torneo y clubes rivales.
+ * Devuelve null si el evento no existe o no es del club.
+ */
+export async function getEventManagementData(
+  supabase: DB,
+  eventId: string,
+  clubId: string
+): Promise<EventManagementData | null> {
+  const { data: event } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .eq("club_id", clubId)
+    .maybeSingle();
+  if (!event) return null;
+
+  const [
+    { data: registrations },
+    { data: teams },
+    { data: zones },
+    { data: matches },
+    { data: categories },
+    { data: payments },
+  ] = await Promise.all([
+    supabase
+      .from("registrations")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("teams")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("zones")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("name", { ascending: true }),
+    supabase
+      .from("matches")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("categories")
+      .select("id, name")
+      .eq("club_id", clubId)
+      .order("sort_order", { ascending: true }),
+    supabase
+      .from("payments")
+      .select("*")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  const [{ data: rounds }, { data: playerStandings }, { data: courts }] =
+    await Promise.all([
+      supabase
+        .from("rounds")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("number", { ascending: true }),
+      supabase
+        .from("player_standings")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("position", { ascending: true, nullsFirst: false }),
+      supabase
+        .from("courts")
+        .select(
+          "id, name, number, open_hour, close_hour, slot_minutes, is_active"
+        )
+        .eq("club_id", clubId)
+        .order("number", { ascending: true, nullsFirst: false }),
+    ]);
+
+  const { data: courtBlocks } = await supabase
+    .from("court_bookings")
+    .select("id, court_id, booking_date, start_minutes, slot_minutes, status")
+    .eq("event_id", eventId)
+    .eq("kind", "tournament")
+    .neq("status", "cancelled");
+
+  const { data: clubData } = await supabase
+    .from("clubs")
+    .select("id, name")
+    .neq("id", clubId)
+    .order("name", { ascending: true });
+
+  const playerIds = Array.from(
+    new Set((playerStandings ?? []).map((p) => p.player_id))
+  );
+  let players: Pick<Tables<"players">, "id" | "full_name">[] = [];
+  if (playerIds.length > 0) {
+    const { data: pl } = await supabase
+      .from("players")
+      .select("id, full_name")
+      .in("id", playerIds);
+    players = (pl ?? []) as Pick<Tables<"players">, "id" | "full_name">[];
+  }
+
+  const { data: mpRows } = await supabase
+    .from("mp_payments")
+    .select("amount")
+    .eq("event_id", eventId)
+    .eq("status", "approved");
+  const mpCollected = (mpRows ?? []).reduce(
+    (s, m) => s + Number(m.amount ?? 0),
+    0
+  );
+
+  const zoneIds = (zones ?? []).map((z) => z.id);
+  let zoneTeams: Tables<"zone_teams">[] = [];
+  if (zoneIds.length > 0) {
+    const { data: zt } = await supabase
+      .from("zone_teams")
+      .select("*")
+      .in("zone_id", zoneIds);
+    zoneTeams = (zt ?? []) as Tables<"zone_teams">[];
+  }
+
+  return {
+    event,
+    registrations: registrations ?? [],
+    teams: teams ?? [],
+    zones: zones ?? [],
+    zoneTeams,
+    matches: matches ?? [],
+    categories: categories ?? [],
+    payments: payments ?? [],
+    mpCollected,
+    rounds: rounds ?? [],
+    playerStandings: playerStandings ?? [],
+    players,
+    courts: courts ?? [],
+    courtBlocks: courtBlocks ?? [],
+    rivalClubs: (clubData ?? []) as { id: string; name: string }[],
+  };
+}
+
 /* ---- Detalle público del evento (/event/[slug]) ---- */
 
 export type PublicEventMeta = {
