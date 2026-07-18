@@ -62,4 +62,12 @@ begin
   insert into club_payment_settings (club_id, booking_pay_at_club, mp_access_token)
   values (v_club_a, true, 'DEV-DUMMY-TOKEN')
   on conflict (club_id) do update set booking_pay_at_club = true, mp_access_token = 'DEV-DUMMY-TOKEN';
+
+  -- Torneo abierto y visible para los E2E de torneo (evento público + inscripción).
+  if not exists (select 1 from events where slug = 'torneo-qa-abierto') then
+    insert into events (club_id, name, slug, event_type, status, public_visible,
+      modality, category_system, category_value, deposit_type)
+    values (v_club_a, 'Torneo QA Abierto', 'torneo-qa-abierto', 'tournament', 'open',
+      true, 'caballeros', 'fixed', '7ma', 'none');
+  end if;
 end $$;
