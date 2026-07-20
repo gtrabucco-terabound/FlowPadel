@@ -33,6 +33,21 @@ import {
   listZoneTeamIds,
   insertMatches,
   updateEventStatus,
+  getMatchForResult,
+  updateMatchResult,
+  recomputeStandingsRpc,
+  getGroupStageCompletion,
+  matchExistsInEvent,
+  submitLeagueMatchResult,
+  updateEventSettingsRow,
+  generateEventInvites,
+  getEventRegistrationsAndPayments,
+  updatePaymentAmounts,
+  listCourtsForBlock,
+  listBookingsOnDate,
+  insertCourtBlocks,
+  cancelTournamentBlocks,
+  insertRegistration,
 } from "@/modules/tournaments/events-repository";
 import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
 
@@ -369,25 +384,16 @@ export async function recordMatchResult(
   const { supabase, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
 
-  const { data: match } = await supabase
-    .from("matches")
-    .select("id, team_a_id, team_b_id, zone_id")
-    .eq("id", matchId)
-    .eq("event_id", eventId)
-    .maybeSingle();
+  const match = await getMatchForResult(supabase, matchId, eventId);
   if (!match) return fail("Partido no encontrado.");
 
   const winner = games_a > games_b ? match.team_a_id : match.team_b_id;
 
-  const { error } = await supabase
-    .from("matches")
-    .update({
-      games_a,
-      games_b,
-      winner_team_id: winner,
-      status: "completed",
-    })
-    .eq("id", matchId);
+  const { error } = await updateMatchResult(supabase, matchId, {
+    games_a,
+    games_b,
+    winner_team_id: winner,
+  });
   if (error) return fail("No pudimos guardar el resultado.");
 
   await recomputeStandings(eventId);
@@ -396,21 +402,12 @@ export async function recordMatchResult(
   // un torneo de un día (grupos + eliminación), se arma la llave sola con el
   // top 2 de cada zona. Si faltan clasificados, la RPC falla silenciosa.
   if (match.zone_id && !event.long_format) {
-    const [{ data: groupMatches }, { data: bracket }] = await Promise.all([
-      supabase
-        .from("matches")
-        .select("status")
-        .eq("event_id", eventId)
-        .not("zone_id", "is", null),
-      supabase.from("brackets").select("id").eq("event_id", eventId).maybeSingle(),
-    ]);
-    const gm = groupMatches ?? [];
-    const allDone = gm.length > 0 && gm.every((m) => m.status === "completed");
-    if (allDone && !bracket) {
-      await supabase.rpc("generate_bracket", {
-        p_event_id: eventId,
-        p_qualifiers_per_zone: 2,
-      });
+    const { allDone, hasBracket } = await getGroupStageCompletion(
+      supabase,
+      eventId
+    );
+    if (allDone && !hasBracket) {
+      await generateBracketRpc(supabase, eventId, 2);
     }
   }
 
@@ -425,7 +422,7 @@ export async function recordMatchResult(
  */
 async function recomputeStandings(eventId: string): Promise<void> {
   const supabase = await createClient();
-  await supabase.rpc("recompute_standings", { p_event_id: eventId });
+  await recomputeStandingsRpc(supabase, eventId);
 }
 
 /* ------------------------------------------------------------------ */
@@ -518,20 +515,16 @@ export async function recordLeagueResult(
   const { supabase, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
 
-  const { data: match } = await supabase
-    .from("matches")
-    .select("id")
-    .eq("id", matchId)
-    .eq("event_id", eventId)
-    .maybeSingle();
-  if (!match) return fail("Partido no encontrado.");
+  const exists = await matchExistsInEvent(supabase, matchId, eventId);
+  if (!exists) return fail("Partido no encontrado.");
 
-  const { error } = await supabase.rpc("submit_match_result", {
-    p_match_id: matchId,
-    p_games_a: parsed.data.games_a,
-    p_games_b: parsed.data.games_b,
-  });
-  if (error) return fail(error.message || "No pudimos guardar el resultado.");
+  const { error, message } = await submitLeagueMatchResult(
+    supabase,
+    matchId,
+    parsed.data.games_a,
+    parsed.data.games_b
+  );
+  if (error) return fail(message || "No pudimos guardar el resultado.");
 
   refresh(eventId);
   return { ok: true };
@@ -616,29 +609,26 @@ export async function updateEventSettings(
   const { supabase, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
 
-  const { error } = await supabase
-    .from("events")
-    .update({
-      name: parsed.data.name.trim(),
-      status: parsed.data.status,
-      public_visible: parsed.data.public_visible,
-      max_teams: parsed.data.max_teams,
-      modality: parsed.data.modality,
-      category_system: parsed.data.category_system,
-      category_value: parsed.data.category_value,
-      venue: parsed.data.venue,
-      flyer_image_url: parsed.data.flyer_image_url,
-      is_interclub: parsed.data.is_interclub,
-      rival_club_id: parsed.data.rival_club_id,
-    })
-    .eq("id", eventId);
+  const { error } = await updateEventSettingsRow(supabase, eventId, {
+    name: parsed.data.name.trim(),
+    status: parsed.data.status,
+    public_visible: parsed.data.public_visible,
+    max_teams: parsed.data.max_teams,
+    modality: parsed.data.modality,
+    category_system: parsed.data.category_system,
+    category_value: parsed.data.category_value,
+    venue: parsed.data.venue,
+    flyer_image_url: parsed.data.flyer_image_url,
+    is_interclub: parsed.data.is_interclub,
+    rival_club_id: parsed.data.rival_club_id,
+  });
   if (error) return fail("No pudimos guardar los cambios.");
 
   // Al publicar (Abierto + visible), disparar invitaciones automáticas a los
   // jugadores elegibles (opt-in + género/categoría). Idempotente: no re-encola
   // a quien ya fue invitado (unique event+player).
   if (parsed.data.status === "open" && parsed.data.public_visible) {
-    await supabase.rpc("generate_event_invites", { p_event_id: eventId });
+    await generateEventInvites(supabase, eventId);
   }
 
   refresh(eventId);
@@ -750,34 +740,31 @@ export async function saveEventEconomics(
     ? courtPerPlayer * (markup_pct / 100)
     : 0;
 
-  const { error } = await supabase
-    .from("events")
-    .update({
-      long_format: parsed.data.long_format,
-      charge_court: parsed.data.charge_court,
-      court_cost_month: parsed.data.court_cost_month,
-      matches_per_court_month: parsed.data.matches_per_court_month,
-      markup_pct: parsed.data.markup_pct,
-      inscription_per_person: parsed.data.inscription_per_person,
-      court_fee_per_person: courtFeePerPerson,
-      court_pool_per_person: courtPoolPerPerson,
-      deposit_type: parsed.data.deposit_type,
-      deposit_value: parsed.data.deposit_value,
-    })
-    .eq("id", eventId);
+  const { error } = await updateEventSettingsRow(supabase, eventId, {
+    long_format: parsed.data.long_format,
+    charge_court: parsed.data.charge_court,
+    court_cost_month: parsed.data.court_cost_month,
+    matches_per_court_month: parsed.data.matches_per_court_month,
+    markup_pct: parsed.data.markup_pct,
+    inscription_per_person: parsed.data.inscription_per_person,
+    court_fee_per_person: courtFeePerPerson,
+    court_pool_per_person: courtPoolPerPerson,
+    deposit_type: parsed.data.deposit_type,
+    deposit_value: parsed.data.deposit_value,
+  });
   if (error) return fail("No pudimos guardar la configuración.");
 
   // Recalcular los cobros de Finanzas con la nueva economía. Solo toca los que
   // NO están cobrados de verdad (status paid con monto > 0 se preservan).
-  const [{ data: regs }, { data: pays }] = await Promise.all([
-    supabase.from("registrations").select("id, player_2_name").eq("event_id", eventId),
-    supabase.from("payments").select("id, registration_id, kind, amount, status").eq("event_id", eventId),
-  ]);
+  const { regs, pays } = await getEventRegistrationsAndPayments(
+    supabase,
+    eventId
+  );
   const pcOf = new Map(
-    (regs ?? []).map((r) => [r.id, r.player_2_name?.trim() ? 2 : 1] as const)
+    regs.map((r) => [r.id, r.player_2_name?.trim() ? 2 : 1] as const)
   );
   const nowIso = new Date().toISOString();
-  for (const p of pays ?? []) {
+  for (const p of pays) {
     if (p.status === "paid" && Number(p.amount) > 0) continue; // ya cobrado real
     const pc = (p.registration_id ? pcOf.get(p.registration_id) : 2) ?? 2;
     let newAmount = 0;
@@ -788,15 +775,12 @@ export async function saveEventEconomics(
       newAmount = charge_court ? courtFeePerPerson * pc : 0;
       newPool = charge_court ? courtPoolPerPerson * pc : 0;
     }
-    await supabase
-      .from("payments")
-      .update({
-        amount: newAmount,
-        pool_amount: newPool,
-        status: newAmount === 0 ? "paid" : "pending",
-        paid_at: newAmount === 0 ? nowIso : null,
-      })
-      .eq("id", p.id);
+    await updatePaymentAmounts(supabase, p.id, {
+      amount: newAmount,
+      pool_amount: newPool,
+      status: newAmount === 0 ? "paid" : "pending",
+      paid_at: newAmount === 0 ? nowIso : null,
+    });
   }
 
   refresh(eventId);
@@ -892,25 +876,15 @@ export async function blockTournamentCourts(
   if (courtIds.length === 0)
     return { ok: false, error: "Elegí al menos una cancha." };
 
-  const { data: courts } = await supabase
-    .from("courts")
-    .select("id, name, number, open_hour, close_hour, slot_minutes")
-    .eq("club_id", clubId)
-    .in("id", courtIds);
+  const courts = await listCourtsForBlock(supabase, clubId, courtIds);
 
   // Turnos ya ocupados (reservados/fijos/held) en esas canchas y fecha.
-  const { data: existing } = await supabase
-    .from("court_bookings")
-    .select("court_id, start_minutes, slot_minutes, status, kind")
-    .eq("booking_date", date)
-    .in("court_id", courtIds)
-    .neq("status", "cancelled");
-  const taken = existing ?? [];
+  const taken = await listBookingsOnDate(supabase, date, courtIds);
 
   const rows: TablesInsert<"court_bookings">[] = [];
   const conflicts: string[] = [];
 
-  for (const c of courts ?? []) {
+  for (const c of courts) {
     const step = c.slot_minutes || 90;
     const label = `${c.number ? `#${c.number} ` : ""}${c.name}`;
     for (let m = (c.open_hour ?? 8) * 60; m + step <= (c.close_hour ?? 24) * 60; m += step) {
@@ -942,10 +916,8 @@ export async function blockTournamentCourts(
     }
   }
 
-  if (rows.length > 0) {
-    const { error } = await supabase.from("court_bookings").insert(rows);
-    if (error) return { ok: false, error: "No pudimos bloquear las canchas." };
-  }
+  const { error } = await insertCourtBlocks(supabase, rows);
+  if (error) return { ok: false, error: "No pudimos bloquear las canchas." };
 
   refresh(eventId);
   revalidatePath("/admin/agenda");
@@ -956,12 +928,7 @@ export async function blockTournamentCourts(
 export async function unblockTournamentCourts(eventId: string): Promise<ActionResult> {
   const { supabase, clubId, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
-  const { error } = await supabase
-    .from("court_bookings")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
-    .eq("event_id", eventId)
-    .eq("kind", "tournament")
-    .eq("club_id", clubId);
+  const { error } = await cancelTournamentBlocks(supabase, eventId, clubId);
   if (error) return fail("No pudimos liberar las canchas.");
   refresh(eventId);
   revalidatePath("/admin/agenda");
@@ -1055,31 +1022,27 @@ export async function addManualRegistration(
 
   const claimCode = hasP2 ? null : makeClaimCode();
 
-  const { data: inserted, error } = await supabase
-    .from("registrations")
-    .insert({
-      club_id: clubId,
-      event_id: eventId,
-      status: "pending",
-      player_1_name: p1Name,
-      player_1_phone: gTxt(formData.get("p1_phone")),
-      player_1_gender: p1Gender,
-      player_1_category: p1Category,
-      player_2_name: p2Name,
-      player_2_phone: gTxt(formData.get("p2_phone")),
-      player_2_gender: hasP2 ? p2Gender : null,
-      player_2_category: hasP2 ? p2Category : null,
-      modality,
-      partner_claim_code: claimCode,
-    } satisfies TablesInsert<"registrations">)
-    .select("id")
-    .single();
-  if (error || !inserted)
+  const insertedId = await insertRegistration(supabase, {
+    club_id: clubId,
+    event_id: eventId,
+    status: "pending",
+    player_1_name: p1Name,
+    player_1_phone: gTxt(formData.get("p1_phone")),
+    player_1_gender: p1Gender,
+    player_1_category: p1Category,
+    player_2_name: p2Name,
+    player_2_phone: gTxt(formData.get("p2_phone")),
+    player_2_gender: hasP2 ? p2Gender : null,
+    player_2_category: hasP2 ? p2Category : null,
+    modality,
+    partner_claim_code: claimCode,
+  });
+  if (!insertedId)
     return { ok: false, error: "No pudimos cargar la inscripción." };
 
   // Pareja completa → aprobar directo (crea equipo + jugadores por teléfono).
   if (hasP2) {
-    const res = await approveRegistration(eventId, inserted.id);
+    const res = await approveRegistration(eventId, insertedId);
     if (!res.ok) return { ok: false, error: res.error };
     refresh(eventId);
     return { ok: true };

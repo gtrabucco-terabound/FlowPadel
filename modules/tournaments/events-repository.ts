@@ -1,5 +1,10 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
+import type {
+  Enums,
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+} from "@/lib/database.types";
 
 /** Cliente Supabase server-side (RLS aplica sobre él). */
 type DB = Awaited<ReturnType<typeof createClient>>;
@@ -358,4 +363,243 @@ export async function getMaxWaitlistPosition(
     .limit(1)
     .maybeSingle();
   return data?.waitlist_position ?? 0;
+}
+
+/* ---- Resultados + standings ---- */
+
+export async function getMatchForResult(
+  supabase: DB,
+  matchId: string,
+  eventId: string
+): Promise<Pick<
+  Tables<"matches">,
+  "id" | "team_a_id" | "team_b_id" | "zone_id"
+> | null> {
+  const { data } = await supabase
+    .from("matches")
+    .select("id, team_a_id, team_b_id, zone_id")
+    .eq("id", matchId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  return data ?? null;
+}
+
+export async function updateMatchResult(
+  supabase: DB,
+  matchId: string,
+  patch: { games_a: number; games_b: number; winner_team_id: string | null }
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("matches")
+    .update({ ...patch, status: "completed" })
+    .eq("id", matchId);
+  return { error: Boolean(error) };
+}
+
+export async function recomputeStandingsRpc(
+  supabase: DB,
+  eventId: string
+): Promise<void> {
+  await supabase.rpc("recompute_standings", { p_event_id: eventId });
+}
+
+/** ¿Están completos todos los partidos de zona? y ¿ya existe bracket? */
+export async function getGroupStageCompletion(
+  supabase: DB,
+  eventId: string
+): Promise<{ allDone: boolean; hasBracket: boolean }> {
+  const [{ data: groupMatches }, { data: bracket }] = await Promise.all([
+    supabase
+      .from("matches")
+      .select("status")
+      .eq("event_id", eventId)
+      .not("zone_id", "is", null),
+    supabase.from("brackets").select("id").eq("event_id", eventId).maybeSingle(),
+  ]);
+  const gm = groupMatches ?? [];
+  return {
+    allDone: gm.length > 0 && gm.every((m) => m.status === "completed"),
+    hasBracket: Boolean(bracket),
+  };
+}
+
+/** Existe el partido en el evento (para liga). */
+export async function matchExistsInEvent(
+  supabase: DB,
+  matchId: string,
+  eventId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("matches")
+    .select("id")
+    .eq("id", matchId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/** Carga el resultado de un partido de liga (RPC: standings + ELO). */
+export async function submitLeagueMatchResult(
+  supabase: DB,
+  matchId: string,
+  gamesA: number,
+  gamesB: number
+): Promise<RpcError> {
+  const { error } = await supabase.rpc("submit_match_result", {
+    p_match_id: matchId,
+    p_games_a: gamesA,
+    p_games_b: gamesB,
+  });
+  return { error: Boolean(error), message: error?.message ?? null };
+}
+
+/* ---- Settings + economía ---- */
+
+/** Actualiza la configuración del evento (Ajustes). */
+export async function updateEventSettingsRow(
+  supabase: DB,
+  eventId: string,
+  patch: TablesUpdate<"events">
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("events")
+    .update(patch)
+    .eq("id", eventId);
+  return { error: Boolean(error) };
+}
+
+/** Dispara invitaciones automáticas al publicar un evento (RPC). */
+export async function generateEventInvites(
+  supabase: DB,
+  eventId: string
+): Promise<void> {
+  await supabase.rpc("generate_event_invites", { p_event_id: eventId });
+}
+
+/** Inscripciones (id + si tiene pareja) y pagos del evento, para recalcular economía. */
+export async function getEventRegistrationsAndPayments(
+  supabase: DB,
+  eventId: string
+): Promise<{
+  regs: { id: string; player_2_name: string | null }[];
+  pays: {
+    id: string;
+    registration_id: string | null;
+    kind: string;
+    amount: number;
+    status: string;
+  }[];
+}> {
+  const [{ data: regs }, { data: pays }] = await Promise.all([
+    supabase
+      .from("registrations")
+      .select("id, player_2_name")
+      .eq("event_id", eventId),
+    supabase
+      .from("payments")
+      .select("id, registration_id, kind, amount, status")
+      .eq("event_id", eventId),
+  ]);
+  return {
+    regs: (regs ?? []) as { id: string; player_2_name: string | null }[],
+    pays: (pays ?? []) as {
+      id: string;
+      registration_id: string | null;
+      kind: string;
+      amount: number;
+      status: string;
+    }[],
+  };
+}
+
+/** Actualiza un pago (recalculo de economía). */
+export async function updatePaymentAmounts(
+  supabase: DB,
+  paymentId: string,
+  patch: TablesUpdate<"payments">
+): Promise<void> {
+  await supabase.from("payments").update(patch).eq("id", paymentId);
+}
+
+/* ---- Bloqueo de canchas por torneo ---- */
+
+export async function listCourtsForBlock(
+  supabase: DB,
+  clubId: string,
+  courtIds: string[]
+): Promise<
+  Pick<
+    Tables<"courts">,
+    "id" | "name" | "number" | "open_hour" | "close_hour" | "slot_minutes"
+  >[]
+> {
+  const { data } = await supabase
+    .from("courts")
+    .select("id, name, number, open_hour, close_hour, slot_minutes")
+    .eq("club_id", clubId)
+    .in("id", courtIds);
+  return (data ?? []) as Pick<
+    Tables<"courts">,
+    "id" | "name" | "number" | "open_hour" | "close_hour" | "slot_minutes"
+  >[];
+}
+
+export async function listBookingsOnDate(
+  supabase: DB,
+  date: string,
+  courtIds: string[]
+): Promise<
+  Pick<
+    Tables<"court_bookings">,
+    "court_id" | "start_minutes" | "slot_minutes" | "status" | "kind"
+  >[]
+> {
+  const { data } = await supabase
+    .from("court_bookings")
+    .select("court_id, start_minutes, slot_minutes, status, kind")
+    .eq("booking_date", date)
+    .in("court_id", courtIds)
+    .neq("status", "cancelled");
+  return (data ?? []) as Pick<
+    Tables<"court_bookings">,
+    "court_id" | "start_minutes" | "slot_minutes" | "status" | "kind"
+  >[];
+}
+
+export async function insertCourtBlocks(
+  supabase: DB,
+  rows: TablesInsert<"court_bookings">[]
+): Promise<{ error: boolean }> {
+  if (rows.length === 0) return { error: false };
+  const { error } = await supabase.from("court_bookings").insert(rows);
+  return { error: Boolean(error) };
+}
+
+export async function cancelTournamentBlocks(
+  supabase: DB,
+  eventId: string,
+  clubId: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("court_bookings")
+    .update({ status: "cancelled", updated_at: new Date().toISOString() })
+    .eq("event_id", eventId)
+    .eq("kind", "tournament")
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
+}
+
+/* ---- Carga manual de inscripción ---- */
+
+export async function insertRegistration(
+  supabase: DB,
+  row: TablesInsert<"registrations">
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("registrations")
+    .insert(row)
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  return data.id;
 }
