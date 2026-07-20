@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { flyerBg } from "@/lib/flyer-bg";
+import { getBookingPayInfo } from "@/modules/payments/repository";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -17,15 +18,7 @@ export default async function Image({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const { data } = await supabase.rpc("public_booking_payinfo", { p_id: id });
-  const info = (data ?? null) as {
-    amount: number | null;
-    date: string;
-    start: number;
-    club: string;
-    court: string | null;
-    court_number: number | null;
-  } | null;
+  const info = await getBookingPayInfo(supabase, id);
 
   const LIME = "#C7F94B";
   const court = info

@@ -3,6 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireClubAccess } from "@/lib/admin/club";
+import {
+  insertBooking,
+  getBookingForPayment,
+  deleteBooking,
+  cancelClubBooking,
+  requestBookingPaymentLink,
+} from "@/modules/reservations/repository";
 
 type Result = { ok: true } | { ok: false; error: string };
 const fail = (e: string): Result => ({ ok: false, error: e });
@@ -24,7 +31,7 @@ export async function createBooking(formData: FormData): Promise<Result> {
 
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase.from("court_bookings").insert({
+  const { error, conflict } = await insertBooking(supabase, {
     club_id: clubId,
     court_id: courtId,
     booking_date: date,
@@ -38,7 +45,7 @@ export async function createBooking(formData: FormData): Promise<Result> {
     paid_at: null,
   });
   if (error) {
-    if (error.code === "23505") return fail("Ese turno ya está ocupado.");
+    if (conflict) return fail("Ese turno ya está ocupado.");
     return fail("No pudimos crear la reserva.");
   }
   revalidatePath("/admin/agenda");
@@ -79,39 +86,30 @@ export async function createBookingWithPayment(
   const supabase = await createClient();
 
   const holdExpires = new Date(Date.now() + 30 * 60 * 1000).toISOString();
-  const { data: inserted, error } = await supabase
-    .from("court_bookings")
-    .insert({
-      club_id: clubId,
-      court_id: courtId,
-      booking_date: date,
-      start_minutes: startMin,
-      slot_minutes: slotMin,
-      status: "held",
-      kind: "casual",
-      customer_name: name,
-      customer_phone: phone || null,
-      price,
-      paid_at: null,
-      hold_expires_at: holdExpires,
-    })
-    .select("id")
-    .single();
+  const { id: bookingId, error, conflict } = await insertBooking(supabase, {
+    club_id: clubId,
+    court_id: courtId,
+    booking_date: date,
+    start_minutes: startMin,
+    slot_minutes: slotMin,
+    status: "held",
+    kind: "casual",
+    customer_name: name,
+    customer_phone: phone || null,
+    price,
+    paid_at: null,
+    hold_expires_at: holdExpires,
+  });
 
-  if (error) {
-    if (error.code === "23505") return { ok: false, error: "Ese turno ya está ocupado." };
+  if (error || !bookingId) {
+    if (conflict) return { ok: false, error: "Ese turno ya está ocupado." };
     return { ok: false, error: "No pudimos reservar el turno." };
   }
 
-  const bookingId = inserted.id as string;
-  const { data: pref, error: fnError } = await supabase.functions.invoke(
-    "mp-booking-preference",
-    { body: { booking_id: bookingId } }
-  );
-
-  if (fnError || !pref?.checkout_url) {
+  const checkoutUrl = await requestBookingPaymentLink(supabase, bookingId);
+  if (!checkoutUrl) {
     // Revertimos el hold para no dejar el turno tomado sin link.
-    await supabase.from("court_bookings").delete().eq("id", bookingId);
+    await deleteBooking(supabase, bookingId);
     return {
       ok: false,
       error:
@@ -120,7 +118,7 @@ export async function createBookingWithPayment(
   }
 
   revalidatePath("/admin/agenda");
-  return { ok: true, checkoutUrl: pref.checkout_url as string, bookingId };
+  return { ok: true, checkoutUrl, bookingId };
 }
 
 /**
@@ -134,12 +132,7 @@ export async function generateBookingPaymentLink(
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
 
-  const { data: b } = await supabase
-    .from("court_bookings")
-    .select("id, status, price, paid_at")
-    .eq("id", bookingId)
-    .eq("club_id", clubId)
-    .maybeSingle();
+  const b = await getBookingForPayment(supabase, bookingId, clubId);
   if (!b) return { ok: false, error: "No encontramos la reserva." };
   if (b.paid_at) return { ok: false, error: "Esta reserva ya está pagada." };
   if (!b.price || Number(b.price) <= 0)
@@ -148,11 +141,8 @@ export async function generateBookingPaymentLink(
       error: "La cancha no tiene precio por turno configurado.",
     };
 
-  const { data: pref, error: fnError } = await supabase.functions.invoke(
-    "mp-booking-preference",
-    { body: { booking_id: bookingId } }
-  );
-  if (fnError || !pref?.checkout_url) {
+  const checkoutUrl = await requestBookingPaymentLink(supabase, bookingId);
+  if (!checkoutUrl) {
     return {
       ok: false,
       error:
@@ -161,18 +151,14 @@ export async function generateBookingPaymentLink(
   }
 
   revalidatePath("/admin/agenda");
-  return { ok: true, checkoutUrl: pref.checkout_url as string, bookingId };
+  return { ok: true, checkoutUrl, bookingId };
 }
 
 /** Cancela (libera) un turno. */
 export async function cancelBooking(id: string): Promise<Result> {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("court_bookings")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("club_id", clubId);
+  const { error } = await cancelClubBooking(supabase, id, clubId);
   if (error) return fail("No pudimos cancelar el turno.");
   revalidatePath("/admin/agenda");
   return { ok: true };

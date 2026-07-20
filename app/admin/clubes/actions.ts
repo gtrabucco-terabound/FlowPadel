@@ -3,6 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import {
+  adminCreateClub,
+  setClubActiveFlag,
+  adminDeleteClub,
+} from "@/modules/clubs/repository";
 
 type Result =
   | { ok: true; adminStatus: string }
@@ -39,28 +44,25 @@ export async function createClub(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_create_club", {
-    p_name: parsed.data.name,
-    p_city: parsed.data.city || undefined,
-    p_admin_email: parsed.data.admin_email || undefined,
-    p_lead_id: parsed.data.lead_id ?? undefined,
+  const res = await adminCreateClub(supabase, {
+    name: parsed.data.name,
+    city: parsed.data.city,
+    adminEmail: parsed.data.admin_email,
+    leadId: parsed.data.lead_id ?? undefined,
   });
 
-  if (error) {
+  if (!res.ok) {
     return {
       ok: false,
-      error: error.message.includes("no autorizado")
+      error: res.unauthorized
         ? "No tenés permiso para crear clubes."
         : "No pudimos crear el club. Probá de nuevo.",
     };
   }
 
-  const adminStatus =
-    (data as { admin_status?: string } | null)?.admin_status ?? "sin_admin";
-
   revalidatePath("/admin/clubes");
   revalidatePath("/admin/prospectos");
-  return { ok: true, adminStatus };
+  return { ok: true, adminStatus: res.adminStatus };
 }
 
 /* ---- Gestión de clubes (superadmin): activar / eliminar ---- */
@@ -73,10 +75,7 @@ export async function setClubActive(
   active: boolean
 ): Promise<SimpleResult> {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("clubs")
-    .update({ is_active: active, updated_at: new Date().toISOString() })
-    .eq("id", clubId);
+  const { error } = await setClubActiveFlag(supabase, clubId, active);
   if (error) return { ok: false, error: "No pudimos actualizar el club." };
   revalidatePath("/admin/clubes");
   return { ok: true };
@@ -85,13 +84,12 @@ export async function setClubActive(
 /** Elimina un club (cascada de config). Bloquea si tiene eventos o reservas. */
 export async function deleteClub(clubId: string): Promise<SimpleResult> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_delete_club", {
-    p_club_id: clubId,
-  });
-  if (error) return { ok: false, error: "No pudimos eliminar el club." };
-  if (data === "forbidden")
+  const outcome = await adminDeleteClub(supabase, clubId);
+  if (outcome === "error")
+    return { ok: false, error: "No pudimos eliminar el club." };
+  if (outcome === "forbidden")
     return { ok: false, error: "Solo un superadmin puede eliminar clubes." };
-  if (data === "has_data")
+  if (outcome === "has_data")
     return {
       ok: false,
       error:

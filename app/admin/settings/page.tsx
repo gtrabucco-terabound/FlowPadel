@@ -1,6 +1,12 @@
 import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { SettingsManager } from "@/components/admin/settings-manager";
+import { getClubPaymentSettings } from "@/modules/payments/repository";
+import {
+  listClubCourts,
+  getClubInfo,
+  getClubOccupancy,
+} from "@/modules/clubs/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -11,46 +17,18 @@ export default async function SettingsPage() {
   const canEditClub =
     ctx.activeMembership.role === "club_admin" || ctx.superadmin;
 
-  const [{ data: courts }, { data: club }, paymentsRes] = await Promise.all([
-    supabase
-      .from("courts")
-      .select(
-        "id, name, is_active, number, enclosure_type, surface, covered, lighting, panoramic, price_per_slot, slot_minutes, operating_days, open_hour, close_hour"
-      )
-      .eq("club_id", ctx.activeClubId)
-      .order("name", { ascending: true }),
-    supabase
-      .from("clubs")
-      .select(
-        "id, name, city, address, phone, contact_email, description, instagram, website, logo_url"
-      )
-      .eq("id", ctx.activeClubId)
-      .maybeSingle(),
+  const [courts, club, pay] = await Promise.all([
+    listClubCourts(supabase, ctx.activeClubId),
+    getClubInfo(supabase, ctx.activeClubId),
     canEditClub
-      ? supabase
-          .from("club_payment_settings")
-          .select("mp_connected, booking_charge_type, booking_charge_value, booking_pay_at_club")
-          .eq("club_id", ctx.activeClubId)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
+      ? getClubPaymentSettings(supabase, ctx.activeClubId)
+      : Promise.resolve(null),
   ]);
-  const pay = paymentsRes.data as {
-    mp_connected: boolean;
-    booking_charge_type: "full" | "percent" | "fixed" | null;
-    booking_charge_value: number | null;
-    booking_pay_at_club: boolean | null;
-  } | null;
   const mpConnected = Boolean(pay?.mp_connected);
 
-  const { data: occ } = canEditClub
-    ? await supabase
-        .from("club_occupancy")
-        .select(
-          "enabled, wa_target, discount_pct, lead_minutes, segment_enabled, segment_discount_pct, segment_min_matches, segment_inactive_days, segment_max_per_run"
-        )
-        .eq("club_id", ctx.activeClubId)
-        .maybeSingle()
-    : { data: null };
+  const occ = canEditClub
+    ? await getClubOccupancy(supabase, ctx.activeClubId)
+    : null;
 
   return (
     <div className="space-y-6">

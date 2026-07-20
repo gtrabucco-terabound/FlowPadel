@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireClubAccess } from "@/lib/admin/club";
+import {
+  addClubMember,
+  updateMemberRole,
+  removeClubMember,
+} from "@/modules/clubs/repository";
 import type { Enums } from "@/lib/database.types";
 
 export type AddMemberResult =
@@ -45,14 +50,16 @@ export async function addMember(formData: FormData): Promise<AddMemberResult> {
   if (!guard.ok) return { ok: false, error: guard.error };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("add_club_member", {
-    p_club_id: guard.clubId,
-    p_email: parsed.data.email.trim(),
-    p_role: parsed.data.role as Enums<"club_member_role">,
-  });
+  const outcome = await addClubMember(
+    supabase,
+    guard.clubId,
+    parsed.data.email.trim(),
+    parsed.data.role as Enums<"club_member_role">
+  );
 
-  if (error) return { ok: false, error: "No pudimos agregar al miembro." };
-  if (data === "not_found") {
+  if (outcome === "error")
+    return { ok: false, error: "No pudimos agregar al miembro." };
+  if (outcome === "not_found") {
     return {
       ok: false,
       code: "not_found",
@@ -82,11 +89,12 @@ export async function changeRole(
     return { ok: false, error: "No podés cambiar tu propio rol." };
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("club_members")
-    .update({ role: parsedRole.data })
-    .eq("club_id", guard.clubId)
-    .eq("profile_id", profileId);
+  const { error } = await updateMemberRole(
+    supabase,
+    guard.clubId,
+    profileId,
+    parsedRole.data
+  );
 
   if (error) return { ok: false, error: "No pudimos cambiar el rol." };
 
@@ -106,11 +114,7 @@ export async function removeMember(profileId: string): Promise<ActionResult> {
     return { ok: false, error: "No podés quitarte a vos mismo." };
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("club_members")
-    .delete()
-    .eq("club_id", guard.clubId)
-    .eq("profile_id", profileId);
+  const { error } = await removeClubMember(supabase, guard.clubId, profileId);
 
   if (error) return { ok: false, error: "No pudimos quitar al miembro." };
 

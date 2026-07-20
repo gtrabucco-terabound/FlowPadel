@@ -5,25 +5,19 @@ import {
 import type { EventCardData } from "@/components/event-card";
 import { TopRanking, type TopRankingPlayer } from "@/components/top-ranking";
 import { listTopPlayersWithClub } from "@/modules/ranking/repository";
+import { listPublicHomeEvents } from "@/modules/tournaments/repository";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const supabase = await createClient();
 
-  const [{ data }, topPlayersRaw] = await Promise.all([
-    supabase
-      .from("events")
-      .select(
-        "id, name, slug, event_type, status, start_date, end_date, modality, category_system, category_value, club:clubs!events_club_id_fkey(name)"
-      )
-      .eq("public_visible", true)
-      .neq("status", "draft")
-      .order("start_date", { ascending: true, nullsFirst: false }),
+  const [eventsRaw, topPlayersRaw] = await Promise.all([
+    listPublicHomeEvents(supabase),
     listTopPlayersWithClub(supabase, 6),
   ]);
 
-  const events = (data ?? []) as unknown as EventCardData[];
+  const events = eventsRaw as unknown as EventCardData[];
 
   const topPlayers: TopRankingPlayer[] = topPlayersRaw.map((p) => ({
     id: p.id,

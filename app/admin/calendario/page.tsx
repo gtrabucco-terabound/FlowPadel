@@ -3,14 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { eventStatusMeta, formatDateRange } from "@/lib/format";
-import type { Tables } from "@/lib/database.types";
+import {
+  listClubCalendarEvents,
+  type CalendarEvent as Ev,
+} from "@/modules/tournaments/repository";
 
 export const dynamic = "force-dynamic";
-
-type Ev = Pick<
-  Tables<"events">,
-  "id" | "name" | "slug" | "status" | "start_date" | "end_date" | "venue"
->;
 
 /** ¿Se solapan los rangos de fecha de dos eventos? (día suelto = start=end) */
 function overlap(a: Ev, b: Ev): boolean {
@@ -26,13 +24,7 @@ export default async function CalendarioPage() {
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const { data } = await supabase
-    .from("events")
-    .select("id, name, slug, status, start_date, end_date, venue")
-    .eq("club_id", ctx.activeClubId)
-    .order("start_date", { ascending: true, nullsFirst: false });
-
-  const events = (data ?? []) as Ev[];
+  const events = await listClubCalendarEvents(supabase, ctx.activeClubId);
   const dated = events.filter((e) => e.start_date);
   const undated = events.filter((e) => !e.start_date);
 

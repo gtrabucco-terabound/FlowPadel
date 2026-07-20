@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  PublicBooking,
-  type PublicCourt,
-  type PublicBookingRow,
-} from "@/components/public-booking";
+import { PublicBooking } from "@/components/public-booking";
+import { getPublicCourtDay } from "@/modules/reservations/repository";
+import { getPlayerContact } from "@/modules/players/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +12,6 @@ function todayAR(): string {
   const d = new Date(Date.now() - 3 * 3600 * 1000);
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
-
-type DayData = {
-  club: { name: string; city: string | null; pay_at_club: boolean } | null;
-  courts: PublicCourt[];
-  bookings: PublicBookingRow[];
-  offers?: { court_id: string; start_minutes: number; discount_pct: number }[] | null;
-};
 
 export default async function ReservarClubPage({
   params,
@@ -34,25 +25,16 @@ export default async function ReservarClubPage({
   const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayAR();
 
   const supabase = await createClient();
-  const [{ data }, { data: auth }] = await Promise.all([
-    supabase.rpc("public_court_day", { p_slug: slug, p_date: day }),
+  const [parsed, { data: auth }] = await Promise.all([
+    getPublicCourtDay(supabase, slug, day),
     supabase.auth.getUser(),
   ]);
-  const parsed = (data ?? null) as unknown as DayData | null;
   if (!parsed || !parsed.club) notFound();
 
   // Si está logueado, precargamos su nombre/teléfono para reservar directo.
-  let me: { name: string; phone: string } | null = null;
-  if (auth?.user) {
-    const { data: player } = await supabase
-      .from("players")
-      .select("full_name, phone")
-      .eq("profile_id", auth.user.id)
-      .maybeSingle();
-    if (player?.full_name) {
-      me = { name: player.full_name, phone: player.phone ?? "" };
-    }
-  }
+  const me = auth?.user
+    ? await getPlayerContact(supabase, auth.user.id)
+    : null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">

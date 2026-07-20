@@ -11,6 +11,10 @@ import {
   OperatorRequests,
   type OperatorReq,
 } from "@/components/admin/operator-requests";
+import {
+  listClubMembers,
+  listPendingOperatorRequests,
+} from "@/modules/clubs/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -39,12 +43,12 @@ export default async function MembersPage() {
   }
 
   const supabase = await createClient();
-  const [{ data }, { data: pendingOps }] = await Promise.all([
-    supabase.rpc("list_club_members", { p_club_id: ctx.activeClubId }),
-    supabase.rpc("club_operator_pending", { p_club_id: ctx.activeClubId }),
+  const [membersData, pendingOps] = await Promise.all([
+    listClubMembers(supabase, ctx.activeClubId),
+    listPendingOperatorRequests(supabase, ctx.activeClubId),
   ]);
-  const members = (data ?? []) as MemberRow[];
-  const operatorRequests = (pendingOps ?? []) as unknown as OperatorReq[];
+  const members = membersData as MemberRow[];
+  const operatorRequests = pendingOps as OperatorReq[];
 
   return (
     <div className="space-y-6">

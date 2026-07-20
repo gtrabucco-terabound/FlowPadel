@@ -98,7 +98,35 @@
 
 ---
 
-## GATE DE ESTABILIZACIÓN (fin sem 4)
+## EPIC J — Agente Comercial de Voz (Retell) · **después de B y C**
+
+> Decisión del dueño (2026-07-16): primero se ordena la base (EPIC B), después la
+> vía comercial (EPIC C), y con eso listo se integra Retell. El dominio web
+> todavía no está comprado, así que la salida comercial no es el cuello de botella.
+> Retell es el **primer agente de la Business Agent Office** (doc 06 de la spec):
+> contacta clubes, explica el producto, vende y consigue los 5-10 fundadores.
+
+**Activo que se reutiliza:** `club_leads` ya existe y acumula clubes nombrados por
+jugadores con `mention_count` → lista de prospectos **calificada por demanda real**
+(no es una lista fría). Es el mejor argumento de venta del agente.
+
+| ID | REQ / TASK | Dep. | Est. | Agente | Aprob. | DoD |
+|---|---|---|---|---|---|---|
+| J1-R1 | Modelo de datos: pipeline comercial sobre `club_leads` (estado: nuevo/contactado/interesado/demo/cerrado/no-llamar) | — | M | Tom/backend | 🟡 Data Gate | Migración + RLS; no duplica `club_leads` |
+| J1-R2 | Tabla de llamadas: resultado, transcripción, duración, **costo**, correlation_id | J1-R1 | M | Tom/backend | 🟡 Data Gate | Toda llamada deja evidencia y costo auditable |
+| J1-R3 | Webhook de Retell → actualiza lead + registra llamada/costo | J1-R2 | M | Tom/backend | 🟡 | Idempotente; valida firma del webhook |
+| J1-R4 | Base de conocimiento del agente (producto, precios, objeciones) | **C3-R2** | M | Hermes/Vorii | 🟡 | El agente no inventa precios; depende de que existan |
+| J1-R5 | Acción de cierre: agendar demo / crear club fundador desde la llamada | J1-R3 | M | Tom/backend | 🟡 | La llamada produce un resultado en el sistema, no solo charla |
+| J1-R6 | Panel comercial: leads priorizados por `mention_count`, estado y costo por lead | J1-R3 | M | Vorii | 🟢 | El dueño ve pipeline, conversión y **costo por club captado** |
+| J1-R7 | Unit economics: costo Retell por lead/conversión integrado al pricing de suscripción | J1-R6 | M | Hermes | 🟡 | Precio fundador/premium cubre el costo de captación |
+| J1-R8 | Compliance de llamadas salientes (aviso de grabación, lista no-llamar) | J1-R1 | S | Tom/security | 🟡 | Respeta `no-llamar`; disclosure en el script |
+
+> **Bloqueante conocido:** J1-R4 depende de **C3-R2 (planes/precios)**. El agente no
+> puede vender planes que todavía no están definidos. Pricing fundador/premium: a definir.
+
+---
+
+## GATE DE ESTABILIZACIÓN
 Se cierra A + B + C. **No se abre P2+ hasta pasar este gate.** Aquí decidís la próxima palanca (Marketplace / profundizar COS / BOS).
 
 ---
@@ -116,11 +144,30 @@ Se cierra A + B + C. **No se abre P2+ hasta pasar este gate.** Aquí decidís la
 
 ---
 
-### Orden de arranque propuesto (Fase 0, apenas des el OK)
-1. **A1-R1** baseline del esquema · **A2-R2** documentar env vars (A2-R1 ✅ hecho).
-2. **A3-R1** crear proyecto DEV (necesita tu OK / creación).
-3. **A4-R1** CI base en GitHub Actions.
-4. **A5** red de tests → habilita EPIC B.
-5. En paralelo **C1-R1** nombres visibles (bajo riesgo, alto impacto comercial).
+### Orden de ejecución (actualizado 2026-07-16 por decisión del dueño)
 
-> Nada de EPIC B (mover carpetas) arranca hasta que A5 esté verde. Nada de EPIC D+ hasta el gate.
+> "Debemos ajustar y ordenar la base del proyecto antes de vender." El dominio web
+> todavía no está comprado → la vía comercial no es el cuello de botella.
+> **Orden: terminar B → después C → después J (Retell).**
+
+1. ✅ **EPIC A** (fundación) — mayormente hecho, ver estado abajo.
+2. ▶️ **EPIC B** (arquitectura) — **EN CURSO**, ~50%. Terminar: `clubs`/`identity`,
+   páginas admin restantes, y `tournaments` (este último **con su E2E primero**).
+3. **EPIC C** (ordenar y vender COS) — nombres visibles, UX, landing, planes, demo.
+4. **EPIC J** (Retell) — depende de C3-R2 (precios).
+5. **GATE** → recién ahí se abre D+.
+
+### Estado real medido (2026-07-16)
+
+| EPIC | ✅ | ⚠️ Parcial | ❌ | Total |
+|---|---|---|---|---|
+| A · Fundación | 7 | 3 | 8 | 18 |
+| B · Arquitectura | 3 | 2 | 1 | 6 |
+| C · Comercial | 0 | 0 | 9 | 9 |
+
+**EPIC B ~50%:** 5 módulos migrados (`notifications`, `ranking`, `players`,
+`reservations`, `payments`) pero **25 archivos de `app/` todavía tienen acceso
+directo a la BD** (torneos/eventos, clubes, miembros, operar, calendario,
+prospectos, proyección, directorio de jugadores, auth, páginas públicas de torneos).
+
+> Nada de EPIC B (mover carpetas) arranca sin la red de tests. Nada de EPIC D+ hasta el gate.

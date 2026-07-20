@@ -3,6 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireClubAccess } from "@/lib/admin/club";
+import {
+  findPlayerByPhone,
+  insertFixedBooking,
+  getClubAndCourtNames,
+  requestFixedCharge,
+  deactivateFixed,
+  cancelFutureOccurrences,
+} from "@/modules/reservations/fixed-repository";
+import {
+  insertNotification,
+  sendTransactionalEmail,
+} from "@/modules/notifications/repository";
 
 type Result = { ok: true } | { ok: false; error: string };
 type LinkResult =
@@ -27,17 +39,16 @@ async function notifyFixedAssigned(
     email: string | null;
   }
 ) {
-  const [{ data: club }, { data: court }] = await Promise.all([
-    supabase.from("clubs").select("name").eq("id", a.clubId).maybeSingle(),
-    supabase.from("courts").select("name").eq("id", a.courtId).maybeSingle(),
-  ]);
-  const clubName = club?.name ?? "el club";
-  const courtName = court?.name ?? "la cancha";
+  const { clubName, courtName } = await getClubAndCourtNames(
+    supabase,
+    a.clubId,
+    a.courtId
+  );
   const when = `${DOW[a.weekday]} ${hhmm(a.startMin)}`;
   const bodyText = `Tenés un turno fijo asignado en ${clubName}: ${courtName}, todos los ${when}. Valor $${a.monthly}/mes.`;
 
   if (a.playerId) {
-    await supabase.from("notifications").insert({
+    await insertNotification(supabase, {
       player_id: a.playerId,
       type: "booking",
       title: "Turno fijo asignado",
@@ -47,16 +58,12 @@ async function notifyFixedAssigned(
   }
   if (a.email) {
     // fire-and-forget: no bloquea la creación si el mail falla.
-    await supabase.functions
-      .invoke("send-email", {
-        body: {
-          to: a.email,
-          subject: `Tu turno fijo en ${clubName}`,
-          heading: "Tenés tu turno fijo asignado",
-          body: `Hola ${a.name}, ${clubName} te asignó un turno fijo: <b style="color:#F3F6F2">${courtName}, todos los ${when}</b>. Valor $${a.monthly} por mes. Te vamos a enviar el link de pago cada mes.`,
-        },
-      })
-      .catch(() => {});
+    await sendTransactionalEmail(supabase, {
+      to: a.email,
+      subject: `Tu turno fijo en ${clubName}`,
+      heading: "Tenés tu turno fijo asignado",
+      body: `Hola ${a.name}, ${clubName} te asignó un turno fijo: <b style="color:#F3F6F2">${courtName}, todos los ${when}</b>. Valor $${a.monthly} por mes. Te vamos a enviar el link de pago cada mes.`,
+    });
   }
 }
 
@@ -90,34 +97,26 @@ export async function createFixedBooking(formData: FormData): Promise<LinkResult
   let playerId = String(formData.get("player_id") ?? "").trim() || null;
   let playerEmail: string | null = null;
   if (!playerId && phone) {
-    const { data: match } = await supabase.rpc("find_player_by_phone", {
-      p_phone: phone,
-    });
-    const found = Array.isArray(match) ? match[0] : match;
-    if (found?.id) {
-      playerId = found.id as string;
-      playerEmail = (found.email as string) || null;
+    const found = await findPlayerByPhone(supabase, phone);
+    if (found) {
+      playerId = found.id;
+      playerEmail = found.email;
     }
   }
 
-  const { data: inserted, error } = await supabase
-    .from("fixed_bookings")
-    .insert({
-      club_id: clubId,
-      court_id: courtId,
-      weekday,
-      start_minutes: startMin,
-      slot_minutes: slotMin,
-      customer_name: name,
-      customer_phone: phone || null,
-      customer_email: email || null,
-      player_id: playerId,
-      monthly_price: monthly,
-    })
-    .select("id")
-    .single();
-  if (error || !inserted)
-    return { ok: false, error: "No pudimos crear el turno fijo." };
+  const fixedId = await insertFixedBooking(supabase, {
+    club_id: clubId,
+    court_id: courtId,
+    weekday,
+    start_minutes: startMin,
+    slot_minutes: slotMin,
+    customer_name: name,
+    customer_phone: phone || null,
+    customer_email: email || null,
+    player_id: playerId,
+    monthly_price: monthly,
+  });
+  if (!fixedId) return { ok: false, error: "No pudimos crear el turno fijo." };
 
   // Aviso multicanal de "turno asignado" (WhatsApp llegará con Evolution).
   await notifyFixedAssigned(supabase, {
@@ -131,10 +130,7 @@ export async function createFixedBooking(formData: FormData): Promise<LinkResult
     email: email || playerEmail,
   });
 
-  const { data: res, error: fnErr } = await supabase.functions.invoke(
-    "mp-fixed-charge",
-    { body: { fixed_booking_id: inserted.id } }
-  );
+  const { res, error: fnErr } = await requestFixedCharge(supabase, fixedId);
   revalidatePath("/admin/turnos-fijos");
   revalidatePath("/admin/agenda");
   // Turno creado. Si falló el link (p. ej. falta conectar MP), igual ok:
@@ -150,9 +146,11 @@ export async function generateFixedCharge(
 ): Promise<LinkResult> {
   await requireClubAccess();
   const supabase = await createClient();
-  const { data: res, error } = await supabase.functions.invoke("mp-fixed-charge", {
-    body: { fixed_booking_id: fixedBookingId, period },
-  });
+  const { res, error } = await requestFixedCharge(
+    supabase,
+    fixedBookingId,
+    period
+  );
   revalidatePath("/admin/turnos-fijos");
   revalidatePath("/admin/agenda");
   if (error || !res?.ok)
@@ -171,17 +169,9 @@ export async function deactivateFixedBooking(id: string): Promise<Result> {
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
 
-  await supabase
-    .from("fixed_bookings")
-    .update({ active: false, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("club_id", clubId);
+  await deactivateFixed(supabase, id, clubId);
   // Libera las ocurrencias futuras (las pasadas quedan como historial).
-  await supabase
-    .from("court_bookings")
-    .update({ status: "cancelled", updated_at: new Date().toISOString() })
-    .eq("fixed_booking_id", id)
-    .gte("booking_date", today);
+  await cancelFutureOccurrences(supabase, id, today);
   revalidatePath("/admin/turnos-fijos");
   revalidatePath("/admin/agenda");
   return { ok: true };

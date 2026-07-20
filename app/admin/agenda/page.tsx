@@ -1,6 +1,10 @@
 import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { AgendaView, type AgendaCourt, type AgendaBooking } from "@/components/admin/agenda-grid";
+import {
+  listActiveCourtsForClub,
+  listClubBookings,
+} from "@/modules/reservations/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -44,26 +48,13 @@ export default async function AgendaPage({
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const [{ data: courtsData }, { data: bookingsData }] = await Promise.all([
-    supabase
-      .from("courts")
-      .select(
-        "id, name, number, is_active, open_hour, close_hour, slot_minutes, operating_days, price_per_slot"
-      )
-      .eq("club_id", ctx.activeClubId)
-      .eq("is_active", true)
-      .order("name"),
-    supabase
-      .from("court_bookings")
-      .select("id, court_id, booking_date, start_minutes, slot_minutes, status, kind, customer_name, customer_phone, checkout_url, amount_charged, paid_at")
-      .eq("club_id", ctx.activeClubId)
-      .gte("booking_date", from)
-      .lte("booking_date", to)
-      .neq("status", "cancelled"),
+  const [courtsData, bookingsData] = await Promise.all([
+    listActiveCourtsForClub(supabase, ctx.activeClubId),
+    listClubBookings(supabase, ctx.activeClubId, from, to),
   ]);
 
-  const courts = (courtsData ?? []) as AgendaCourt[];
-  const bookings = (bookingsData ?? []) as AgendaBooking[];
+  const courts = courtsData as unknown as AgendaCourt[];
+  const bookings = bookingsData as unknown as AgendaBooking[];
 
   return (
     <div className="space-y-6">
