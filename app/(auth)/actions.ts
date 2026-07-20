@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { signIn, signUp, signOut } from "@/modules/identity/repository";
+import { isClubMember } from "@/modules/clubs/repository";
 
 const credentialsSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -29,21 +31,15 @@ export async function loginAction(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
+  const session = await signIn(supabase, parsed.data.email, parsed.data.password);
 
-  if (error || !data.user) {
+  if (!session) {
     return { error: "Email o contraseña incorrectos." };
   }
 
   // Determine destination by role: club_member -> /admin, else -> /
-  const { data: membership } = await supabase
-    .from("club_members")
-    .select("id")
-    .eq("profile_id", data.user.id)
-    .limit(1)
-    .maybeSingle();
-
-  redirect(membership ? "/admin" : "/");
+  const member = await isClubMember(supabase, session.userId);
+  redirect(member ? "/admin" : "/");
 }
 
 /** Sign up a new player account. */
@@ -61,22 +57,19 @@ export async function signupAction(
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp({
+  const res = await signUp(supabase, {
     email: parsed.data.email,
     password: parsed.data.password,
-    options: {
-      data: { full_name: parsed.data.full_name },
-    },
+    fullName: parsed.data.full_name,
   });
 
-  if (error) {
+  if (!res.ok) {
     return { error: "No pudimos crear la cuenta. Probá con otro email." };
   }
 
-  // Email ya registrado: Supabase, por anti-enumeración, responde ok igual pero
-  // con identities vacío. Lo detectamos para avisar en vez de mandar a "revisá
-  // tu email" (donde nunca llegaría nada).
-  if (data.user && (data.user.identities?.length ?? 0) === 0) {
+  // Email ya registrado (Supabase, por anti-enumeración, responde ok pero con
+  // identities vacío): avisamos en vez de mandar a "revisá tu email".
+  if (res.alreadyRegistered) {
     return {
       error:
         "Ese email ya tiene una cuenta. Ingresá con tu contraseña o usá “¿Olvidaste tu contraseña?”.",
@@ -85,7 +78,7 @@ export async function signupAction(
 
   // Con verificación por email activada, signUp no crea sesión: el usuario
   // debe confirmar por mail primero. Sin sesión → pantalla "revisá tu email".
-  if (!data.session) {
+  if (!res.hasSession) {
     redirect("/verifica-email");
   }
 
@@ -95,6 +88,6 @@ export async function signupAction(
 
 export async function logoutAction() {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await signOut(supabase);
   redirect("/");
 }

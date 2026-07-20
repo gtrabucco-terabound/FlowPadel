@@ -3,6 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { requestRegistrationPaymentLink } from "@/modules/payments/repository";
 import {
+  getOpenPublicEvent,
+  registrationPhoneTaken,
+  claimCodeExists,
+  insertPublicRegistration,
+} from "@/modules/tournaments/repository";
+import {
   registrationSchema,
   validatePair,
   effectiveModality,
@@ -42,17 +48,9 @@ export async function submitRegistration(
   const supabase = await createClient();
 
   // Validate the event is open + public, and get club/event ids + type.
-  const { data: event, error: eventErr } = await supabase
-    .from("events")
-    .select(
-      "id, club_id, event_type, status, public_visible, modality, category_system, category_value, deposit_type"
-    )
-    .eq("slug", data.slug)
-    .eq("public_visible", true)
-    .eq("status", "open")
-    .maybeSingle();
+  const event = await getOpenPublicEvent(supabase, data.slug);
 
-  if (eventErr || !event) {
+  if (!event) {
     return {
       ok: false,
       error: "El evento no está disponible para inscripciones.",
@@ -89,10 +87,11 @@ export async function submitRegistration(
 
   // Evitar inscripciones duplicadas: si el teléfono ya está inscripto en este
   // torneo (no rechazado), no dejamos anotar de nuevo.
-  const { data: taken } = await supabase.rpc("registration_phone_taken", {
-    p_event_id: event.id,
-    p_phone: data.player_1_phone.trim(),
-  });
+  const taken = await registrationPhoneTaken(
+    supabase,
+    event.id,
+    data.player_1_phone.trim()
+  );
   if (taken) {
     return {
       ok: false,
@@ -123,12 +122,7 @@ export async function submitRegistration(
   if (hasPartner) {
     for (let attempt = 0; attempt < 8; attempt++) {
       const candidate = generateClaimCode();
-      const { data: clash } = await supabase
-        .from("registrations")
-        .select("id")
-        .eq("partner_claim_code", candidate)
-        .maybeSingle();
-      if (!clash) {
+      if (!(await claimCodeExists(supabase, candidate))) {
         claimCode = candidate;
         break;
       }
@@ -139,7 +133,7 @@ export async function submitRegistration(
   // el usuario anónimo tiene permiso de INSERT pero no de SELECT sobre
   // registrations, así que un insert().select() fallaba desde la app pública.
   const newId = crypto.randomUUID();
-  const { error: insertErr } = await supabase.from("registrations").insert({
+  const { error: insertErr } = await insertPublicRegistration(supabase, {
     id: newId,
     club_id: event.club_id,
     event_id: event.id,

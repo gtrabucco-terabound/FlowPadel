@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { Tables } from "@/lib/database.types";
+import type { Tables, TablesInsert } from "@/lib/database.types";
 
 /** Cliente Supabase server-side (RLS aplica sobre él). */
 type DB = Awaited<ReturnType<typeof createClient>>;
@@ -586,6 +586,74 @@ export async function getPublicEventForRegistration(
     .eq("public_visible", true)
     .maybeSingle();
   return (data as PublicEventForRegistration) ?? null;
+}
+
+export type OpenPublicEvent = Pick<
+  Tables<"events">,
+  | "id"
+  | "club_id"
+  | "event_type"
+  | "status"
+  | "public_visible"
+  | "modality"
+  | "category_system"
+  | "category_value"
+  | "deposit_type"
+>;
+
+/** Evento abierto + público por slug (para validar una inscripción pública). */
+export async function getOpenPublicEvent(
+  supabase: DB,
+  slug: string
+): Promise<OpenPublicEvent | null> {
+  const { data } = await supabase
+    .from("events")
+    .select(
+      "id, club_id, event_type, status, public_visible, modality, category_system, category_value, deposit_type"
+    )
+    .eq("slug", slug)
+    .eq("public_visible", true)
+    .eq("status", "open")
+    .maybeSingle();
+  return (data as OpenPublicEvent) ?? null;
+}
+
+/** ¿Ya hay una inscripción con ese teléfono en el torneo? (RPC). */
+export async function registrationPhoneTaken(
+  supabase: DB,
+  eventId: string,
+  phone: string
+): Promise<boolean> {
+  const { data } = await supabase.rpc("registration_phone_taken", {
+    p_event_id: eventId,
+    p_phone: phone,
+  });
+  return Boolean(data);
+}
+
+/** ¿Existe ya ese código de reclamo de pareja? */
+export async function claimCodeExists(
+  supabase: DB,
+  code: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("registrations")
+    .select("id")
+    .eq("partner_claim_code", code)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+/**
+ * Inserta una inscripción pública. NO usa .select() porque el usuario anónimo
+ * tiene INSERT pero no SELECT sobre registrations (el id se genera afuera).
+ */
+export async function insertPublicRegistration(
+  supabase: DB,
+  row: TablesInsert<"registrations">
+): Promise<{ error: boolean }> {
+  const { error } = await supabase.from("registrations").insert(row);
+  return { error: Boolean(error) };
 }
 
 /** Cantidad de inscripciones aprobadas de un evento (para el cupo). */

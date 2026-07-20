@@ -210,6 +210,20 @@ export async function upsertClubOccupancy(
   return { error: Boolean(error) };
 }
 
+/** ¿El usuario es miembro de algún club? (define el destino tras login). */
+export async function isClubMember(
+  supabase: DB,
+  userId: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("club_members")
+    .select("id")
+    .eq("profile_id", userId)
+    .limit(1)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 /* ---- Miembros del club ---- */
 
 /** Miembros del club (RPC con los datos del perfil). */
