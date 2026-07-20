@@ -24,6 +24,15 @@ import {
   insertPayments,
   updateRegistrationStatus,
   getMaxWaitlistPosition,
+  generateDivisionZones,
+  generateAmericano,
+  generateLeagueFixture,
+  generateBracketRpc,
+  listZoneIds,
+  listGroupStageMatchPairs,
+  listZoneTeamIds,
+  insertMatches,
+  updateEventStatus,
 } from "@/modules/tournaments/events-repository";
 import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
 
@@ -323,10 +332,8 @@ export async function generateZones(eventId: string): Promise<ActionResult> {
   const { supabase, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
 
-  const { error } = await supabase.rpc("generate_division_zones", {
-    p_event_id: eventId,
-  });
-  if (error) return fail(error.message || "No pudimos generar las zonas.");
+  const { error, message } = await generateDivisionZones(supabase, eventId);
+  if (error) return fail(message || "No pudimos generar las zonas.");
 
   refresh(eventId);
   return { ok: true };
@@ -459,28 +466,27 @@ export async function generateFixture(
   if (!event) return fail("Evento no encontrado.");
 
   if (event.long_format === "americano") {
-    const { error } = await supabase.rpc("generate_americano", {
-      p_event_id: eventId,
-      p_courts: parsed.data.courts,
-      p_start_date: parsed.data.startDate ?? undefined,
-      p_rounds: parsed.data.rounds ?? undefined,
-      p_first_hour: parsed.data.firstHour,
-      p_slot_minutes: parsed.data.slotMinutes,
+    const { error, message } = await generateAmericano(supabase, {
+      eventId,
+      courts: parsed.data.courts,
+      startDate: parsed.data.startDate ?? undefined,
+      rounds: parsed.data.rounds ?? undefined,
+      firstHour: parsed.data.firstHour,
+      slotMinutes: parsed.data.slotMinutes,
     });
-    if (error)
-      return fail(error.message || "No pudimos generar el americano.");
+    if (error) return fail(message || "No pudimos generar el americano.");
     refresh(eventId);
     return { ok: true };
   }
 
-  const { error } = await supabase.rpc("generate_league", {
-    p_event_id: eventId,
-    p_courts: parsed.data.courts,
-    p_start_date: parsed.data.startDate ?? undefined,
-    p_first_hour: parsed.data.firstHour,
-    p_slot_minutes: parsed.data.slotMinutes,
+  const { error, message } = await generateLeagueFixture(supabase, {
+    eventId,
+    courts: parsed.data.courts,
+    startDate: parsed.data.startDate ?? undefined,
+    firstHour: parsed.data.firstHour,
+    slotMinutes: parsed.data.slotMinutes,
   });
-  if (error) return fail(error.message || "No pudimos generar la liga.");
+  if (error) return fail(message || "No pudimos generar la liga.");
 
   refresh(eventId);
   return { ok: true };
@@ -543,11 +549,8 @@ export async function generateBracket(eventId: string): Promise<ActionResult> {
   const { supabase, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
 
-  const { error } = await supabase.rpc("generate_bracket", {
-    p_event_id: eventId,
-    p_qualifiers_per_zone: 2,
-  });
-  if (error) return fail(error.message || "No pudimos generar el cuadro.");
+  const { error, message } = await generateBracketRpc(supabase, eventId, 2);
+  if (error) return fail(message || "No pudimos generar el cuadro.");
 
   refresh(eventId);
   return { ok: true };
@@ -809,33 +812,19 @@ export async function startTournament(eventId: string): Promise<ActionResult> {
   const { supabase, clubId, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
 
-  const { data: zones } = await supabase
-    .from("zones")
-    .select("id")
-    .eq("event_id", eventId);
-  const zoneIds = (zones ?? []).map((z) => z.id);
+  const zoneIds = await listZoneIds(supabase, eventId);
   if (zoneIds.length === 0)
     return fail("Primero generá las zonas del torneo.");
 
   // Existing group_stage matches to avoid duplicating pairs.
-  const { data: existing } = await supabase
-    .from("matches")
-    .select("team_a_id, team_b_id, zone_id")
-    .eq("event_id", eventId)
-    .eq("phase", "group_stage");
+  const existing = await listGroupStageMatchPairs(supabase, eventId);
   const seen = new Set(
-    (existing ?? []).map((m) =>
-      [m.zone_id, m.team_a_id, m.team_b_id].sort().join("|")
-    )
+    existing.map((m) => [m.zone_id, m.team_a_id, m.team_b_id].sort().join("|"))
   );
 
   const inserts: TablesInsert<"matches">[] = [];
   for (const zid of zoneIds) {
-    const { data: zoneTeams } = await supabase
-      .from("zone_teams")
-      .select("team_id")
-      .eq("zone_id", zid);
-    const ids = (zoneTeams ?? []).map((zt) => zt.team_id);
+    const ids = await listZoneTeamIds(supabase, zid);
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
         const key = [zid, ids[i], ids[j]].sort().join("|");
@@ -853,15 +842,14 @@ export async function startTournament(eventId: string): Promise<ActionResult> {
     }
   }
 
-  if (inserts.length > 0) {
-    const { error: insErr } = await supabase.from("matches").insert(inserts);
-    if (insErr) return fail("No pudimos generar los partidos.");
-  }
+  const { error: insErr } = await insertMatches(supabase, inserts);
+  if (insErr) return fail("No pudimos generar los partidos.");
 
-  const { error: statusErr } = await supabase
-    .from("events")
-    .update({ status: "in_progress" })
-    .eq("id", eventId);
+  const { error: statusErr } = await updateEventStatus(
+    supabase,
+    eventId,
+    "in_progress"
+  );
   if (statusErr) return fail("No pudimos iniciar el torneo.");
 
   refresh(eventId);

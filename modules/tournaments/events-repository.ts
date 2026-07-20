@@ -208,6 +208,142 @@ export async function updateRegistrationStatus(
   return { error: Boolean(error) };
 }
 
+/* ---- Generación (zonas / fixture / bracket / iniciar torneo) ---- */
+
+type RpcError = { error: boolean; message: string | null };
+
+/** Genera zonas por división (RPC generate_division_zones). */
+export async function generateDivisionZones(
+  supabase: DB,
+  eventId: string
+): Promise<RpcError> {
+  const { error } = await supabase.rpc("generate_division_zones", {
+    p_event_id: eventId,
+  });
+  return { error: Boolean(error), message: error?.message ?? null };
+}
+
+/** Genera el fixture de un americano (parejas rotativas). */
+export async function generateAmericano(
+  supabase: DB,
+  args: {
+    eventId: string;
+    courts: number;
+    startDate?: string;
+    rounds?: number;
+    firstHour: number;
+    slotMinutes: number;
+  }
+): Promise<RpcError> {
+  const { error } = await supabase.rpc("generate_americano", {
+    p_event_id: args.eventId,
+    p_courts: args.courts,
+    p_start_date: args.startDate,
+    p_rounds: args.rounds,
+    p_first_hour: args.firstHour,
+    p_slot_minutes: args.slotMinutes,
+  });
+  return { error: Boolean(error), message: error?.message ?? null };
+}
+
+/** Genera el fixture de una liga larga (round-robin de equipos). */
+export async function generateLeagueFixture(
+  supabase: DB,
+  args: {
+    eventId: string;
+    courts: number;
+    startDate?: string;
+    firstHour: number;
+    slotMinutes: number;
+  }
+): Promise<RpcError> {
+  const { error } = await supabase.rpc("generate_league", {
+    p_event_id: args.eventId,
+    p_courts: args.courts,
+    p_start_date: args.startDate,
+    p_first_hour: args.firstHour,
+    p_slot_minutes: args.slotMinutes,
+  });
+  return { error: Boolean(error), message: error?.message ?? null };
+}
+
+/** Genera el cuadro de eliminación sembrando desde las posiciones (RPC). */
+export async function generateBracketRpc(
+  supabase: DB,
+  eventId: string,
+  qualifiersPerZone = 2
+): Promise<RpcError> {
+  const { error } = await supabase.rpc("generate_bracket", {
+    p_event_id: eventId,
+    p_qualifiers_per_zone: qualifiersPerZone,
+  });
+  return { error: Boolean(error), message: error?.message ?? null };
+}
+
+/** Zonas del evento (ids), para iniciar el torneo. */
+export async function listZoneIds(
+  supabase: DB,
+  eventId: string
+): Promise<string[]> {
+  const { data } = await supabase
+    .from("zones")
+    .select("id")
+    .eq("event_id", eventId);
+  return (data ?? []).map((z) => z.id);
+}
+
+/** Partidos de fase de grupos ya existentes (para no duplicar parejas). */
+export async function listGroupStageMatchPairs(
+  supabase: DB,
+  eventId: string
+): Promise<{ team_a_id: string; team_b_id: string; zone_id: string | null }[]> {
+  const { data } = await supabase
+    .from("matches")
+    .select("team_a_id, team_b_id, zone_id")
+    .eq("event_id", eventId)
+    .eq("phase", "group_stage");
+  return (data ?? []) as {
+    team_a_id: string;
+    team_b_id: string;
+    zone_id: string | null;
+  }[];
+}
+
+/** Ids de los equipos de una zona. */
+export async function listZoneTeamIds(
+  supabase: DB,
+  zoneId: string
+): Promise<string[]> {
+  const { data } = await supabase
+    .from("zone_teams")
+    .select("team_id")
+    .eq("zone_id", zoneId);
+  return (data ?? []).map((zt) => zt.team_id);
+}
+
+/** Inserta partidos (round-robin al iniciar el torneo). */
+export async function insertMatches(
+  supabase: DB,
+  rows: TablesInsert<"matches">[]
+): Promise<{ error: boolean }> {
+  if (rows.length === 0) return { error: false };
+  const { error } = await supabase.from("matches").insert(rows);
+  return { error: Boolean(error) };
+}
+
+/** Cambia el estado del evento (ej. in_progress al iniciar). */
+export async function updateEventStatus(
+  supabase: DB,
+  eventId: string,
+  status: Enums<"event_status">
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("events")
+    .update({ status })
+    .eq("id", eventId);
+  return { error: Boolean(error) };
+}
+
 /** Posición máxima actual en la lista de espera del evento. */
 export async function getMaxWaitlistPosition(
   supabase: DB,
