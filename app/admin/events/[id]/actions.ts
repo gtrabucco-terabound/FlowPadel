@@ -9,6 +9,22 @@ import {
   markPaymentStatus,
   requestRegistrationPaymentLink,
 } from "@/modules/payments/repository";
+import {
+  getEventForActions,
+  getPayment,
+  getRegistration,
+  getPlayerGenderCategory,
+  findPlayerByPhoneGC,
+  patchPlayer,
+  insertPlayer,
+  insertTeam,
+  updateRegistrationApproved,
+  notifyRegistrationStatus,
+  listRegistrationPaymentKinds,
+  insertPayments,
+  updateRegistrationStatus,
+  getMaxWaitlistPosition,
+} from "@/modules/tournaments/events-repository";
 import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -21,14 +37,7 @@ function fail(error: string): ActionResult {
 async function loadEvent(eventId: string) {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { data: event } = await supabase
-    .from("events")
-    .select(
-      "id, club_id, registration_fee, currency, long_format, charge_court, inscription_per_person, court_fee_per_person, court_pool_per_person, modality, category_value, category_system, event_type"
-    )
-    .eq("id", eventId)
-    .eq("club_id", clubId)
-    .maybeSingle();
+  const event = await getEventForActions(supabase, eventId, clubId);
   return { supabase, clubId, event };
 }
 
@@ -51,12 +60,7 @@ export async function approveRegistration(
   const { supabase, clubId, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
 
-  const { data: reg } = await supabase
-    .from("registrations")
-    .select("*")
-    .eq("id", registrationId)
-    .eq("event_id", eventId)
-    .maybeSingle();
+  const reg = await getRegistration(supabase, registrationId, eventId);
   if (!reg) return fail("Inscripción no encontrada.");
   if (reg.team_id) return fail("La inscripción ya tiene equipo.");
 
@@ -70,18 +74,14 @@ export async function approveRegistration(
     if (playerId) {
       // Si el player ya existía, completar gender/category sólo si están nulos.
       if (gender != null || category != null) {
-        const { data: existing } = await supabase
-          .from("players")
-          .select("gender, category")
-          .eq("id", playerId)
-          .maybeSingle();
+        const existing = await getPlayerGenderCategory(supabase, playerId);
         const patch: Partial<TablesInsert<"players">> = {};
         if (existing && existing.gender == null && gender != null)
           patch.gender = gender;
         if (existing && existing.category == null && category != null)
           patch.category = category;
         if (Object.keys(patch).length > 0)
-          await supabase.from("players").update(patch).eq("id", playerId);
+          await patchPlayer(supabase, playerId, patch);
       }
       return playerId;
     }
@@ -91,11 +91,7 @@ export async function approveRegistration(
     // lugar de crear un duplicado. Completa gender/category si estaban nulos.
     const trimmedPhone = phone?.trim() || null;
     if (trimmedPhone) {
-      const { data: existingByPhone } = await supabase
-        .from("players")
-        .select("id, gender, category")
-        .eq("phone", trimmedPhone)
-        .maybeSingle();
+      const existingByPhone = await findPlayerByPhoneGC(supabase, trimmedPhone);
       if (existingByPhone) {
         const patch: Partial<TablesInsert<"players">> = {};
         if (existingByPhone.gender == null && gender != null)
@@ -103,24 +99,18 @@ export async function approveRegistration(
         if (existingByPhone.category == null && category != null)
           patch.category = category;
         if (Object.keys(patch).length > 0)
-          await supabase.from("players").update(patch).eq("id", existingByPhone.id);
+          await patchPlayer(supabase, existingByPhone.id, patch);
         return existingByPhone.id;
       }
     }
 
-    const { data: player, error } = await supabase
-      .from("players")
-      .insert({
-        full_name: name.trim(),
-        phone: phone?.trim() || null,
-        home_club_id: clubId,
-        gender,
-        category,
-      } satisfies TablesInsert<"players">)
-      .select("id")
-      .single();
-    if (error || !player) return null;
-    return player.id;
+    return insertPlayer(supabase, {
+      full_name: name.trim(),
+      phone: phone?.trim() || null,
+      home_club_id: clubId,
+      gender,
+      category,
+    });
   };
 
   const player1 = await ensurePlayer(
@@ -149,47 +139,31 @@ export async function approveRegistration(
   const teamModality: Enums<"tournament_modality"> | null =
     event.modality === "combinado" ? reg.modality : event.modality;
 
-  const { data: team, error: teamErr } = await supabase
-    .from("teams")
-    .insert({
-      club_id: clubId,
-      event_id: eventId,
-      name: teamName,
-      player_1_id: player1,
-      player_2_id: player2,
-      modality: teamModality,
-      category_value: event.category_value,
-    } satisfies TablesInsert<"teams">)
-    .select("id")
-    .single();
-  if (teamErr || !team) return fail("No pudimos crear el equipo.");
+  const teamId = await insertTeam(supabase, {
+    club_id: clubId,
+    event_id: eventId,
+    name: teamName,
+    player_1_id: player1,
+    player_2_id: player2,
+    modality: teamModality,
+    category_value: event.category_value,
+  });
+  if (!teamId) return fail("No pudimos crear el equipo.");
 
-  const { error: updErr } = await supabase
-    .from("registrations")
-    .update({
-      status: "approved",
-      team_id: team.id,
-      player_1_id: player1,
-      player_2_id: player2,
-      waitlist_position: null,
-    })
-    .eq("id", registrationId);
+  const { error: updErr } = await updateRegistrationApproved(
+    supabase,
+    registrationId,
+    { team_id: teamId, player_1_id: player1, player_2_id: player2 }
+  );
   if (updErr) return fail("No pudimos actualizar la inscripción.");
 
   // Avisar a la pareja que quedó confirmada (in-app; email cuando esté el worker).
-  await supabase.rpc("notify_registration_status", {
-    p_registration_id: registrationId,
-    p_kind: "confirmed",
-  });
+  await notifyRegistrationStatus(supabase, registrationId, "confirmed");
 
   // Crear los cobros por equipo (inscripción + cancha). Idempotente: sólo crea
   // los que falten para esta inscripción (no duplica por kind).
-  const { data: existingPayments } = await supabase
-    .from("payments")
-    .select("id, kind")
-    .eq("registration_id", registrationId);
   const existingKinds = new Set(
-    (existingPayments ?? []).map((p) => p.kind as Enums<"payment_kind">)
+    await listRegistrationPaymentKinds(supabase, registrationId)
   );
 
   // Cantidad de jugadores: 2 si hay pareja, 1 si single.
@@ -230,9 +204,7 @@ export async function approveRegistration(
     });
   }
 
-  if (toInsert.length > 0) {
-    await supabase.from("payments").insert(toInsert);
-  }
+  await insertPayments(supabase, toInsert);
 
   refresh(eventId);
   return { ok: true };
@@ -248,13 +220,7 @@ async function loadPayment(
   eventId: string,
   paymentId: string
 ) {
-  const { data } = await supabase
-    .from("payments")
-    .select("id")
-    .eq("id", paymentId)
-    .eq("event_id", eventId)
-    .maybeSingle();
-  return data;
+  return getPayment(supabase, eventId, paymentId);
 }
 
 export async function markPaymentPaid(
@@ -312,16 +278,12 @@ export async function rejectRegistration(
 ): Promise<ActionResult> {
   const { supabase, event } = await loadEvent(eventId);
   if (!event) return fail("Evento no encontrado.");
-  const { error } = await supabase
-    .from("registrations")
-    .update({ status: "rejected", waitlist_position: null })
-    .eq("id", registrationId)
-    .eq("event_id", eventId);
-  if (error) return fail("No pudimos rechazar la inscripción.");
-  await supabase.rpc("notify_registration_status", {
-    p_registration_id: registrationId,
-    p_kind: "rejected",
+  const { error } = await updateRegistrationStatus(supabase, registrationId, eventId, {
+    status: "rejected",
+    waitlist_position: null,
   });
+  if (error) return fail("No pudimos rechazar la inscripción.");
+  await notifyRegistrationStatus(supabase, registrationId, "rejected");
   refresh(eventId);
   return { ok: true };
 }
@@ -334,26 +296,14 @@ export async function waitlistRegistration(
   if (!event) return fail("Evento no encontrado.");
 
   // Next waitlist position = current max + 1.
-  const { data: existing } = await supabase
-    .from("registrations")
-    .select("waitlist_position")
-    .eq("event_id", eventId)
-    .eq("status", "waitlist")
-    .order("waitlist_position", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const next = (existing?.waitlist_position ?? 0) + 1;
+  const next = (await getMaxWaitlistPosition(supabase, eventId)) + 1;
 
-  const { error } = await supabase
-    .from("registrations")
-    .update({ status: "waitlist", waitlist_position: next })
-    .eq("id", registrationId)
-    .eq("event_id", eventId);
-  if (error) return fail("No pudimos mover a lista de espera.");
-  await supabase.rpc("notify_registration_status", {
-    p_registration_id: registrationId,
-    p_kind: "waitlist",
+  const { error } = await updateRegistrationStatus(supabase, registrationId, eventId, {
+    status: "waitlist",
+    waitlist_position: next,
   });
+  if (error) return fail("No pudimos mover a lista de espera.");
+  await notifyRegistrationStatus(supabase, registrationId, "waitlist");
   refresh(eventId);
   return { ok: true };
 }
