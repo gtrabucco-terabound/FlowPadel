@@ -9,6 +9,15 @@ import {
   updateBookingChargePolicy,
   disconnectClubPaymentTokens,
 } from "@/modules/payments/repository";
+import {
+  updateClubInfo,
+  getMaxCourtNumber,
+  insertCourt,
+  renameCourtRow,
+  setCourtActive,
+  updateCourtConfigRow,
+  upsertClubOccupancy,
+} from "@/modules/clubs/repository";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -32,20 +41,17 @@ export async function updateClub(formData: FormData): Promise<ActionResult> {
   if (name.length < 2) return fail("Ingresá el nombre del club.");
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("clubs")
-    .update({
-      name,
-      city: txt(formData.get("city")),
-      address: txt(formData.get("address")),
-      phone: txt(formData.get("phone")),
-      contact_email: txt(formData.get("contact_email")),
-      description: txt(formData.get("description")),
-      instagram: txt(formData.get("instagram")),
-      website: txt(formData.get("website")),
-      logo_url: txt(formData.get("logo_url")),
-    })
-    .eq("id", clubId);
+  const { error } = await updateClubInfo(supabase, clubId, {
+    name,
+    city: txt(formData.get("city")),
+    address: txt(formData.get("address")),
+    phone: txt(formData.get("phone")),
+    contact_email: txt(formData.get("contact_email")),
+    description: txt(formData.get("description")),
+    instagram: txt(formData.get("instagram")),
+    website: txt(formData.get("website")),
+    logo_url: txt(formData.get("logo_url")),
+  });
   if (error) return fail("No pudimos guardar los datos del club.");
   refresh();
   return { ok: true };
@@ -105,24 +111,18 @@ export async function updateOccupancy(formData: FormData): Promise<ActionResult>
   const segMin = numOrNull(formData.get("segment_min_matches"));
   const segInactive = numOrNull(formData.get("segment_inactive_days"));
   const segMax = numOrNull(formData.get("segment_max_per_run"));
-  const { error } = await supabase.from("club_occupancy").upsert(
-    {
-      club_id: clubId,
-      enabled: formData.get("enabled") === "on",
-      wa_target: txt(formData.get("wa_target")),
-      discount_pct: discount != null && discount >= 0 && discount <= 90 ? discount : 30,
-      lead_minutes: lead != null && lead > 0 ? lead : 120,
-      segment_enabled: formData.get("segment_enabled") === "on",
-      segment_discount_pct:
-        segDiscount != null && segDiscount >= 0 && segDiscount <= 90 ? segDiscount : 20,
-      segment_min_matches: segMin != null && segMin >= 0 ? segMin : 3,
-      segment_inactive_days: segInactive != null && segInactive > 0 ? segInactive : 21,
-      segment_max_per_run:
-        segMax != null && segMax > 0 && segMax <= 200 ? segMax : 15,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "club_id" }
-  );
+  const { error } = await upsertClubOccupancy(supabase, clubId, {
+    enabled: formData.get("enabled") === "on",
+    wa_target: txt(formData.get("wa_target")),
+    discount_pct: discount != null && discount >= 0 && discount <= 90 ? discount : 30,
+    lead_minutes: lead != null && lead > 0 ? lead : 120,
+    segment_enabled: formData.get("segment_enabled") === "on",
+    segment_discount_pct:
+      segDiscount != null && segDiscount >= 0 && segDiscount <= 90 ? segDiscount : 20,
+    segment_min_matches: segMin != null && segMin >= 0 ? segMin : 3,
+    segment_inactive_days: segInactive != null && segInactive > 0 ? segInactive : 21,
+    segment_max_per_run: segMax != null && segMax > 0 && segMax <= 200 ? segMax : 15,
+  });
   if (error) return fail("No pudimos guardar el motor de ocupación.");
   refresh();
   return { ok: true };
@@ -146,17 +146,13 @@ export async function createCourt(formData: FormData): Promise<ActionResult> {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
   // Número auto-asignado: el más alto del club + 1.
-  const { data: last } = await supabase
-    .from("courts")
-    .select("number")
-    .eq("club_id", clubId)
-    .order("number", { ascending: false, nullsFirst: false })
-    .limit(1)
-    .maybeSingle();
-  const nextNumber = (last?.number ?? 0) + 1;
-  const { error } = await supabase
-    .from("courts")
-    .insert({ club_id: clubId, name: parsed.data.name.trim(), number: nextNumber });
+  const nextNumber = (await getMaxCourtNumber(supabase, clubId)) + 1;
+  const { error } = await insertCourt(
+    supabase,
+    clubId,
+    parsed.data.name.trim(),
+    nextNumber
+  );
   if (error) return fail("No pudimos crear la cancha.");
   refresh();
   return { ok: true };
@@ -170,11 +166,12 @@ export async function renameCourt(
   if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Inválido");
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("courts")
-    .update({ name: parsed.data.name.trim() })
-    .eq("id", id)
-    .eq("club_id", clubId);
+  const { error } = await renameCourtRow(
+    supabase,
+    id,
+    clubId,
+    parsed.data.name.trim()
+  );
   if (error) return fail("No pudimos actualizar la cancha.");
   refresh();
   return { ok: true };
@@ -186,11 +183,7 @@ export async function toggleCourtActive(
 ): Promise<ActionResult> {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("courts")
-    .update({ is_active: isActive })
-    .eq("id", id)
-    .eq("club_id", clubId);
+  const { error } = await setCourtActive(supabase, id, clubId, isActive);
   if (error) return fail("No pudimos actualizar la cancha.");
   refresh();
   return { ok: true };
@@ -222,24 +215,20 @@ export async function updateCourtConfig(
 
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("courts")
-    .update({
-      name,
-      // El número es automático: no se edita a mano (evita duplicados).
-      enclosure_type: enclosure === "" ? null : (enclosure as "blindex" | "muro" | "mixta"),
-      surface: surface === "" ? null : (surface as "cesped_sintetico" | "cemento" | "otro"),
-      covered: formData.get("covered") === "on",
-      lighting: formData.get("lighting") === "on",
-      panoramic: formData.get("panoramic") === "on",
-      price_per_slot: numOrNull(formData.get("price_per_slot")),
-      slot_minutes: numOrNull(formData.get("slot_minutes")) ?? 90,
-      operating_days: days.length > 0 ? days : [1, 2, 3, 4, 5, 6, 7],
-      open_hour: openHour ?? 8,
-      close_hour: closeHour ?? 24,
-    })
-    .eq("id", id)
-    .eq("club_id", clubId);
+  const { error } = await updateCourtConfigRow(supabase, id, clubId, {
+    name,
+    // El número es automático: no se edita a mano (evita duplicados).
+    enclosure_type: enclosure === "" ? null : (enclosure as "blindex" | "muro" | "mixta"),
+    surface: surface === "" ? null : (surface as "cesped_sintetico" | "cemento" | "otro"),
+    covered: formData.get("covered") === "on",
+    lighting: formData.get("lighting") === "on",
+    panoramic: formData.get("panoramic") === "on",
+    price_per_slot: numOrNull(formData.get("price_per_slot")),
+    slot_minutes: numOrNull(formData.get("slot_minutes")) ?? 90,
+    operating_days: days.length > 0 ? days : [1, 2, 3, 4, 5, 6, 7],
+    open_hour: openHour ?? 8,
+    close_hour: closeHour ?? 24,
+  });
   if (error) return fail("No pudimos guardar la cancha.");
   refresh();
   return { ok: true };

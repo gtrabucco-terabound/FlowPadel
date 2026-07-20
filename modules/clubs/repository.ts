@@ -1,8 +1,214 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { Enums } from "@/lib/database.types";
+import type { Enums, Tables, TablesUpdate } from "@/lib/database.types";
 
 /** Cliente Supabase server-side (RLS aplica sobre él). */
 type DB = Awaited<ReturnType<typeof createClient>>;
+
+/* ---- Datos del club (Ajustes) ---- */
+
+export type ClubInfo = Pick<
+  Tables<"clubs">,
+  | "id"
+  | "name"
+  | "city"
+  | "address"
+  | "phone"
+  | "contact_email"
+  | "description"
+  | "instagram"
+  | "website"
+  | "logo_url"
+>;
+
+/** Datos del club para Ajustes. */
+export async function getClubInfo(
+  supabase: DB,
+  clubId: string
+): Promise<ClubInfo | null> {
+  const { data } = await supabase
+    .from("clubs")
+    .select(
+      "id, name, city, address, phone, contact_email, description, instagram, website, logo_url"
+    )
+    .eq("id", clubId)
+    .maybeSingle();
+  return (data as ClubInfo) ?? null;
+}
+
+/** Actualiza los datos del club. */
+export async function updateClubInfo(
+  supabase: DB,
+  clubId: string,
+  patch: TablesUpdate<"clubs">
+): Promise<{ error: boolean }> {
+  const { error } = await supabase.from("clubs").update(patch).eq("id", clubId);
+  return { error: Boolean(error) };
+}
+
+/* ---- Canchas (courts) ---- */
+
+export type ClubCourt = Pick<
+  Tables<"courts">,
+  | "id"
+  | "name"
+  | "is_active"
+  | "number"
+  | "enclosure_type"
+  | "surface"
+  | "covered"
+  | "lighting"
+  | "panoramic"
+  | "price_per_slot"
+  | "slot_minutes"
+  | "operating_days"
+  | "open_hour"
+  | "close_hour"
+>;
+
+/** Canchas del club (config completa) para Ajustes. */
+export async function listClubCourts(
+  supabase: DB,
+  clubId: string
+): Promise<ClubCourt[]> {
+  const { data } = await supabase
+    .from("courts")
+    .select(
+      "id, name, is_active, number, enclosure_type, surface, covered, lighting, panoramic, price_per_slot, slot_minutes, operating_days, open_hour, close_hour"
+    )
+    .eq("club_id", clubId)
+    .order("name", { ascending: true });
+  return (data ?? []) as ClubCourt[];
+}
+
+/** Número de cancha más alto del club (para autoasignar el siguiente). */
+export async function getMaxCourtNumber(
+  supabase: DB,
+  clubId: string
+): Promise<number> {
+  const { data } = await supabase
+    .from("courts")
+    .select("number")
+    .eq("club_id", clubId)
+    .order("number", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  return data?.number ?? 0;
+}
+
+/** Crea una cancha con número autoasignado. */
+export async function insertCourt(
+  supabase: DB,
+  clubId: string,
+  name: string,
+  number: number
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("courts")
+    .insert({ club_id: clubId, name, number });
+  return { error: Boolean(error) };
+}
+
+/** Renombra una cancha del club. */
+export async function renameCourtRow(
+  supabase: DB,
+  id: string,
+  clubId: string,
+  name: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("courts")
+    .update({ name })
+    .eq("id", id)
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
+}
+
+/** Activa/desactiva una cancha. */
+export async function setCourtActive(
+  supabase: DB,
+  id: string,
+  clubId: string,
+  isActive: boolean
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("courts")
+    .update({ is_active: isActive })
+    .eq("id", id)
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
+}
+
+/** Guarda la configuración completa de una cancha. */
+export async function updateCourtConfigRow(
+  supabase: DB,
+  id: string,
+  clubId: string,
+  patch: TablesUpdate<"courts">
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("courts")
+    .update(patch)
+    .eq("id", id)
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
+}
+
+/* ---- Motor de ocupación (club_occupancy) ---- */
+
+export type OccupancyConfigRow = Pick<
+  Tables<"club_occupancy">,
+  | "enabled"
+  | "wa_target"
+  | "discount_pct"
+  | "lead_minutes"
+  | "segment_enabled"
+  | "segment_discount_pct"
+  | "segment_min_matches"
+  | "segment_inactive_days"
+  | "segment_max_per_run"
+>;
+
+/** Config del motor de ocupación del club. */
+export async function getClubOccupancy(
+  supabase: DB,
+  clubId: string
+): Promise<OccupancyConfigRow | null> {
+  const { data } = await supabase
+    .from("club_occupancy")
+    .select(
+      "enabled, wa_target, discount_pct, lead_minutes, segment_enabled, segment_discount_pct, segment_min_matches, segment_inactive_days, segment_max_per_run"
+    )
+    .eq("club_id", clubId)
+    .maybeSingle();
+  return (data as OccupancyConfigRow) ?? null;
+}
+
+export type OccupancyConfigInput = {
+  enabled: boolean;
+  wa_target: string | null;
+  discount_pct: number;
+  lead_minutes: number;
+  segment_enabled: boolean;
+  segment_discount_pct: number;
+  segment_min_matches: number;
+  segment_inactive_days: number;
+  segment_max_per_run: number;
+};
+
+/** Guarda (upsert) la config del motor de ocupación. */
+export async function upsertClubOccupancy(
+  supabase: DB,
+  clubId: string,
+  config: OccupancyConfigInput
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("club_occupancy")
+    .upsert(
+      { club_id: clubId, ...config, updated_at: new Date().toISOString() },
+      { onConflict: "club_id" }
+    );
+  return { error: Boolean(error) };
+}
 
 /* ---- Miembros del club ---- */
 
