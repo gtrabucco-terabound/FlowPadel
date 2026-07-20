@@ -12,6 +12,12 @@ test("admin ingresa al panel y ve la agenda del club", async ({ page }) => {
   // El miembro de club es redirigido al panel.
   await expect(page).toHaveURL(/\/admin/, { timeout: 20_000 });
 
+  // El sidebar agrupado muestra secciones y el ítem "Inicio".
+  await expect(page.getByText("Operación", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Inicio", exact: true })
+  ).toBeVisible();
+
   // La agenda carga y muestra las canchas del club demo.
   await page.goto("/admin/agenda");
   await expect(page).toHaveURL(/\/admin\/agenda/);

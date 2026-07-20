@@ -32,13 +32,19 @@ Lo que no es de un dominio puntual (integraciones externas, observabilidad,
 seguridad) irá en `lib/integrations/`, `lib/observability/`, `lib/security/`
 a medida que se necesite.
 
-## Estado
+## Estado — EPIC B COMPLETO ✅
+
+Cero acceso directo a datos en `app/`: todas las páginas y server actions
+delegan a un módulo. Solo quedan `supabase.auth.*` (contexto de usuario) en la
+capa de ruta, que es donde corresponde.
 
 - [x] `notifications` — avisos in-app + email transaccional.
 - [x] `ranking` — top de jugadores y ranking de clubes.
-- [x] `players` — perfil, ficha de jugador, club-lead, standings.
+- [x] `players` — perfil, ficha de jugador, club-lead, standings, directorio.
 - [x] `reservations` — reserva pública, agenda del club y turnos fijos
       (`repository.ts` + `fixed-repository.ts`).
 - [x] `payments` — links de Checkout Pro, estado de pagos y config de cobro del club.
-- [ ] `tournaments` — el dominio de eventos/torneos sigue en `app/admin/events/*`
-      (es el más grande; se migrará cuando haya E2E que cubra su flujo completo).
+- [x] `clubs` — datos del club, canchas, ocupación, miembros, operadores, ABM superadmin.
+- [x] `tournaments` — eventos/torneos: público, gestión, y las 18 acciones
+      (`repository.ts` + `events-repository.ts`).
+- [x] `identity` — envuelve Supabase Auth (signIn/signUp/signOut).
