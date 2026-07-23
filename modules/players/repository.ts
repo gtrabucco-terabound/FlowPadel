@@ -186,6 +186,18 @@ export async function listPlayersDirectory(
   return (data ?? []) as unknown as DirectoryPlayer[];
 }
 
+/** Cantidad de jugadores que representan al club (comunidad del club). */
+export async function countClubPlayers(
+  supabase: DB,
+  clubId: string
+): Promise<number> {
+  const { count } = await supabase
+    .from("players")
+    .select("id", { count: "exact", head: true })
+    .eq("home_club_id", clubId);
+  return count ?? 0;
+}
+
 /** Nombre y teléfono del jugador (para precargar formularios). */
 export async function getPlayerContact(
   supabase: DB,
