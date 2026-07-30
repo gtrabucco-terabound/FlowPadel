@@ -124,17 +124,22 @@ export default async function HomePage() {
                   </Badge>
                 </div>
                 <p className="text-muted">
-                  Buscamos los primeros clubes para crecer juntos. A cambio de tu
-                  feedback, te damos <b className="text-ink">{settings.founder_discount_pct}% de descuento por {settings.founder_years} años</b>,
-                  onboarding acompañado y acceso directo al equipo.
+                  Sos de los primeros en confiar en FlowPadel — y eso vale. Te
+                  bonificamos el{" "}
+                  <b className="text-ink">
+                    {settings.founder_discount_pct}% del costo durante{" "}
+                    {settings.founder_years} años
+                  </b>{" "}
+                  y acompañamos el crecimiento de tu club con datos medidos:
+                  ocupación, ingresos y ausencias, en números.
                 </p>
               </div>
               <ul className="space-y-2 text-sm text-ink">
                 {[
-                  `${settings.founder_discount_pct}% de descuento durante ${settings.founder_years} años`,
-                  "Migramos tu información y te acompañamos en el alta",
-                  "Priorizamos las funciones que tu club necesita",
-                  "Soporte directo, sin tickets",
+                  `${settings.founder_discount_pct}% bonificado durante ${settings.founder_years} años`,
+                  "Onboarding personalizado: migramos tu información y te acompañamos en el alta",
+                  "Crecés con datos: medimos ocupación, ingresos y ausencias de tu club",
+                  "Línea directa con el equipo que construye el producto",
                 ].map((b) => (
                   <li key={b} className="flex items-start gap-2">
                     <span className="mt-0.5 text-accent">✓</span>
