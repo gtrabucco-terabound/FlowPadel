@@ -7,6 +7,12 @@ import { eventStatusMeta, formatDate } from "@/lib/format";
 import { getClubDashboard } from "@/modules/tournaments/repository";
 import { listDayBookingsWithCourt } from "@/modules/reservations/repository";
 import { countClubPlayers } from "@/modules/players/repository";
+import { countClubCourts, getClubInfo } from "@/modules/clubs/repository";
+import { getClubPaymentSettings } from "@/modules/payments/repository";
+import {
+  OnboardingChecklist,
+  type OnboardingStep,
+} from "@/components/admin/onboarding-checklist";
 
 export const dynamic = "force-dynamic";
 
@@ -24,15 +30,52 @@ export default async function AdminDashboard() {
   const supabase = await createClient();
   const today = todayAR();
 
-  const [{ events: rows, pendingCount }, todayBookings, playersCount] =
-    await Promise.all([
-      getClubDashboard(supabase, clubId),
-      listDayBookingsWithCourt(supabase, clubId, today),
-      countClubPlayers(supabase, clubId),
-    ]);
+  const [
+    { events: rows, pendingCount },
+    todayBookings,
+    playersCount,
+    courtsCount,
+    club,
+    pay,
+  ] = await Promise.all([
+    getClubDashboard(supabase, clubId),
+    listDayBookingsWithCourt(supabase, clubId, today),
+    countClubPlayers(supabase, clubId),
+    countClubCourts(supabase, clubId),
+    getClubInfo(supabase, clubId),
+    getClubPaymentSettings(supabase, clubId),
+  ]);
 
   const inProgress = rows.filter((e) => e.status === "in_progress").length;
   const pending = pendingCount ?? 0;
+
+  // Checklist de puesta en marcha del club.
+  const onboarding: OnboardingStep[] = [
+    {
+      label: "Completá los datos del club",
+      description: "Nombre, ciudad y teléfono de contacto.",
+      href: "/admin/settings",
+      done: Boolean(club?.phone || club?.city),
+    },
+    {
+      label: "Cargá tus canchas",
+      description: "Agregá al menos una cancha con horarios y precio.",
+      href: "/admin/settings",
+      done: courtsCount > 0,
+    },
+    {
+      label: "Configurá cómo cobrás",
+      description: "Conectá Mercado Pago o habilitá el pago en el club.",
+      href: "/admin/settings",
+      done: Boolean(pay?.mp_connected || pay?.booking_pay_at_club),
+    },
+    {
+      label: "Creá tu primer torneo",
+      description: "Publicá un torneo para que los jugadores se inscriban.",
+      href: "/admin/events",
+      done: rows.length > 0,
+    },
+  ];
   // Reservas de hoy: turnos con cliente (excluye bloqueos de torneo).
   const reservationsToday = todayBookings.filter(
     (b) => b.kind !== "tournament" && b.status !== "blocked"
@@ -44,6 +87,8 @@ export default async function AdminDashboard() {
         <h1 className="text-2xl font-semibold text-ink">Inicio</h1>
         <p className="text-sm text-muted">{ctx.activeMembership.club.name}</p>
       </div>
+
+      <OnboardingChecklist steps={onboarding} />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Metric label="Reservas hoy" value={reservationsToday.length} href="/admin/agenda" />
