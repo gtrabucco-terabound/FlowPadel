@@ -55,6 +55,7 @@ const GROUPS: NavGroup[] = [
     title: "Plataforma",
     items: [
       { href: "/admin/clubes", label: "Clubes", exact: false, superadminOnly: true },
+      { href: "/admin/plataforma", label: "Planes y landing", exact: false, superadminOnly: true },
     ],
   },
 ];

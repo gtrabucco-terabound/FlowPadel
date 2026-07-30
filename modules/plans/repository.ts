@@ -55,6 +55,91 @@ export async function getPlatformSettings(
   };
 }
 
+/* ---- ABM de planes (superadmin) ---- */
+
+export type PlanInput = {
+  name: string;
+  description: string | null;
+  badge: string | null;
+  price_amount: number | null;
+  currency: string;
+  period: string;
+  f_reservations: boolean;
+  f_fixed_bookings: boolean;
+  f_tournaments: boolean;
+  f_payments_mp: boolean;
+  f_occupancy: boolean;
+  f_whatsapp_bot: boolean;
+  community_scope: string;
+  founder_eligible: boolean;
+  is_active: boolean;
+  sort_order: number;
+};
+
+/** Crea un plan. */
+export async function createPlan(
+  supabase: DB,
+  input: PlanInput
+): Promise<{ error: boolean }> {
+  const { error } = await supabase.from("plans").insert(input);
+  return { error: Boolean(error) };
+}
+
+/** Actualiza un plan existente. */
+export async function updatePlan(
+  supabase: DB,
+  id: string,
+  input: PlanInput
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("plans")
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  return { error: Boolean(error) };
+}
+
+/** Activa/desactiva (muestra/oculta en la landing) un plan. */
+export async function setPlanActive(
+  supabase: DB,
+  id: string,
+  active: boolean
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("plans")
+    .update({ is_active: active, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  return { error: Boolean(error) };
+}
+
+/** Elimina un plan. */
+export async function deletePlan(
+  supabase: DB,
+  id: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase.from("plans").delete().eq("id", id);
+  return { error: Boolean(error) };
+}
+
+/** Actualiza la config global (Fundador + ROI). */
+export async function updatePlatformSettings(
+  supabase: DB,
+  patch: {
+    founder_discount_pct: number;
+    founder_years: number;
+    founder_slots_total: number;
+    founder_slots_taken: number;
+    roi: RoiMetric[];
+  }
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("platform_settings")
+    .upsert(
+      { id: 1, ...patch, updated_at: new Date().toISOString() },
+      { onConflict: "id" }
+    );
+  return { error: Boolean(error) };
+}
+
 /** Lista legible de funciones incluidas en un plan (para las tarjetas). */
 export function planFeatureLabels(plan: Plan): string[] {
   const out: string[] = [];
