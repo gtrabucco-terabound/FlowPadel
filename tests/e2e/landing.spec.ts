@@ -8,6 +8,9 @@ test("landing de clubes: solicita una demo", async ({ page }) => {
     page.getByRole("heading", { name: /Gestioná tu club de pádel/ })
   ).toBeVisible();
   await expect(page.getByText("Programa Fundadores").first()).toBeVisible();
+  // Planes dinámicos (seed Base/Silver/Oro) y contador de cupos Fundador.
+  await expect(page.getByRole("heading", { name: "Oro" })).toBeVisible();
+  await expect(page.getByText(/cupos/).first()).toBeVisible();
 
   await page.locator('input[name="club_name"]').fill("Club E2E");
   await page.locator('input[name="contact_name"]').fill("QA Tester");

@@ -8,6 +8,12 @@ import { DemoRequestForm } from "@/components/demo-request-form";
 import { EventsGridRealtime } from "@/components/events-grid-realtime";
 import type { EventCardData } from "@/components/event-card";
 import { listPublicHomeEvents } from "@/modules/tournaments/repository";
+import {
+  listActivePlans,
+  getPlatformSettings,
+  planFeatureLabels,
+} from "@/modules/plans/repository";
+import { formatMoney } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -26,57 +32,33 @@ const FEATURES: { icon: string; title: string; body: string }[] = [
   { icon: "📈", title: "Comunidad y ranking", body: "Tus jugadores, su ranking y su historial. Más juego, más pertenencia, más reservas." },
 ];
 
-const ROI: { value: string; label: string; note: string }[] = [
-  { value: "≈30%", label: "Menos ausencias", note: "Con cobro de seña anticipado (estimado)." },
-  { value: "Ocupación", label: "Gestión optimizada", note: "Te ayuda a mejorar la ocupación de tus canchas." },
-  { value: "Turnos fijos", label: "Cobro optimizado", note: "Mensualizados y por adelantado, sin perseguir a nadie." },
-  { value: "WhatsApp", label: "Comunicación personalizada", note: "Conocés a cada jugador; tus clientes se sienten parte." },
-];
-
-const PLANS: {
-  name: string;
-  price: string;
-  period: string;
-  highlight?: boolean;
-  tag?: string;
-  features: string[];
-}[] = [
-  {
-    name: "Fundador",
-    price: "$ —",
-    period: "/mes",
-    highlight: true,
-    tag: "Cupo limitado",
-    features: [
-      "Todas las funciones, sin límite de canchas",
-      "50% de descuento por 3 años",
-      "Onboarding acompañado",
-      "Soporte directo y roadmap",
-    ],
-  },
-  {
-    name: "Oro",
-    price: "$ —",
-    period: "/mes",
-    features: [
-      "Todo lo de Silver",
-      "Alcance a todos los jugadores de la plataforma",
-      "Cobros con Mercado Pago",
-      "Motor de ocupación (WhatsApp)",
-    ],
-  },
-];
-
 export default async function HomePage() {
   const supabase = await createClient();
-  const eventsRaw = await listPublicHomeEvents(supabase);
+  const [eventsRaw, plans, settings] = await Promise.all([
+    listPublicHomeEvents(supabase),
+    listActivePlans(supabase),
+    getPlatformSettings(supabase),
+  ]);
   const events = (eventsRaw as unknown as EventCardData[]).slice(0, 4);
+
+  const founderLeft = Math.max(
+    0,
+    settings.founder_slots_total - settings.founder_slots_taken
+  );
+  const founderOpen = founderLeft > 0;
+  const planPrice = (amount: number | null, currency: string) =>
+    amount != null ? formatMoney(Number(amount), currency) : "$ —";
 
   return (
     <div className="mx-auto max-w-5xl px-4">
       {/* Hero */}
       <section className="py-14 text-center sm:py-20">
-        <Badge tone="open">Programa Fundadores · cupos limitados</Badge>
+        {founderOpen && (
+          <Badge tone="open">
+            Programa Fundadores · quedan {founderLeft} de{" "}
+            {settings.founder_slots_total} cupos
+          </Badge>
+        )}
         <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-semibold leading-[1.05] tracking-tight text-ink sm:text-5xl">
           Gestioná tu club de pádel en un solo lugar
         </h1>
@@ -115,7 +97,7 @@ export default async function HomePage() {
           Valores estimados — los ajustamos con datos reales de tu club.
         </p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {ROI.map((r) => (
+          {settings.roi.map((r) => (
             <Card key={r.label}>
               <CardContent className="py-5">
                 <p className="text-2xl font-semibold text-padel-600">{r.value}</p>
@@ -127,73 +109,93 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Programa Fundadores */}
-      <section className="pb-14">
-        <Card>
-          <CardContent className="grid gap-6 py-8 md:grid-cols-2 md:items-center">
-            <div>
-              <h2 className="text-2xl font-semibold text-ink">
-                Programa Fundadores
-              </h2>
-              <p className="mt-2 text-muted">
-                Buscamos los primeros clubes para crecer juntos. A cambio de tu
-                feedback, te damos 50% de descuento por 3 años, onboarding
-                acompañado y acceso directo al equipo.
-              </p>
-            </div>
-            <ul className="space-y-2 text-sm text-ink">
-              {[
-                "50% de descuento durante 3 años",
-                "Migramos tu información y te acompañamos en el alta",
-                "Priorizamos las funciones que tu club necesita",
-                "Soporte directo, sin tickets",
-              ].map((b) => (
-                <li key={b} className="flex items-start gap-2">
-                  <span className="mt-0.5 text-accent">✓</span>
-                  <span>{b}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Planes */}
-      <section className="pb-14">
-        <h2 className="mb-6 text-center text-2xl font-semibold text-ink">Planes</h2>
-        <div className="mx-auto grid max-w-3xl gap-4 sm:grid-cols-2">
-          {PLANS.map((p) => (
-            <Card key={p.name} className={p.highlight ? "border-accent" : undefined}>
-              <CardContent className="space-y-4 py-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-ink">{p.name}</h3>
-                  {p.tag && <Badge tone="open">{p.tag}</Badge>}
+      {/* Programa Fundadores (solo mientras haya cupos) */}
+      {founderOpen && (
+        <section className="pb-14">
+          <Card className="border-accent">
+            <CardContent className="grid gap-6 py-8 md:grid-cols-2 md:items-center">
+              <div>
+                <div className="mb-2 flex items-center gap-2">
+                  <h2 className="text-2xl font-semibold text-ink">
+                    Programa Fundadores
+                  </h2>
+                  <Badge tone="open">
+                    {founderLeft}/{settings.founder_slots_total} cupos
+                  </Badge>
                 </div>
-                <p>
-                  <span className="text-3xl font-semibold text-ink">{p.price}</span>
-                  <span className="text-sm text-muted">{p.period}</span>
+                <p className="text-muted">
+                  Buscamos los primeros clubes para crecer juntos. A cambio de tu
+                  feedback, te damos <b className="text-ink">{settings.founder_discount_pct}% de descuento por {settings.founder_years} años</b>,
+                  onboarding acompañado y acceso directo al equipo.
                 </p>
-                <ul className="space-y-1.5 text-sm text-muted">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <span className="mt-0.5 text-accent">✓</span>
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link href="#demo" className="block">
-                  <Button className="w-full" variant={p.highlight ? "primary" : "outline"}>
-                    Empezar
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <p className="mt-4 text-center text-xs text-muted">
-          Precios a confirmar. Escribinos y te armamos una propuesta para tu club.
-        </p>
-      </section>
+              </div>
+              <ul className="space-y-2 text-sm text-ink">
+                {[
+                  `${settings.founder_discount_pct}% de descuento durante ${settings.founder_years} años`,
+                  "Migramos tu información y te acompañamos en el alta",
+                  "Priorizamos las funciones que tu club necesita",
+                  "Soporte directo, sin tickets",
+                ].map((b) => (
+                  <li key={b} className="flex items-start gap-2">
+                    <span className="mt-0.5 text-accent">✓</span>
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* Planes (dinámicos desde superadmin) */}
+      {plans.length > 0 && (
+        <section className="pb-14">
+          <h2 className="mb-6 text-center text-2xl font-semibold text-ink">Planes</h2>
+          <div className="mx-auto grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {plans.map((p) => {
+              const featured = Boolean(p.badge);
+              return (
+                <Card key={p.id} className={featured ? "border-accent" : undefined}>
+                  <CardContent className="flex h-full flex-col gap-4 py-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-ink">{p.name}</h3>
+                      {p.badge && <Badge tone="open">{p.badge}</Badge>}
+                    </div>
+                    <p>
+                      <span className="text-3xl font-semibold text-ink">
+                        {planPrice(p.price_amount, p.currency)}
+                      </span>
+                      <span className="text-sm text-muted">/{p.period}</span>
+                    </p>
+                    {p.founder_eligible && founderOpen && (
+                      <p className="text-xs font-semibold text-accent">
+                        Fundador: −{settings.founder_discount_pct}% por{" "}
+                        {settings.founder_years} años
+                      </p>
+                    )}
+                    <ul className="flex-1 space-y-1.5 text-sm text-muted">
+                      {planFeatureLabels(p).map((f) => (
+                        <li key={f} className="flex items-start gap-2">
+                          <span className="mt-0.5 text-accent">✓</span>
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link href="#demo" className="block">
+                      <Button className="w-full" variant={featured ? "primary" : "outline"}>
+                        Empezar
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+          <p className="mt-4 text-center text-xs text-muted">
+            Escribinos y te armamos una propuesta para tu club.
+          </p>
+        </section>
+      )}
 
       {/* Demo / contacto */}
       <section id="demo" className="pb-14">
