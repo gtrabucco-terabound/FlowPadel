@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 // Landing comercial para clubes: carga y el formulario de demo funciona de
 // punta a punta (inserta en demo_requests en DEV).
 test("landing de clubes: solicita una demo", async ({ page }) => {
-  await page.goto("/clubes");
+  await page.goto("/");
   await expect(
     page.getByRole("heading", { name: /Gestioná tu club de pádel/ })
   ).toBeVisible();
