@@ -77,6 +77,12 @@ export async function SiteHeader() {
           >
             Ranking
           </Link>
+          <Link
+            href="/clubes"
+            className="hidden px-1 text-sm font-semibold text-padel-600 transition-colors hover:text-padel-700 sm:inline"
+          >
+            Para clubes
+          </Link>
           <div className="hidden sm:block">
             <ThemeToggle />
           </div>

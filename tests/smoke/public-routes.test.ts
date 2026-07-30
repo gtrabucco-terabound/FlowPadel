@@ -17,6 +17,7 @@ const ROUTES = [
   "/torneos",
   "/ranking",
   "/login",
+  "/clubes",
   "/ranking/flyer",
   "/torneos/flyer",
 ];

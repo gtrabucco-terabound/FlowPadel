@@ -605,6 +605,42 @@ export type Database = {
           },
         ]
       }
+      demo_requests: {
+        Row: {
+          club_name: string
+          contact_name: string
+          created_at: string
+          email: string | null
+          id: string
+          message: string | null
+          phone: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          club_name: string
+          contact_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+        }
+        Update: {
+          club_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: []
+      }
       elo_history: {
         Row: {
           created_at: string
