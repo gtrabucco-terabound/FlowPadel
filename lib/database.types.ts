@@ -334,9 +334,11 @@ export type Database = {
           id: string
           instagram: string | null
           is_active: boolean
+          is_founder: boolean
           logo_url: string | null
           name: string
           phone: string | null
+          plan_id: string | null
           slug: string
           updated_at: string
           website: string | null
@@ -350,9 +352,11 @@ export type Database = {
           id?: string
           instagram?: string | null
           is_active?: boolean
+          is_founder?: boolean
           logo_url?: string | null
           name: string
           phone?: string | null
+          plan_id?: string | null
           slug: string
           updated_at?: string
           website?: string | null
@@ -366,14 +370,24 @@ export type Database = {
           id?: string
           instagram?: string | null
           is_active?: boolean
+          is_founder?: boolean
           logo_url?: string | null
           name?: string
           phone?: string | null
+          plan_id?: string | null
           slug?: string
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clubs_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       court_bookings: {
         Row: {
@@ -604,6 +618,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      demo_requests: {
+        Row: {
+          club_name: string
+          contact_name: string
+          created_at: string
+          email: string | null
+          id: string
+          message: string | null
+          phone: string | null
+          source: string
+          status: string
+        }
+        Insert: {
+          club_name: string
+          contact_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+        }
+        Update: {
+          club_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          message?: string | null
+          phone?: string | null
+          source?: string
+          status?: string
+        }
+        Relationships: []
       }
       elo_history: {
         Row: {
@@ -1276,6 +1326,102 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          badge: string | null
+          community_scope: string
+          created_at: string
+          currency: string
+          description: string | null
+          f_fixed_bookings: boolean
+          f_occupancy: boolean
+          f_payments_mp: boolean
+          f_reservations: boolean
+          f_tournaments: boolean
+          f_whatsapp_bot: boolean
+          founder_eligible: boolean
+          id: string
+          is_active: boolean
+          name: string
+          period: string
+          price_amount: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          badge?: string | null
+          community_scope?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          f_fixed_bookings?: boolean
+          f_occupancy?: boolean
+          f_payments_mp?: boolean
+          f_reservations?: boolean
+          f_tournaments?: boolean
+          f_whatsapp_bot?: boolean
+          founder_eligible?: boolean
+          id?: string
+          is_active?: boolean
+          name: string
+          period?: string
+          price_amount?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          badge?: string | null
+          community_scope?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          f_fixed_bookings?: boolean
+          f_occupancy?: boolean
+          f_payments_mp?: boolean
+          f_reservations?: boolean
+          f_tournaments?: boolean
+          f_whatsapp_bot?: boolean
+          founder_eligible?: boolean
+          id?: string
+          is_active?: boolean
+          name?: string
+          period?: string
+          price_amount?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          founder_discount_pct: number
+          founder_slots_taken: number
+          founder_slots_total: number
+          founder_years: number
+          id: number
+          roi: Json
+          updated_at: string
+        }
+        Insert: {
+          founder_discount_pct?: number
+          founder_slots_taken?: number
+          founder_slots_total?: number
+          founder_years?: number
+          id?: number
+          roi?: Json
+          updated_at?: string
+        }
+        Update: {
+          founder_discount_pct?: number
+          founder_slots_taken?: number
+          founder_slots_total?: number
+          founder_years?: number
+          id?: number
+          roi?: Json
+          updated_at?: string
+        }
+        Relationships: []
       }
       player_offer_invites: {
         Row: {

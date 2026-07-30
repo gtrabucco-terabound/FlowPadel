@@ -222,6 +222,56 @@ export async function deleteBooking(
   await supabase.from("court_bookings").delete().eq("id", bookingId);
 }
 
+export type DayBooking = {
+  id: string;
+  court_id: string;
+  court_name: string;
+  court_number: number | null;
+  start_minutes: number;
+  slot_minutes: number;
+  status: string;
+  kind: string;
+  customer_name: string | null;
+};
+
+/** Reservas del club para un día, con el nombre de la cancha (agenda de hoy). */
+export async function listDayBookingsWithCourt(
+  supabase: DB,
+  clubId: string,
+  date: string
+): Promise<DayBooking[]> {
+  const { data } = await supabase
+    .from("court_bookings")
+    .select(
+      "id, court_id, start_minutes, slot_minutes, status, kind, customer_name, court:courts(name, number)"
+    )
+    .eq("club_id", clubId)
+    .eq("booking_date", date)
+    .neq("status", "cancelled")
+    .order("start_minutes", { ascending: true });
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    court_id: string;
+    start_minutes: number;
+    slot_minutes: number;
+    status: string;
+    kind: string;
+    customer_name: string | null;
+    court: { name: string | null; number: number | null } | null;
+  }>;
+  return rows.map((r) => ({
+    id: r.id,
+    court_id: r.court_id,
+    court_name: r.court?.name ?? "Cancha",
+    court_number: r.court?.number ?? null,
+    start_minutes: r.start_minutes,
+    slot_minutes: r.slot_minutes,
+    status: r.status,
+    kind: r.kind,
+    customer_name: r.customer_name,
+  }));
+}
+
 /** Cancela (libera) un turno del club. */
 export async function cancelClubBooking(
   supabase: DB,

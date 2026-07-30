@@ -60,6 +60,12 @@ export async function SiteHeader() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* --- Barra completa: solo desktop --- */}
           <Link
+            href="/"
+            className="hidden px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600 sm:inline"
+          >
+            Inicio
+          </Link>
+          <Link
             href="/torneos"
             className="hidden px-1 text-sm font-medium text-ink transition-colors hover:text-padel-600 sm:inline"
           >

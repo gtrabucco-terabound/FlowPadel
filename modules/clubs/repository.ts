@@ -80,6 +80,18 @@ export async function listClubCourts(
   return (data ?? []) as ClubCourt[];
 }
 
+/** Cantidad de canchas del club (para el onboarding). */
+export async function countClubCourts(
+  supabase: DB,
+  clubId: string
+): Promise<number> {
+  const { count } = await supabase
+    .from("courts")
+    .select("id", { count: "exact", head: true })
+    .eq("club_id", clubId);
+  return count ?? 0;
+}
+
 /** Número de cancha más alto del club (para autoasignar el siguiente). */
 export async function getMaxCourtNumber(
   supabase: DB,

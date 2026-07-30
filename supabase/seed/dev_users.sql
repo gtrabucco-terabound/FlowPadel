@@ -71,3 +71,7 @@ begin
       true, 'caballeros', 'fixed', '7ma', 'none');
   end if;
 end $$;
+
+-- qa.admin es superadmin (para probar la sección Plataforma).
+update public.profiles set global_role = 'superadmin'
+where id = (select id from auth.users where email = 'qa.admin@example.com');
