@@ -5,6 +5,7 @@ import {
   listClubCoaches,
   listAvailability,
   listUpcomingLessons,
+  listGroupSessions,
 } from "@/modules/coaches/repository";
 import { listActiveCourtsForClub } from "@/modules/reservations/repository";
 
@@ -21,10 +22,11 @@ export default async function ClasesPage() {
   const clubId = ctx.activeClubId;
   const supabase = await createClient();
 
-  const [coaches, availability, lessons, courts] = await Promise.all([
+  const [coaches, availability, lessons, groups, courts] = await Promise.all([
     listClubCoaches(supabase, clubId),
     listAvailability(supabase, clubId),
     listUpcomingLessons(supabase, clubId, todayAR()),
+    listGroupSessions(supabase, clubId, todayAR()),
     listActiveCourtsForClub(supabase, clubId),
   ]);
 
@@ -40,6 +42,7 @@ export default async function ClasesPage() {
         coaches={coaches}
         availability={availability}
         lessons={lessons}
+        groups={groups}
         courts={courts.map((c) => ({ id: c.id, name: c.name, number: c.number }))}
       />
     </div>

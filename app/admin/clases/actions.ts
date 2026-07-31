@@ -12,6 +12,12 @@ import {
   deleteAvailability,
   insertLesson,
   cancelLesson,
+  insertGroupSession,
+  setGroupSessionStatus,
+  addParticipant,
+  removeParticipant,
+  getGroupSession,
+  countParticipants,
 } from "@/modules/coaches/repository";
 import { insertBooking } from "@/modules/reservations/repository";
 
@@ -180,6 +186,116 @@ export async function dropLesson(id: string): Promise<Result> {
   const supabase = await createClient();
   const { error } = await cancelLesson(supabase, id, clubId);
   if (error) return fail("No pudimos cancelar la clase.");
+  refresh();
+  return { ok: true };
+}
+
+/* ---- Sesiones grupales (Fase 3) ---- */
+
+export async function createGroupSession(formData: FormData): Promise<Result> {
+  const coachId = String(formData.get("coach_id") ?? "");
+  const date = String(formData.get("session_date") ?? "");
+  const startMin = num(formData.get("start_minutes"));
+  const numSlots = num(formData.get("num_slots")) ?? 1;
+  const capacity = num(formData.get("capacity")) ?? 4;
+  const minP = num(formData.get("min_participants")) ?? 3;
+  const price = num(formData.get("price_per_person"));
+  const courtId = txt(formData.get("court_id"));
+
+  if (!coachId) return fail("Elegí un profe.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return fail("Fecha inválida.");
+  if (startMin == null || startMin < 0) return fail("Elegí un horario.");
+  if (capacity < 2 || capacity > 8) return fail("El cupo debe ser entre 2 y 8.");
+
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const totalMinutes = numSlots * 90;
+
+  const sessionId = await insertGroupSession(supabase, {
+    club_id: clubId,
+    coach_id: coachId,
+    court_id: courtId,
+    session_date: date,
+    start_minutes: startMin,
+    slot_minutes: 90,
+    num_slots: numSlots,
+    capacity,
+    min_participants: minP,
+    price_per_person: price,
+    status: "open",
+  });
+  if (!sessionId) return fail("No pudimos crear el grupo.");
+
+  // Bloquea la cancha (todo el bloque de turnos seguidos) si se eligió.
+  if (courtId) {
+    const { error, conflict } = await insertBooking(supabase, {
+      club_id: clubId,
+      court_id: courtId,
+      booking_date: date,
+      start_minutes: startMin,
+      slot_minutes: totalMinutes,
+      status: "reserved",
+      kind: "class",
+      customer_name: "Entrenamiento grupal",
+      customer_phone: null,
+      price: null,
+      paid_at: null,
+    });
+    if (error) {
+      await setGroupSessionStatus(supabase, sessionId, clubId, "cancelled");
+      return fail(
+        conflict ? "Esa cancha ya está ocupada en ese horario." : "No pudimos bloquear la cancha."
+      );
+    }
+  }
+
+  refresh();
+  return { ok: true };
+}
+
+export async function joinGroup(formData: FormData): Promise<Result> {
+  const sessionId = String(formData.get("session_id") ?? "");
+  const name = String(formData.get("customer_name") ?? "").trim();
+  const phone = txt(formData.get("customer_phone"));
+  if (!sessionId) return fail("Grupo inválido.");
+  if (name.length < 2) return fail("Ingresá el nombre del jugador.");
+
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const session = await getGroupSession(supabase, sessionId, clubId);
+  if (!session) return fail("Grupo no encontrado.");
+  const current = await countParticipants(supabase, sessionId);
+  if (current >= session.capacity) return fail("El grupo ya está completo.");
+
+  const { error } = await addParticipant(supabase, sessionId, name, phone);
+  if (error) return fail("No pudimos sumar al jugador.");
+  refresh();
+  return { ok: true };
+}
+
+export async function leaveGroup(id: string): Promise<Result> {
+  await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await removeParticipant(supabase, id);
+  if (error) return fail("No pudimos quitar al jugador.");
+  refresh();
+  return { ok: true };
+}
+
+export async function confirmGroup(id: string): Promise<Result> {
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await setGroupSessionStatus(supabase, id, clubId, "confirmed");
+  if (error) return fail("No pudimos confirmar el grupo.");
+  refresh();
+  return { ok: true };
+}
+
+export async function dropGroup(id: string): Promise<Result> {
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await setGroupSessionStatus(supabase, id, clubId, "cancelled");
+  if (error) return fail("No pudimos cancelar el grupo.");
   refresh();
   return { ok: true };
 }
