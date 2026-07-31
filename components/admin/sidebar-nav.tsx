@@ -31,6 +31,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/agenda", label: "Agenda", exact: false },
       { href: "/admin/turnos-fijos", label: "Turnos fijos", exact: false },
+      { href: "/admin/clases", label: "Clases", exact: false },
       { href: "/admin/calendario", label: "Calendario", exact: false },
       { href: "/admin/events", label: "Torneos", exact: false },
     ],

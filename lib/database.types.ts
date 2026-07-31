@@ -389,6 +389,79 @@ export type Database = {
           },
         ]
       }
+      coach_availability: {
+        Row: {
+          coach_id: string
+          end_minutes: number
+          id: string
+          start_minutes: number
+          weekday: number
+        }
+        Insert: {
+          coach_id: string
+          end_minutes: number
+          id?: string
+          start_minutes: number
+          weekday: number
+        }
+        Update: {
+          coach_id?: string
+          end_minutes?: number
+          id?: string
+          start_minutes?: number
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_availability_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coaches: {
+        Row: {
+          active: boolean
+          club_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          club_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          club_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coaches_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       court_bookings: {
         Row: {
           amount_charged: number | null
@@ -980,6 +1053,86 @@ export type Database = {
           },
         ]
       }
+      lessons: {
+        Row: {
+          club_id: string
+          coach_id: string
+          court_id: string | null
+          created_at: string
+          customer_name: string | null
+          customer_phone: string | null
+          id: string
+          kind: string
+          lesson_date: string
+          player_id: string | null
+          price: number | null
+          slot_minutes: number
+          start_minutes: number
+          status: string
+        }
+        Insert: {
+          club_id: string
+          coach_id: string
+          court_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          kind?: string
+          lesson_date: string
+          player_id?: string | null
+          price?: number | null
+          slot_minutes?: number
+          start_minutes: number
+          status?: string
+        }
+        Update: {
+          club_id?: string
+          coach_id?: string
+          court_id?: string | null
+          created_at?: string
+          customer_name?: string | null
+          customer_phone?: string | null
+          id?: string
+          kind?: string
+          lesson_date?: string
+          player_id?: string | null
+          price?: number | null
+          slot_minutes?: number
+          start_minutes?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lessons_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           bracket_id: string | null
@@ -1335,6 +1488,7 @@ export type Database = {
           currency: string
           description: string | null
           f_fixed_bookings: boolean
+          f_lessons: boolean
           f_occupancy: boolean
           f_payments_mp: boolean
           f_reservations: boolean
@@ -1356,6 +1510,7 @@ export type Database = {
           currency?: string
           description?: string | null
           f_fixed_bookings?: boolean
+          f_lessons?: boolean
           f_occupancy?: boolean
           f_payments_mp?: boolean
           f_reservations?: boolean
@@ -1377,6 +1532,7 @@ export type Database = {
           currency?: string
           description?: string | null
           f_fixed_bookings?: boolean
+          f_lessons?: boolean
           f_occupancy?: boolean
           f_payments_mp?: boolean
           f_reservations?: boolean
