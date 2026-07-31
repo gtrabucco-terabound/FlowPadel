@@ -46,8 +46,6 @@ export default async function HomePage() {
     settings.founder_slots_total - settings.founder_slots_taken
   );
   const founderOpen = founderLeft > 0;
-  const planPrice = (amount: number | null, currency: string) =>
-    amount != null ? formatMoney(Number(amount), currency) : "$ —";
 
   return (
     <div className="mx-auto max-w-5xl px-4">
@@ -166,17 +164,44 @@ export default async function HomePage() {
                       <h3 className="text-lg font-bold text-ink">{p.name}</h3>
                       {p.badge && <Badge tone="open">{p.badge}</Badge>}
                     </div>
-                    <p>
-                      <span className="text-3xl font-semibold text-ink">
-                        {planPrice(p.price_amount, p.currency)}
-                      </span>
-                      <span className="text-sm text-muted">/{p.period}</span>
-                    </p>
-                    {p.founder_eligible && founderOpen && (
-                      <p className="text-xs font-semibold text-accent">
-                        Fundador: −{settings.founder_discount_pct}% por{" "}
-                        {settings.founder_years} años
-                      </p>
+                    {p.price_amount == null ? (
+                      <p className="text-2xl font-semibold text-ink">A confirmar</p>
+                    ) : (
+                      (() => {
+                        const full = Number(p.price_amount);
+                        const isFounder = p.founder_eligible && founderOpen;
+                        const eff = isFounder
+                          ? Math.round(
+                              (full * (100 - settings.founder_discount_pct)) / 100
+                            )
+                          : full;
+                        const perDay = Math.round(eff / 30);
+                        return (
+                          <div>
+                            <p>
+                              <span className="text-3xl font-semibold text-ink">
+                                {formatMoney(perDay, p.currency)}
+                              </span>
+                              <span className="text-sm text-muted"> /día</span>
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted">
+                              {formatMoney(eff, p.currency)} por mes
+                              {isFounder && (
+                                <>
+                                  {" · "}
+                                  <span className="line-through">
+                                    {formatMoney(full, p.currency)}
+                                  </span>
+                                  {" · "}
+                                  <span className="font-semibold text-accent">
+                                    Fundador −{settings.founder_discount_pct}%
+                                  </span>
+                                </>
+                              )}
+                            </p>
+                          </div>
+                        );
+                      })()
                     )}
                     <ul className="flex-1 space-y-1.5 text-sm text-muted">
                       {planFeatureLabels(p).map((f) => (
