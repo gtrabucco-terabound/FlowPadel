@@ -13,6 +13,7 @@ export type PlatformSettings = {
   founder_years: number;
   founder_slots_total: number;
   founder_slots_taken: number;
+  ref_court_hour_price: number;
   roi: RoiMetric[];
 };
 
@@ -42,7 +43,7 @@ export async function getPlatformSettings(
   const { data } = await supabase
     .from("platform_settings")
     .select(
-      "founder_discount_pct, founder_years, founder_slots_total, founder_slots_taken, roi"
+      "founder_discount_pct, founder_years, founder_slots_total, founder_slots_taken, ref_court_hour_price, roi"
     )
     .eq("id", 1)
     .maybeSingle();
@@ -51,6 +52,7 @@ export async function getPlatformSettings(
     founder_years: data?.founder_years ?? 3,
     founder_slots_total: data?.founder_slots_total ?? 10,
     founder_slots_taken: data?.founder_slots_taken ?? 0,
+    ref_court_hour_price: Number(data?.ref_court_hour_price ?? 65000),
     roi: ((data?.roi as RoiMetric[] | null) ?? []) as RoiMetric[],
   };
 }
@@ -128,6 +130,7 @@ export async function updatePlatformSettings(
     founder_years: number;
     founder_slots_total: number;
     founder_slots_taken: number;
+    ref_court_hour_price: number;
     roi: RoiMetric[];
   }
 ): Promise<{ error: boolean }> {

@@ -47,6 +47,18 @@ export default async function HomePage() {
   );
   const founderOpen = founderLeft > 0;
 
+  // Ejemplo de accesibilidad: plan más barato vs. 1 hora de cancha.
+  const pricedMonthly = plans
+    .map((p) => (p.price_amount != null ? Number(p.price_amount) : null))
+    .filter((n): n is number => n != null);
+  const entryMonthly = pricedMonthly.length ? Math.min(...pricedMonthly) : null;
+  const entryPerDay = entryMonthly != null ? Math.round(entryMonthly / 30) : null;
+  const refHour = settings.ref_court_hour_price;
+  const pctOfHour =
+    entryPerDay != null && refHour > 0
+      ? Math.round((entryPerDay / refHour) * 100)
+      : null;
+
   return (
     <div className="mx-auto max-w-5xl px-4">
       {/* Hero */}
@@ -221,6 +233,17 @@ export default async function HomePage() {
               );
             })}
           </div>
+          {entryPerDay != null && pctOfHour != null && (
+            <div className="mx-auto mt-6 max-w-3xl rounded-2xl border border-accent/40 bg-accent/5 px-5 py-4 text-center">
+              <p className="text-sm text-ink">
+                <b>Ponelo en perspectiva:</b> una hora de cancha vale{" "}
+                {formatMoney(refHour)}. Tu plan más accesible cuesta{" "}
+                <b>{formatMoney(entryPerDay)} por día</b> — apenas el{" "}
+                <b className="text-accent">{pctOfHour}%</b> de alquilar una cancha
+                una hora. Con varias canchas, el sistema es un gasto ínfimo.
+              </p>
+            </div>
+          )}
           <p className="mt-4 text-center text-xs text-muted">
             Escribinos y te armamos una propuesta para tu club.
           </p>
