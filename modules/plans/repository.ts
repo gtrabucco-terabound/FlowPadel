@@ -72,6 +72,7 @@ export type PlanInput = {
   f_payments_mp: boolean;
   f_occupancy: boolean;
   f_whatsapp_bot: boolean;
+  f_lessons: boolean;
   community_scope: string;
   founder_eligible: boolean;
   is_active: boolean;
@@ -152,6 +153,7 @@ export function planFeatureLabels(plan: Plan): string[] {
   if (plan.f_payments_mp) out.push("Cobros con Mercado Pago");
   if (plan.f_occupancy) out.push("Motor de ocupación (WhatsApp)");
   if (plan.f_whatsapp_bot) out.push("Bot de WhatsApp");
+  if (plan.f_lessons) out.push("Clases y entrenamientos");
   out.push(
     plan.community_scope === "platform"
       ? "Alcance a todos los jugadores de la plataforma"
