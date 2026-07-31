@@ -1400,6 +1400,7 @@ export type Database = {
           founder_slots_total: number
           founder_years: number
           id: number
+          ref_court_hour_price: number
           roi: Json
           updated_at: string
         }
@@ -1409,6 +1410,7 @@ export type Database = {
           founder_slots_total?: number
           founder_years?: number
           id?: number
+          ref_court_hour_price?: number
           roi?: Json
           updated_at?: string
         }
@@ -1418,6 +1420,7 @@ export type Database = {
           founder_slots_total?: number
           founder_years?: number
           id?: number
+          ref_court_hour_price?: number
           roi?: Json
           updated_at?: string
         }

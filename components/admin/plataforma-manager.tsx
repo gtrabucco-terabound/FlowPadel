@@ -233,6 +233,19 @@ function SettingsCard({ settings }: { settings: PlatformSettings }) {
             </label>
           </div>
 
+          <label className="block space-y-1">
+            <span className={lab}>
+              Precio de referencia · 1 hora de cancha (para el ejemplo de la landing)
+            </span>
+            <input
+              name="ref_court_hour_price"
+              type="number"
+              min={0}
+              defaultValue={String(settings.ref_court_hour_price)}
+              className={`${input} max-w-xs`}
+            />
+          </label>
+
           <div>
             <p className={`${lab} mb-1`}>Métricas de la landing (ROI)</p>
             <div className="space-y-2">

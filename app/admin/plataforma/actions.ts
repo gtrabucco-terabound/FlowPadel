@@ -124,6 +124,7 @@ export async function saveSettings(formData: FormData): Promise<Result> {
     founder_years: num(formData.get("founder_years")) ?? 3,
     founder_slots_total: num(formData.get("founder_slots_total")) ?? 10,
     founder_slots_taken: num(formData.get("founder_slots_taken")) ?? 0,
+    ref_court_hour_price: num(formData.get("ref_court_hour_price")) ?? 65000,
     roi,
   });
   if (error) return fail("No pudimos guardar la configuración.");
