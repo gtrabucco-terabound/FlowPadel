@@ -1100,6 +1100,7 @@ export type Database = {
       }
       group_sessions: {
         Row: {
+          booking_id: string | null
           capacity: number
           club_id: string
           coach_id: string
@@ -1115,6 +1116,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          booking_id?: string | null
           capacity?: number
           club_id: string
           coach_id: string
@@ -1130,6 +1132,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          booking_id?: string | null
           capacity?: number
           club_id?: string
           coach_id?: string
@@ -1170,6 +1173,7 @@ export type Database = {
       }
       lessons: {
         Row: {
+          booking_id: string | null
           club_id: string
           coach_id: string
           court_id: string | null
@@ -1186,6 +1190,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          booking_id?: string | null
           club_id: string
           coach_id: string
           court_id?: string | null
@@ -1202,6 +1207,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          booking_id?: string | null
           club_id?: string
           coach_id?: string
           court_id?: string | null

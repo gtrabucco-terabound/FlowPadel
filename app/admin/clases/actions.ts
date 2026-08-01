@@ -12,14 +12,19 @@ import {
   deleteAvailability,
   insertLesson,
   cancelLesson,
+  setLessonBooking,
+  getLessonBooking,
   insertGroupSession,
   setGroupSessionStatus,
+  setGroupSessionBooking,
+  getGroupSessionBooking,
   addParticipant,
   removeParticipant,
   getGroupSession,
   countParticipants,
+  availabilityOverlaps,
 } from "@/modules/coaches/repository";
-import { insertBooking } from "@/modules/reservations/repository";
+import { insertBooking, deleteBooking } from "@/modules/reservations/repository";
 
 type Result = { ok: true } | { ok: false; error: string };
 const fail = (error: string): Result => ({ ok: false, error });
@@ -78,7 +83,6 @@ export async function removeCoach(id: string): Promise<Result> {
 
 const availSchema = z.object({
   coach_id: z.string().min(1),
-  weekday: z.coerce.number().int().min(1).max(7),
   from_hour: z.coerce.number().int().min(0).max(23),
   to_hour: z.coerce.number().int().min(1).max(24),
 });
@@ -86,7 +90,6 @@ const availSchema = z.object({
 export async function createAvailability(formData: FormData): Promise<Result> {
   const parsed = availSchema.safeParse({
     coach_id: formData.get("coach_id"),
-    weekday: formData.get("weekday"),
     from_hour: formData.get("from_hour"),
     to_hour: formData.get("to_hour"),
   });
@@ -94,16 +97,37 @@ export async function createAvailability(formData: FormData): Promise<Result> {
   if (parsed.data.to_hour <= parsed.data.from_hour)
     return fail("La hora de fin debe ser posterior a la de inicio.");
 
+  // Días seleccionados (checkboxes "weekday", 1=Lun..7=Dom).
+  const weekdays = [...new Set(
+    formData.getAll("weekday").map((v) => Number(v)).filter((n) => n >= 1 && n <= 7)
+  )];
+  if (weekdays.length === 0) return fail("Elegí al menos un día.");
+
   await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await addAvailability(supabase, {
-    coach_id: parsed.data.coach_id,
-    weekday: parsed.data.weekday,
-    start_minutes: parsed.data.from_hour * 60,
-    end_minutes: parsed.data.to_hour * 60,
-  });
-  if (error) return fail("No pudimos guardar la disponibilidad.");
+  const start = parsed.data.from_hour * 60;
+  const end = parsed.data.to_hour * 60;
+
+  let added = 0;
+  let skipped = 0;
+  for (const weekday of weekdays) {
+    // Salteamos los días que ya tienen una franja que se pisa.
+    if (await availabilityOverlaps(supabase, parsed.data.coach_id, weekday, start, end)) {
+      skipped++;
+      continue;
+    }
+    const { error } = await addAvailability(supabase, {
+      coach_id: parsed.data.coach_id,
+      weekday,
+      start_minutes: start,
+      end_minutes: end,
+    });
+    if (error) return fail("No pudimos guardar la disponibilidad.");
+    added++;
+  }
   refresh();
+  if (added === 0 && skipped > 0)
+    return fail("Esos días ya tenían una franja que se pisa con esta.");
   return { ok: true };
 }
 
@@ -153,7 +177,7 @@ export async function scheduleLesson(formData: FormData): Promise<Result> {
 
   // Bloquea la cancha en la agenda (turno tipo "clase"), si se eligió cancha.
   if (courtId) {
-    const { error, conflict } = await insertBooking(supabase, {
+    const { error, conflict, id: bookingId } = await insertBooking(supabase, {
       club_id: clubId,
       court_id: courtId,
       booking_date: date,
@@ -175,6 +199,8 @@ export async function scheduleLesson(formData: FormData): Promise<Result> {
           : "No pudimos bloquear la cancha."
       );
     }
+    // Guardamos el vínculo para poder liberar la cancha al cancelar.
+    if (bookingId) await setLessonBooking(supabase, lessonId, clubId, bookingId);
   }
 
   refresh();
@@ -184,8 +210,11 @@ export async function scheduleLesson(formData: FormData): Promise<Result> {
 export async function dropLesson(id: string): Promise<Result> {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
+  // Liberamos la cancha bloqueada por la clase, si tenía.
+  const bookingId = await getLessonBooking(supabase, id, clubId);
   const { error } = await cancelLesson(supabase, id, clubId);
   if (error) return fail("No pudimos cancelar la clase.");
+  if (bookingId) await deleteBooking(supabase, bookingId);
   refresh();
   return { ok: true };
 }
@@ -228,7 +257,7 @@ export async function createGroupSession(formData: FormData): Promise<Result> {
 
   // Bloquea la cancha (todo el bloque de turnos seguidos) si se eligió.
   if (courtId) {
-    const { error, conflict } = await insertBooking(supabase, {
+    const { error, conflict, id: bookingId } = await insertBooking(supabase, {
       club_id: clubId,
       court_id: courtId,
       booking_date: date,
@@ -247,6 +276,7 @@ export async function createGroupSession(formData: FormData): Promise<Result> {
         conflict ? "Esa cancha ya está ocupada en ese horario." : "No pudimos bloquear la cancha."
       );
     }
+    if (bookingId) await setGroupSessionBooking(supabase, sessionId, clubId, bookingId);
   }
 
   refresh();
@@ -269,6 +299,10 @@ export async function joinGroup(formData: FormData): Promise<Result> {
 
   const { error } = await addParticipant(supabase, sessionId, name, phone);
   if (error) return fail("No pudimos sumar al jugador.");
+  // Al alcanzar el mínimo, confirmamos el grupo automáticamente (igual que el bot).
+  if (session.status === "open" && current + 1 >= session.min_participants) {
+    await setGroupSessionStatus(supabase, sessionId, clubId, "confirmed");
+  }
   refresh();
   return { ok: true };
 }
@@ -294,8 +328,11 @@ export async function confirmGroup(id: string): Promise<Result> {
 export async function dropGroup(id: string): Promise<Result> {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
+  // Liberamos la cancha bloqueada por el grupo, si tenía.
+  const bookingId = await getGroupSessionBooking(supabase, id, clubId);
   const { error } = await setGroupSessionStatus(supabase, id, clubId, "cancelled");
   if (error) return fail("No pudimos cancelar el grupo.");
+  if (bookingId) await deleteBooking(supabase, bookingId);
   refresh();
   return { ok: true };
 }

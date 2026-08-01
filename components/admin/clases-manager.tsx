@@ -49,6 +49,75 @@ function useRun() {
 const SLOTS: number[] = [];
 for (let m = 8 * 60; m <= 23 * 60; m += 30) SLOTS.push(m);
 
+const DOW_SHORT = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+
+function AvailabilityForm({
+  coachId,
+  onSubmit,
+  pending,
+}: {
+  coachId: string;
+  onSubmit: (fd: FormData) => void;
+  pending: boolean;
+}) {
+  const [days, setDays] = useState<number[]>([1]);
+  const toggle = (d: number) =>
+    setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
+  const preset = (ds: number[]) => setDays(ds);
+
+  return (
+    <form
+      action={(fd) => {
+        days.forEach((d) => fd.append("weekday", String(d)));
+        onSubmit(fd);
+        setDays([1]);
+      }}
+      className="space-y-2"
+    >
+      <input type="hidden" name="coach_id" value={coachId} />
+      <div className="flex flex-wrap items-center gap-1.5">
+        {DOW_SHORT.slice(1).map((d, i) => {
+          const day = i + 1;
+          const on = days.includes(day);
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => toggle(day)}
+              className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                on
+                  ? "border-accent bg-accent text-accent-ink"
+                  : "border-border-soft bg-canvas text-muted hover:text-ink"
+              }`}
+            >
+              {d}
+            </button>
+          );
+        })}
+        <span className="mx-1 text-border-strong">|</span>
+        <button type="button" onClick={() => preset([1, 2, 3, 4, 5])}
+          className="rounded-full border border-border-soft px-2.5 py-1 text-xs text-muted hover:text-ink">
+          Lun–Vie
+        </button>
+        <button type="button" onClick={() => preset([1, 2, 3, 4, 5, 6])}
+          className="rounded-full border border-border-soft px-2.5 py-1 text-xs text-muted hover:text-ink">
+          Lun–Sáb
+        </button>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <span className="text-xs text-muted">De</span>
+        <input name="from_hour" type="number" min={0} max={23} defaultValue={8} className={`${inputCls} w-16`} aria-label="Desde (hora)" />
+        <span className="text-sm text-muted">a</span>
+        <input name="to_hour" type="number" min={1} max={24} defaultValue={17} className={`${inputCls} w-16`} aria-label="Hasta (hora)" />
+        <span className="text-xs text-muted">hs</span>
+        <Button size="sm" variant="outline" type="submit" disabled={pending || days.length === 0}>
+          + Disponibilidad
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function CoachRow({ coach, availability }: { coach: Coach; availability: CoachAvailability[] }) {
   const { run, pending } = useRun();
   const avail = availability.filter((a) => a.coach_id === coach.id);
@@ -88,16 +157,7 @@ function CoachRow({ coach, availability }: { coach: Coach; availability: CoachAv
             </span>
           ))}
         </div>
-        <form action={(fd) => run(() => createAvailability(fd))} className="flex flex-wrap items-end gap-2">
-          <input type="hidden" name="coach_id" value={coach.id} />
-          <select name="weekday" className={inputCls} defaultValue="1">
-            {DOW.slice(1).map((d, i) => (<option key={i} value={i + 1}>{d}</option>))}
-          </select>
-          <input name="from_hour" type="number" min={0} max={23} defaultValue={16} className={`${inputCls} w-16`} aria-label="Desde (hora)" />
-          <span className="text-sm text-muted">a</span>
-          <input name="to_hour" type="number" min={1} max={24} defaultValue={21} className={`${inputCls} w-16`} aria-label="Hasta (hora)" />
-          <Button size="sm" variant="outline" type="submit" disabled={pending}>+ Disponibilidad</Button>
-        </form>
+        <AvailabilityForm coachId={coach.id} onSubmit={(fd) => run(() => createAvailability(fd))} pending={pending} />
       </CardContent>
     </Card>
   );

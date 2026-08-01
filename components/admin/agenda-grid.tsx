@@ -117,7 +117,12 @@ function occupancyOf(
     (s, c) => s + ((c.operating_days ?? []).includes(dow) ? slotsFor(c).length : 0),
     0
   );
-  const taken = bookings.filter((b) => b.booking_date === dayISO).length;
+  // Cada reserva ocupa tantos turnos como abarque (grupos de varios turnos seguidos).
+  const courtSlot = (courtId: string) =>
+    courts.find((c) => c.id === courtId)?.slot_minutes || 90;
+  const taken = bookings
+    .filter((b) => b.booking_date === dayISO)
+    .reduce((s, b) => s + Math.max(1, Math.round((b.slot_minutes || 90) / courtSlot(b.court_id))), 0);
   return { total, taken, free: Math.max(0, total - taken) };
 }
 
@@ -320,8 +325,18 @@ export function AgendaGrid({
   };
 
   const dow = dowOf(date);
+  // Reserva que ARRANCA exactamente en este turno (muestra la tarjeta completa).
   const bookingAt = (courtId: string, min: number) =>
     bookings.find((b) => b.court_id === courtId && b.start_minutes === min) ?? null;
+  // Reserva que CUBRE este turno pero arrancó en uno anterior (turnos seguidos:
+  // grupos con varios turnos, clases largas). Evita reservar encima del bloqueo.
+  const coveringBooking = (courtId: string, min: number) =>
+    bookings.find(
+      (b) =>
+        b.court_id === courtId &&
+        b.start_minutes < min &&
+        min < b.start_minutes + (b.slot_minutes || 90)
+    ) ?? null;
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     setError(null);
@@ -442,6 +457,23 @@ export function AgendaGrid({
                   {slots.map((min) => {
                     const b = bookingAt(court.id, min);
                     const key = `${court.id}:${min}`;
+                    // Turno cubierto por una reserva de varios turnos seguidos.
+                    if (!b) {
+                      const cover = coveringBooking(court.id, min);
+                      if (cover) {
+                        return (
+                          <div
+                            key={min}
+                            className="rounded-lg border border-accent/40 bg-surface px-3 py-2 text-sm text-muted"
+                          >
+                            <span className="font-mono text-xs text-muted">{hhmm(min)}</span>{" "}
+                            <span className="text-xs">
+                              · continúa{cover.kind === "class" ? " (entrenamiento)" : ""}
+                            </span>
+                          </div>
+                        );
+                      }
+                    }
                     if (b) {
                       return (
                         <div
