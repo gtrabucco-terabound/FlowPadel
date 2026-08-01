@@ -81,6 +81,24 @@ export async function listAvailability(
   return (data ?? []) as CoachAvailability[];
 }
 
+/** ¿Ya existe una franja del profe ese día que se pise con [start,end)? */
+export async function availabilityOverlaps(
+  supabase: DB,
+  coachId: string,
+  weekday: number,
+  startMinutes: number,
+  endMinutes: number
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("coach_availability")
+    .select("start_minutes, end_minutes")
+    .eq("coach_id", coachId)
+    .eq("weekday", weekday);
+  return (data ?? []).some(
+    (a) => startMinutes < a.end_minutes && a.start_minutes < endMinutes
+  );
+}
+
 export async function addAvailability(
   supabase: DB,
   input: { coach_id: string; weekday: number; start_minutes: number; end_minutes: number }
@@ -132,6 +150,35 @@ export async function insertLesson(
     .single();
   if (error || !data) return null;
   return data.id;
+}
+
+/** Vincula la clase con la reserva de cancha que la bloquea. */
+export async function setLessonBooking(
+  supabase: DB,
+  lessonId: string,
+  clubId: string,
+  bookingId: string
+): Promise<void> {
+  await supabase
+    .from("lessons")
+    .update({ booking_id: bookingId })
+    .eq("id", lessonId)
+    .eq("club_id", clubId);
+}
+
+/** Devuelve el booking_id vinculado a una clase (para liberar la cancha). */
+export async function getLessonBooking(
+  supabase: DB,
+  id: string,
+  clubId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("lessons")
+    .select("booking_id")
+    .eq("id", id)
+    .eq("club_id", clubId)
+    .maybeSingle();
+  return data?.booking_id ?? null;
 }
 
 export async function cancelLesson(
@@ -188,6 +235,35 @@ export async function insertGroupSession(
     .single();
   if (error || !data) return null;
   return data.id;
+}
+
+/** Vincula la sesión grupal con la reserva de cancha que la bloquea. */
+export async function setGroupSessionBooking(
+  supabase: DB,
+  id: string,
+  clubId: string,
+  bookingId: string
+): Promise<void> {
+  await supabase
+    .from("group_sessions")
+    .update({ booking_id: bookingId })
+    .eq("id", id)
+    .eq("club_id", clubId);
+}
+
+/** Devuelve el booking_id vinculado a una sesión grupal. */
+export async function getGroupSessionBooking(
+  supabase: DB,
+  id: string,
+  clubId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("group_sessions")
+    .select("booking_id")
+    .eq("id", id)
+    .eq("club_id", clubId)
+    .maybeSingle();
+  return data?.booking_id ?? null;
 }
 
 export async function setGroupSessionStatus(
@@ -247,10 +323,10 @@ export async function getGroupSession(
   supabase: DB,
   id: string,
   clubId: string
-): Promise<Pick<GroupSession, "id" | "capacity"> | null> {
+): Promise<Pick<GroupSession, "id" | "capacity" | "min_participants" | "status"> | null> {
   const { data } = await supabase
     .from("group_sessions")
-    .select("id, capacity")
+    .select("id, capacity, min_participants, status")
     .eq("id", id)
     .eq("club_id", clubId)
     .maybeSingle();
