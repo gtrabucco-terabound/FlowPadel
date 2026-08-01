@@ -1053,6 +1053,121 @@ export type Database = {
           },
         ]
       }
+      group_participants: {
+        Row: {
+          created_at: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          player_id: string | null
+          session_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          player_id?: string | null
+          session_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          player_id?: string | null
+          session_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_participants_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "group_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_sessions: {
+        Row: {
+          capacity: number
+          club_id: string
+          coach_id: string
+          court_id: string | null
+          created_at: string
+          id: string
+          min_participants: number
+          num_slots: number
+          price_per_person: number | null
+          session_date: string
+          slot_minutes: number
+          start_minutes: number
+          status: string
+        }
+        Insert: {
+          capacity?: number
+          club_id: string
+          coach_id: string
+          court_id?: string | null
+          created_at?: string
+          id?: string
+          min_participants?: number
+          num_slots?: number
+          price_per_person?: number | null
+          session_date: string
+          slot_minutes?: number
+          start_minutes: number
+          status?: string
+        }
+        Update: {
+          capacity?: number
+          club_id?: string
+          coach_id?: string
+          court_id?: string | null
+          created_at?: string
+          id?: string
+          min_participants?: number
+          num_slots?: number
+          price_per_person?: number | null
+          session_date?: string
+          slot_minutes?: number
+          start_minutes?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_sessions_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: false
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_sessions_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_sessions_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lessons: {
         Row: {
           club_id: string
@@ -2294,7 +2409,23 @@ export type Database = {
       }
       admin_delete_club: { Args: { p_club_id: string }; Returns: string }
       apply_elo_for_match: { Args: { p_match_id: string }; Returns: undefined }
+      bot_book_lesson: {
+        Args: {
+          p_coach_id: string
+          p_court_id: string
+          p_date: string
+          p_name: string
+          p_phone: string
+          p_slug: string
+          p_start: number
+        }
+        Returns: Json
+      }
       bot_get_session: { Args: { p_phone: string }; Returns: Json }
+      bot_lesson_options: {
+        Args: { p_date: string; p_slug: string }
+        Returns: Json
+      }
       bot_player_status: { Args: { p_phone: string }; Returns: Json }
       bot_set_session: {
         Args: { p_data: Json; p_phone: string; p_step: string }

@@ -146,3 +146,113 @@ export async function cancelLesson(
     .eq("club_id", clubId);
   return { error: Boolean(error) };
 }
+
+/* ---- Sesiones grupales (Fase 3) ---- */
+
+export type GroupSession = Tables<"group_sessions">;
+export type GroupParticipant = Tables<"group_participants">;
+
+export type GroupSessionView = GroupSession & {
+  coach: { name: string } | null;
+  court: { name: string; number: number | null } | null;
+  participants: GroupParticipant[];
+};
+
+/** Sesiones grupales próximas del club, con profe, cancha y participantes. */
+export async function listGroupSessions(
+  supabase: DB,
+  clubId: string,
+  fromDate: string
+): Promise<GroupSessionView[]> {
+  const { data } = await supabase
+    .from("group_sessions")
+    .select(
+      "*, coach:coaches(name), court:courts(name, number), participants:group_participants(*)"
+    )
+    .eq("club_id", clubId)
+    .neq("status", "cancelled")
+    .gte("session_date", fromDate)
+    .order("session_date", { ascending: true })
+    .order("start_minutes", { ascending: true });
+  return (data ?? []) as unknown as GroupSessionView[];
+}
+
+export async function insertGroupSession(
+  supabase: DB,
+  row: TablesInsert<"group_sessions">
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("group_sessions")
+    .insert(row)
+    .select("id")
+    .single();
+  if (error || !data) return null;
+  return data.id;
+}
+
+export async function setGroupSessionStatus(
+  supabase: DB,
+  id: string,
+  clubId: string,
+  status: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("group_sessions")
+    .update({ status })
+    .eq("id", id)
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
+}
+
+/** Cantidad de participantes activos de una sesión. */
+export async function countParticipants(
+  supabase: DB,
+  sessionId: string
+): Promise<number> {
+  const { count } = await supabase
+    .from("group_participants")
+    .select("id", { count: "exact", head: true })
+    .eq("session_id", sessionId)
+    .neq("status", "cancelled");
+  return count ?? 0;
+}
+
+export async function addParticipant(
+  supabase: DB,
+  sessionId: string,
+  name: string,
+  phone: string | null
+): Promise<{ error: boolean }> {
+  const { error } = await supabase.from("group_participants").insert({
+    session_id: sessionId,
+    customer_name: name,
+    customer_phone: phone,
+  });
+  return { error: Boolean(error) };
+}
+
+export async function removeParticipant(
+  supabase: DB,
+  id: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("group_participants")
+    .delete()
+    .eq("id", id);
+  return { error: Boolean(error) };
+}
+
+/** Datos de una sesión (para validar cupo al sumar participantes). */
+export async function getGroupSession(
+  supabase: DB,
+  id: string,
+  clubId: string
+): Promise<Pick<GroupSession, "id" | "capacity"> | null> {
+  const { data } = await supabase
+    .from("group_sessions")
+    .select("id, capacity")
+    .eq("id", id)
+    .eq("club_id", clubId)
+    .maybeSingle();
+  return data ?? null;
+}
