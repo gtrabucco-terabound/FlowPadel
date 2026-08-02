@@ -24,7 +24,11 @@ import {
   countParticipants,
   availabilityOverlaps,
 } from "@/modules/coaches/repository";
-import { insertBooking, deleteBooking } from "@/modules/reservations/repository";
+import {
+  insertBooking,
+  deleteBooking,
+  getCourtSlotBasis,
+} from "@/modules/reservations/repository";
 
 type Result = { ok: true } | { ok: false; error: string };
 const fail = (error: string): Result => ({ ok: false, error });
@@ -146,7 +150,6 @@ export async function scheduleLesson(formData: FormData): Promise<Result> {
   const coachId = String(formData.get("coach_id") ?? "");
   const date = String(formData.get("lesson_date") ?? "");
   const startMin = num(formData.get("start_minutes"));
-  const slotMin = num(formData.get("slot_minutes")) ?? 90;
   const courtId = txt(formData.get("court_id"));
   const name = String(formData.get("customer_name") ?? "").trim();
   const phone = txt(formData.get("customer_phone"));
@@ -159,6 +162,18 @@ export async function scheduleLesson(formData: FormData): Promise<Result> {
 
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
+
+  // La clase ocupa el turno de la franja donde arranca (ej. 60'). Sin cancha, 90'.
+  let slotMin = 90;
+  if (courtId) {
+    const basis = await getCourtSlotBasis(supabase, courtId);
+    if (basis) {
+      const band = basis.bands.find(
+        (b) => startMin >= b.start_minutes && startMin < b.end_minutes
+      );
+      slotMin = band?.slot_minutes ?? basis.slot_minutes ?? 90;
+    }
+  }
 
   const lessonId = await insertLesson(supabase, {
     club_id: clubId,
@@ -238,7 +253,20 @@ export async function createGroupSession(formData: FormData): Promise<Result> {
 
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const totalMinutes = numSlots * 90;
+
+  // La duración del turno la define la franja de la cancha donde arranca
+  // (ej. 60' en la franja de clases). Sin cancha, asumimos 90'.
+  let slotSize = 90;
+  if (courtId) {
+    const basis = await getCourtSlotBasis(supabase, courtId);
+    if (basis) {
+      const band = basis.bands.find(
+        (b) => startMin >= b.start_minutes && startMin < b.end_minutes
+      );
+      slotSize = band?.slot_minutes ?? basis.slot_minutes ?? 90;
+    }
+  }
+  const totalMinutes = numSlots * slotSize;
 
   const sessionId = await insertGroupSession(supabase, {
     club_id: clubId,
@@ -246,7 +274,7 @@ export async function createGroupSession(formData: FormData): Promise<Result> {
     court_id: courtId,
     session_date: date,
     start_minutes: startMin,
-    slot_minutes: 90,
+    slot_minutes: slotSize,
     num_slots: numSlots,
     capacity,
     min_participants: minP,

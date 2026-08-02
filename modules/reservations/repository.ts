@@ -15,6 +15,12 @@ export type PublicCourtData = {
   slot_minutes: number;
   price_per_slot: number | null;
   operating_days: number[] | null;
+  bands?: {
+    start_minutes: number;
+    end_minutes: number;
+    slot_minutes: number;
+    price: number | null;
+  }[] | null;
 };
 export type PublicBookingRowData = {
   court_id: string;
@@ -101,6 +107,12 @@ export async function requestBookingPaymentLink(
 
 /* ---- Agenda del club (panel admin) ---- */
 
+export type CourtSlotBand = {
+  start_minutes: number;
+  end_minutes: number;
+  slot_minutes: number;
+  price: number | null;
+};
 export type AgendaCourtRow = Pick<
   Tables<"courts">,
   | "id"
@@ -112,7 +124,7 @@ export type AgendaCourtRow = Pick<
   | "slot_minutes"
   | "operating_days"
   | "price_per_slot"
->;
+> & { bands: CourtSlotBand[] };
 export type AgendaBookingRow = Pick<
   Tables<"court_bookings">,
   | "id"
@@ -137,12 +149,76 @@ export async function listActiveCourtsForClub(
   const { data } = await supabase
     .from("courts")
     .select(
-      "id, name, number, is_active, open_hour, close_hour, slot_minutes, operating_days, price_per_slot"
+      "id, name, number, is_active, open_hour, close_hour, slot_minutes, operating_days, price_per_slot, bands:court_slot_bands(start_minutes, end_minutes, slot_minutes, price)"
     )
     .eq("club_id", clubId)
     .eq("is_active", true)
     .order("name");
-  return (data ?? []) as AgendaCourtRow[];
+  return (data ?? []).map((c) => ({ ...c, bands: c.bands ?? [] })) as AgendaCourtRow[];
+}
+
+/* ---- Franjas de turno (court_slot_bands) ---- */
+
+export async function listCourtBands(
+  supabase: DB,
+  clubId: string
+): Promise<(CourtSlotBand & { id: string; court_id: string })[]> {
+  const { data } = await supabase
+    .from("court_slot_bands")
+    .select("id, court_id, start_minutes, end_minutes, slot_minutes, price, courts!inner(club_id)")
+    .eq("courts.club_id", clubId)
+    .order("start_minutes");
+  return (data ?? []).map((b) => ({
+    id: b.id,
+    court_id: b.court_id,
+    start_minutes: b.start_minutes,
+    end_minutes: b.end_minutes,
+    slot_minutes: b.slot_minutes,
+    price: b.price,
+  }));
+}
+
+export async function insertCourtBand(
+  supabase: DB,
+  input: { court_id: string; start_minutes: number; end_minutes: number; slot_minutes: number; price: number | null }
+): Promise<{ error: boolean }> {
+  const { error } = await supabase.from("court_slot_bands").insert(input);
+  return { error: Boolean(error) };
+}
+
+export async function deleteCourtBand(
+  supabase: DB,
+  id: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase.from("court_slot_bands").delete().eq("id", id);
+  return { error: Boolean(error) };
+}
+
+/** Duración de turno base + franjas de una cancha (para agendar clases/grupos). */
+export async function getCourtSlotBasis(
+  supabase: DB,
+  courtId: string
+): Promise<{ slot_minutes: number; bands: CourtSlotBand[] } | null> {
+  const { data } = await supabase
+    .from("courts")
+    .select("slot_minutes, bands:court_slot_bands(start_minutes, end_minutes, slot_minutes, price)")
+    .eq("id", courtId)
+    .maybeSingle();
+  if (!data) return null;
+  return { slot_minutes: data.slot_minutes, bands: (data.bands ?? []) as CourtSlotBand[] };
+}
+
+/** Franjas de una cancha (para validar solapes al agregar). */
+export async function listBandsForCourt(
+  supabase: DB,
+  courtId: string
+): Promise<CourtSlotBand[]> {
+  const { data } = await supabase
+    .from("court_slot_bands")
+    .select("start_minutes, end_minutes, slot_minutes, price")
+    .eq("court_id", courtId)
+    .order("start_minutes");
+  return (data ?? []) as CourtSlotBand[];
 }
 
 /** Reservas del club en un rango de fechas (excluye canceladas). */

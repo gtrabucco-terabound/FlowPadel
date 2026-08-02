@@ -18,6 +18,11 @@ import {
   updateCourtConfigRow,
   upsertClubOccupancy,
 } from "@/modules/clubs/repository";
+import {
+  insertCourtBand,
+  deleteCourtBand,
+  listBandsForCourt,
+} from "@/modules/reservations/repository";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 const fail = (error: string): ActionResult => ({ ok: false, error });
@@ -230,6 +235,52 @@ export async function updateCourtConfig(
     close_hour: closeHour ?? 24,
   });
   if (error) return fail("No pudimos guardar la cancha.");
+  refresh();
+  return { ok: true };
+}
+
+/* ---- Franjas de turno por cancha ---- */
+
+/** Agrega una franja (ej. 08–16 turnos de 60'). Valida horas y solape. */
+export async function createCourtBand(formData: FormData): Promise<ActionResult> {
+  const courtId = String(formData.get("court_id") ?? "");
+  const fromHour = numOrNull(formData.get("from_hour"));
+  const toHour = numOrNull(formData.get("to_hour"));
+  const slotMinutes = numOrNull(formData.get("slot_minutes"));
+  const price = numOrNull(formData.get("price"));
+
+  if (!courtId) return fail("Cancha inválida.");
+  if (fromHour == null || toHour == null || fromHour < 0 || toHour > 24 || toHour <= fromHour)
+    return fail("Revisá el horario de la franja (desde < hasta).");
+  if (slotMinutes == null || slotMinutes < 15) return fail("Duración de turno inválida.");
+
+  await requireClubAccess();
+  const supabase = await createClient();
+  const start = fromHour * 60;
+  const end = toHour * 60;
+
+  // No permitimos franjas que se pisen entre sí en la misma cancha.
+  const existing = await listBandsForCourt(supabase, courtId);
+  if (existing.some((b) => start < b.end_minutes && b.start_minutes < end))
+    return fail("Esa franja se pisa con otra ya cargada.");
+
+  const { error } = await insertCourtBand(supabase, {
+    court_id: courtId,
+    start_minutes: start,
+    end_minutes: end,
+    slot_minutes: slotMinutes,
+    price,
+  });
+  if (error) return fail("No pudimos agregar la franja.");
+  refresh();
+  return { ok: true };
+}
+
+export async function removeCourtBand(id: string): Promise<ActionResult> {
+  await requireClubAccess();
+  const supabase = await createClient();
+  const { error } = await deleteCourtBand(supabase, id);
+  if (error) return fail("No pudimos borrar la franja.");
   refresh();
   return { ok: true };
 }

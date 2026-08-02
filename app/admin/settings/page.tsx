@@ -7,6 +7,7 @@ import {
   getClubInfo,
   getClubOccupancy,
 } from "@/modules/clubs/repository";
+import { listCourtBands } from "@/modules/reservations/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -17,12 +18,13 @@ export default async function SettingsPage() {
   const canEditClub =
     ctx.activeMembership.role === "club_admin" || ctx.superadmin;
 
-  const [courts, club, pay] = await Promise.all([
+  const [courts, club, pay, bands] = await Promise.all([
     listClubCourts(supabase, ctx.activeClubId),
     getClubInfo(supabase, ctx.activeClubId),
     canEditClub
       ? getClubPaymentSettings(supabase, ctx.activeClubId)
       : Promise.resolve(null),
+    listCourtBands(supabase, ctx.activeClubId),
   ]);
   const mpConnected = Boolean(pay?.mp_connected);
 
@@ -38,6 +40,7 @@ export default async function SettingsPage() {
       </div>
       <SettingsManager
         courts={courts ?? []}
+        bands={bands ?? []}
         club={club ?? null}
         canEditClub={canEditClub}
         mpConnected={mpConnected}
