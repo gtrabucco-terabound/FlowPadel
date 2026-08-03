@@ -2,21 +2,26 @@ import { test, expect } from "@playwright/test";
 
 const ADMIN = { email: "qa.admin@example.com", password: "DevPass123!" };
 
-test("gestión de clases: alta de profe y agendar una clase", async ({ page }) => {
+test("gestión de clases: alta de profe (Config) y agendar una clase", async ({ page }) => {
   await page.goto("/login");
   await page.locator('input[name="email"]').fill(ADMIN.email);
   await page.locator('input[name="password"]').fill(ADMIN.password);
   await page.locator('form button[type="submit"]').click();
   await expect(page).toHaveURL(/\/admin/, { timeout: 20_000 });
 
+  // Los profes ahora se cargan en Configuración → Profesores.
+  await page.goto("/admin/settings");
+  const coachForm = page.locator("form", {
+    has: page.getByRole("button", { name: "Agregar profe" }),
+  });
+  await coachForm.locator('input[name="name"]').fill("Profe QA");
+  await coachForm.getByRole("button", { name: "Agregar profe" }).click();
+  await expect(page.getByText("Profe QA").first()).toBeVisible({ timeout: 20_000 });
+
+  // En Clases: agendar una clase (bloquea la cancha en la agenda).
   await page.goto("/admin/clases");
   await expect(page.getByRole("heading", { name: "Clases", exact: true })).toBeVisible();
 
-  // Alta de profe.
-  await page.locator('input[name="name"]').fill("Profe QA");
-  await page.getByRole("button", { name: "Agregar profe" }).click();
-
-  // Agendar una clase (bloquea la cancha en la agenda).
   const lessonForm = page.locator("form", { has: page.locator('input[name="lesson_date"]') });
   await lessonForm.locator('select[name="coach_id"]').selectOption({ label: "Profe QA" });
   await lessonForm.locator('select[name="court_id"]').selectOption({ index: 1 });
@@ -33,7 +38,6 @@ test("gestión de clases: alta de profe y agendar una clase", async ({ page }) =
   await groupForm.locator('input[name="capacity"]').fill("4");
   await groupForm.getByRole("button", { name: "Crear grupo" }).click();
 
-  // Aparece la tarjeta del grupo con cupo 0/4 → sumo un jugador.
   await expect(page.getByText("0/4").first()).toBeVisible({ timeout: 20_000 });
   const joinForm = page.locator("form", { hasText: "" }).filter({ has: page.locator('input[name="session_id"]') }).first();
   await joinForm.locator('input[name="customer_name"]').fill("Jugador Grupo");

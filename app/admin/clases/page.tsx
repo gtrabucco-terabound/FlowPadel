@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { ClasesManager } from "@/components/admin/clases-manager";
 import {
   listClubCoaches,
-  listAvailability,
   listUpcomingLessons,
   listGroupSessions,
 } from "@/modules/coaches/repository";
@@ -22,9 +21,8 @@ export default async function ClasesPage() {
   const clubId = ctx.activeClubId;
   const supabase = await createClient();
 
-  const [coaches, availability, lessons, groups, courts] = await Promise.all([
+  const [coaches, lessons, groups, courts] = await Promise.all([
     listClubCoaches(supabase, clubId),
-    listAvailability(supabase, clubId),
     listUpcomingLessons(supabase, clubId, todayAR()),
     listGroupSessions(supabase, clubId, todayAR()),
     listActiveCourtsForClub(supabase, clubId),
@@ -35,12 +33,12 @@ export default async function ClasesPage() {
       <div>
         <h1 className="text-2xl font-semibold text-ink">Clases</h1>
         <p className="text-sm text-muted">
-          Profesores, su disponibilidad y las clases del club.
+          Agendá clases y entrenamientos. Los profes y su disponibilidad se
+          configuran en Configuración → Profesores.
         </p>
       </div>
       <ClasesManager
         coaches={coaches}
-        availability={availability}
         lessons={lessons}
         groups={groups}
         courts={courts.map((c) => ({
