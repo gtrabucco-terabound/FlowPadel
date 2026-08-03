@@ -46,6 +46,7 @@ const num = (v: FormDataEntryValue | null) => {
 function refresh() {
   revalidatePath("/admin/clases");
   revalidatePath("/admin/agenda");
+  revalidatePath("/admin/settings");
 }
 
 /* ---- Profesores ---- */

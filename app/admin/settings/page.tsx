@@ -8,6 +8,8 @@ import {
   getClubOccupancy,
 } from "@/modules/clubs/repository";
 import { listCourtBands } from "@/modules/reservations/repository";
+import { listClubCoaches, listAvailability } from "@/modules/coaches/repository";
+import { CoachesManager } from "@/components/admin/coaches-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -18,13 +20,15 @@ export default async function SettingsPage() {
   const canEditClub =
     ctx.activeMembership.role === "club_admin" || ctx.superadmin;
 
-  const [courts, club, pay, bands] = await Promise.all([
+  const [courts, club, pay, bands, coaches, availability] = await Promise.all([
     listClubCourts(supabase, ctx.activeClubId),
     getClubInfo(supabase, ctx.activeClubId),
     canEditClub
       ? getClubPaymentSettings(supabase, ctx.activeClubId)
       : Promise.resolve(null),
     listCourtBands(supabase, ctx.activeClubId),
+    listClubCoaches(supabase, ctx.activeClubId),
+    listAvailability(supabase, ctx.activeClubId),
   ]);
   const mpConnected = Boolean(pay?.mp_connected);
 
@@ -59,6 +63,9 @@ export default async function SettingsPage() {
           segmentMaxPerRun: occ?.segment_max_per_run ?? 15,
         }}
       />
+      <div className="max-w-2xl">
+        <CoachesManager coaches={coaches ?? []} availability={availability ?? []} />
+      </div>
     </div>
   );
 }
