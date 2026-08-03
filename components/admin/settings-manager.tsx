@@ -742,12 +742,13 @@ function CourtRow({ court, bands }: { court: Court; bands: Band[] }) {
       </p>
       {bands.length > 0 && (
         <p className="mt-1 text-xs text-accent">
+          🎾 Entrenamiento:{" "}
           {bands
             .slice()
             .sort((a, b) => a.start_minutes - b.start_minutes)
             .map(
               (b) =>
-                `${hhmmLabel(b.start_minutes)}–${hhmmLabel(b.end_minutes)} · turnos de ${b.slot_minutes}′${b.price != null ? ` · $${b.price}` : ""}`
+                `${hhmmLabel(b.start_minutes)}–${hhmmLabel(b.end_minutes)} · clases de ${b.slot_minutes}′${b.price != null ? ` · $${b.price}` : ""}`
             )
             .join("  |  ")}
         </p>
@@ -840,7 +841,7 @@ function CourtEditForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1">
           <span className="text-xs font-medium text-ink">
-            Duración del turno {bands.length > 0 && <span className="text-muted">(la definen las franjas)</span>}
+            Duración del turno <span className="text-muted">(alquiler)</span>
           </span>
           <select
             name="slot_minutes"
@@ -920,17 +921,20 @@ function BandsEditor({ court, bands }: { court: Court; bands: Band[] }) {
   return (
     <div className="space-y-3 rounded-xl border border-accent/40 bg-surface p-4">
       <div>
-        <h4 className="text-sm font-bold text-ink">Franjas de turno</h4>
+        <h4 className="text-sm font-bold text-ink">Franja de entrenamiento</h4>
         <p className="text-xs text-muted">
-          Definí franjas horarias con distinta duración. Ej: <b>08–16 turnos de 1h</b> (clases y
-          entrenamientos) y <b>16–23 turnos de 1.5h</b> (alquiler). Si no cargás ninguna, se usa la
-          duración de arriba para todo el día.
+          Marcá el rango horario en que esta cancha se puede usar para clases y la
+          duración de la clase (ej. <b>08–16 · clases de 1h</b>). Los turnos se abren a
+          esa duración <b>solo los días y horas en que haya un profe disponible</b> — el
+          resto del tiempo la cancha se alquila normal en su turno habitual.
         </p>
       </div>
 
       <div className="space-y-1.5">
         {sorted.length === 0 && (
-          <p className="text-xs text-muted">Sin franjas — turno único de {court.slot_minutes}′.</p>
+          <p className="text-xs text-muted">
+            Sin franja de entrenamiento — la cancha se alquila en turnos de {court.slot_minutes}′.
+          </p>
         )}
         {sorted.map((b) => (
           <div

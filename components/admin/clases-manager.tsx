@@ -23,7 +23,7 @@ import {
   confirmGroup,
   dropGroup,
 } from "@/app/admin/clases/actions";
-import { courtSlots, type CourtBand } from "@/modules/reservations/slots";
+import { trainingSlots, type CourtBand } from "@/modules/reservations/slots";
 
 type Result = { ok: true } | { ok: false; error: string };
 type Court = {
@@ -40,12 +40,14 @@ type Court = {
 /** Opciones de horario de inicio: si hay cancha, sus turnos reales (respeta
  *  franjas); si es "Sin cancha", cada 1 h (las clases duran 1 hora). */
 function startOptions(court: Court | undefined): { min: number; label: string }[] {
-  if (court) {
-    return courtSlots(court).map((s) => ({
+  const training = court ? trainingSlots(court) : [];
+  if (training.length > 0) {
+    return training.map((s) => ({
       min: s.start_minutes,
       label: `${hhmm(s.start_minutes)}–${hhmm(s.start_minutes + s.slot_minutes)}`,
     }));
   }
+  // Sin franja de entrenamiento: cada 1 h (las clases duran 1 hora).
   const out: { min: number; label: string }[] = [];
   for (let m = 8 * 60; m <= 22 * 60; m += 60) out.push({ min: m, label: hhmm(m) });
   return out;
