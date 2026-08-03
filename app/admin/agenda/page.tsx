@@ -1,10 +1,11 @@
 import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
-import { AgendaView, type AgendaCourt, type AgendaBooking } from "@/components/admin/agenda-grid";
+import { AgendaView, type AgendaCourt, type AgendaBooking, type CoachIntervals } from "@/components/admin/agenda-grid";
 import {
   listActiveCourtsForClub,
   listClubBookings,
 } from "@/modules/reservations/repository";
+import { listClubCoaches, listAvailability } from "@/modules/coaches/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -48,13 +49,26 @@ export default async function AgendaPage({
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const [courtsData, bookingsData] = await Promise.all([
+  const [courtsData, bookingsData, coaches, availability] = await Promise.all([
     listActiveCourtsForClub(supabase, ctx.activeClubId),
     listClubBookings(supabase, ctx.activeClubId, from, to),
+    listClubCoaches(supabase, ctx.activeClubId),
+    listAvailability(supabase, ctx.activeClubId),
   ]);
 
   const courts = courtsData as unknown as AgendaCourt[];
   const bookings = bookingsData as unknown as AgendaBooking[];
+
+  // Disponibilidad de profes ACTIVOS por día de semana → abre turnos de 1h.
+  const activeCoachIds = new Set(coaches.filter((c) => c.active).map((c) => c.id));
+  const coachIntervals: CoachIntervals = {};
+  for (const a of availability) {
+    if (!activeCoachIds.has(a.coach_id)) continue;
+    (coachIntervals[a.weekday] ??= []).push({
+      start: a.start_minutes,
+      end: a.end_minutes,
+    });
+  }
 
   return (
     <div className="space-y-6">
@@ -71,7 +85,7 @@ export default async function AgendaPage({
           precio por turno) para ver la agenda.
         </div>
       ) : (
-        <AgendaView date={day} view={view} courts={courts} bookings={bookings} />
+        <AgendaView date={day} view={view} courts={courts} bookings={bookings} coachIntervals={coachIntervals} />
       )}
     </div>
   );

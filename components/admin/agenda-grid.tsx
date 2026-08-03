@@ -9,7 +9,10 @@ import {
   createBookingWithPayment,
   generateBookingPaymentLink,
 } from "@/app/admin/agenda/actions";
-import { courtSlots, type CourtBand } from "@/modules/reservations/slots";
+import { daySlots, type CourtBand, type Interval } from "@/modules/reservations/slots";
+
+/** Disponibilidad de profes activos por día de semana (1=Lun..7=Dom), en minutos. */
+export type CoachIntervals = Record<number, Interval[]>;
 
 export interface AgendaCourt {
   id: string;
@@ -69,8 +72,8 @@ function prettyDate(dateISO: string): string {
   });
 }
 
-function slotsFor(court: AgendaCourt) {
-  return courtSlots(court);
+function slotsFor(court: AgendaCourt, intervals: Interval[]) {
+  return daySlots(court, intervals);
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -107,13 +110,15 @@ function overviewDays(view: View, dateISO: string): string[] {
 function occupancyOf(
   dayISO: string,
   courts: AgendaCourt[],
-  bookings: AgendaBooking[]
+  bookings: AgendaBooking[],
+  coachIntervals: CoachIntervals
 ): { total: number; taken: number; free: number } {
   const dow = dowOf(dayISO);
+  const intervals = coachIntervals[dow] ?? [];
   let total = 0;
   const slotsByCourt = new Map<string, ReturnType<typeof slotsFor>>();
   for (const c of courts) {
-    const slots = (c.operating_days ?? []).includes(dow) ? slotsFor(c) : [];
+    const slots = (c.operating_days ?? []).includes(dow) ? slotsFor(c, intervals) : [];
     slotsByCourt.set(c.id, slots);
     total += slots.length;
   }
@@ -138,11 +143,13 @@ export function AgendaView({
   view,
   courts,
   bookings,
+  coachIntervals = {},
 }: {
   date: string;
   view: View;
   courts: AgendaCourt[];
   bookings: AgendaBooking[];
+  coachIntervals?: CoachIntervals;
 }) {
   const router = useRouter();
   const go = (v: View) => router.push(`/admin/agenda?view=${v}&date=${date}`);
@@ -170,9 +177,10 @@ export function AgendaView({
           date={date}
           courts={courts}
           bookings={bookings.filter((b) => b.booking_date === date)}
+          coachIntervals={coachIntervals}
         />
       ) : (
-        <Overview date={date} view={view} courts={courts} bookings={bookings} />
+        <Overview date={date} view={view} courts={courts} bookings={bookings} coachIntervals={coachIntervals} />
       )}
     </div>
   );
@@ -183,11 +191,13 @@ function Overview({
   view,
   courts,
   bookings,
+  coachIntervals,
 }: {
   date: string;
   view: View;
   courts: AgendaCourt[];
   bookings: AgendaBooking[];
+  coachIntervals: CoachIntervals;
 }) {
   const router = useRouter();
   const days = overviewDays(view, date);
@@ -206,7 +216,7 @@ function Overview({
     return (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {days.map((d) => {
-          const { total, taken, free } = occupancyOf(d, courts, bookings);
+          const { total, taken, free } = occupancyOf(d, courts, bookings, coachIntervals);
           const ratio = total > 0 ? taken / total : 0;
           const dd = new Date(d + "T12:00:00");
           return (
@@ -248,7 +258,7 @@ function Overview({
         {days.map((d) => {
           const dd = new Date(d + "T12:00:00");
           const inMonth = dd.getMonth() === month;
-          const { total, taken, free } = occupancyOf(d, courts, bookings);
+          const { total, taken, free } = occupancyOf(d, courts, bookings, coachIntervals);
           const ratio = total > 0 ? taken / total : 0;
           return (
             <button
@@ -285,10 +295,12 @@ export function AgendaGrid({
   date,
   courts,
   bookings,
+  coachIntervals = {},
 }: {
   date: string;
   courts: AgendaCourt[];
   bookings: AgendaBooking[];
+  coachIntervals?: CoachIntervals;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -329,6 +341,7 @@ export function AgendaGrid({
   };
 
   const dow = dowOf(date);
+  const dayIntervals = coachIntervals[dow] ?? [];
   // Reserva que ARRANCA exactamente en este turno (muestra la tarjeta completa).
   const bookingAt = (courtId: string, min: number) =>
     bookings.find((b) => b.court_id === courtId && b.start_minutes === min) ?? null;
@@ -437,7 +450,7 @@ export function AgendaGrid({
       <div className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(260px,1fr))]">
         {courts.map((court) => {
           const operates = (court.operating_days ?? []).includes(dow);
-          const slots = slotsFor(court);
+          const slots = slotsFor(court, dayIntervals);
           return (
             <div key={court.id} className="rounded-2xl border border-border-soft bg-canvas p-4">
               <div className="mb-3 flex items-center justify-between">

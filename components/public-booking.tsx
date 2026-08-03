@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createPublicBooking } from "@/app/reservar/[slug]/actions";
-import { courtSlots, type CourtBand } from "@/modules/reservations/slots";
+import { rentalSlots, type CourtBand } from "@/modules/reservations/slots";
 
 export interface PublicCourt {
   id: string;
@@ -44,7 +44,7 @@ function prettyDate(dateISO: string): string {
   });
 }
 function slotsFor(c: PublicCourt) {
-  return courtSlots(c);
+  return rentalSlots(c);
 }
 
 export interface PublicOffer {
