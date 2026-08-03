@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createPublicBooking } from "@/app/reservar/[slug]/actions";
+import { courtSlots, type CourtBand } from "@/modules/reservations/slots";
 
 export interface PublicCourt {
   id: string;
@@ -14,6 +15,7 @@ export interface PublicCourt {
   slot_minutes: number;
   price_per_slot: number | null;
   operating_days: number[] | null;
+  bands?: CourtBand[] | null;
 }
 export interface PublicBookingRow {
   court_id: string;
@@ -41,11 +43,8 @@ function prettyDate(dateISO: string): string {
     month: "long",
   });
 }
-function slotsFor(c: PublicCourt): number[] {
-  const out: number[] = [];
-  const step = c.slot_minutes || 90;
-  for (let m = c.open_hour * 60; m + step <= c.close_hour * 60; m += step) out.push(m);
-  return out;
+function slotsFor(c: PublicCourt) {
+  return courtSlots(c);
 }
 
 export interface PublicOffer {
@@ -168,8 +167,9 @@ export function PublicBooking({
                   )}
                 </div>
                 <div className="space-y-1.5">
-                  {slots.map((min) => {
-                    const b = bookingAt(court.id, min, court.slot_minutes);
+                  {slots.map((slot) => {
+                    const min = slot.start_minutes;
+                    const b = bookingAt(court.id, min, slot.slot_minutes);
                     const isPicked = picked?.courtId === court.id && picked?.min === min;
                     if (b) {
                       const held = b.status === "held";
@@ -190,7 +190,7 @@ export function PublicBooking({
                       );
                     }
                     const offer = offerAt(court.id, min);
-                    const base = court.price_per_slot;
+                    const base = slot.price;
                     const offerPrice =
                       offer && base != null
                         ? Math.round(base * (1 - offer.discount_pct / 100))

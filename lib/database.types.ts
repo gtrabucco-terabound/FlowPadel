@@ -624,6 +624,44 @@ export type Database = {
           },
         ]
       }
+      court_slot_bands: {
+        Row: {
+          court_id: string
+          created_at: string
+          end_minutes: number
+          id: string
+          price: number | null
+          slot_minutes: number
+          start_minutes: number
+        }
+        Insert: {
+          court_id: string
+          created_at?: string
+          end_minutes: number
+          id?: string
+          price?: number | null
+          slot_minutes: number
+          start_minutes: number
+        }
+        Update: {
+          court_id?: string
+          created_at?: string
+          end_minutes?: number
+          id?: string
+          price?: number | null
+          slot_minutes?: number
+          start_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "court_slot_bands_court_id_fkey"
+            columns: ["court_id"]
+            isOneToOne: false
+            referencedRelation: "courts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       courts: {
         Row: {
           close_hour: number

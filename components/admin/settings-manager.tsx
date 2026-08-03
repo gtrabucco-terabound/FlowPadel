@@ -16,6 +16,8 @@ import {
   disconnectClubPayments,
   updateBookingCharge,
   updateOccupancy,
+  createCourtBand,
+  removeCourtBand,
 } from "@/app/admin/settings/actions";
 import type { Tables } from "@/lib/database.types";
 
@@ -51,8 +53,19 @@ type Court = Pick<
   | "close_hour"
 >;
 
+type Band = {
+  id: string;
+  court_id: string;
+  start_minutes: number;
+  end_minutes: number;
+  slot_minutes: number;
+  price: number | null;
+};
+
 const inputCls =
   "w-full rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink";
+const hhmmLabel = (m: number) =>
+  `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const DAYS = [
   { v: 1, l: "L" },
   { v: 2, l: "M" },
@@ -90,6 +103,7 @@ function useAction() {
 
 export function SettingsManager({
   courts,
+  bands,
   club,
   canEditClub,
   mpConnected,
@@ -99,6 +113,7 @@ export function SettingsManager({
   occupancy,
 }: {
   courts: Court[];
+  bands: Band[];
   club: Club | null;
   canEditClub: boolean;
   mpConnected: boolean;
@@ -119,7 +134,7 @@ export function SettingsManager({
         />
       )}
       {canEditClub && <OccupancyCard occupancy={occupancy} />}
-      <CourtsCard courts={courts} />
+      <CourtsCard courts={courts} bands={bands} />
     </div>
   );
 }
@@ -619,7 +634,7 @@ function ClubInfoCard({ club }: { club: Club }) {
   );
 }
 
-function CourtsCard({ courts }: { courts: Court[] }) {
+function CourtsCard({ courts, bands }: { courts: Court[]; bands: Band[] }) {
   const { run, pending, error } = useAction();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -662,7 +677,7 @@ function CourtsCard({ courts }: { courts: Court[] }) {
             <p className="text-sm text-muted">Sin canchas.</p>
           )}
           {courts.map((c) => (
-            <CourtRow key={c.id} court={c} />
+            <CourtRow key={c.id} court={c} bands={bands.filter((b) => b.court_id === c.id)} />
           ))}
         </div>
       </CardContent>
@@ -670,13 +685,13 @@ function CourtsCard({ courts }: { courts: Court[] }) {
   );
 }
 
-function CourtRow({ court }: { court: Court }) {
+function CourtRow({ court, bands }: { court: Court; bands: Band[] }) {
   const { run, pending } = useAction();
   const [editing, setEditing] = useState(false);
 
   if (editing) {
     return (
-      <CourtEditForm court={court} onDone={() => setEditing(false)} />
+      <CourtEditForm court={court} bands={bands} onDone={() => setEditing(false)} />
     );
   }
 
@@ -721,25 +736,40 @@ function CourtRow({ court }: { court: Court }) {
           : (court.operating_days ?? [])
               .map((d) => DAYS.find((x) => x.v === d)?.l)
               .join("")}
-        {court.price_per_slot != null
+        {bands.length === 0 && court.price_per_slot != null
           ? ` · $${court.price_per_slot}/turno de ${court.slot_minutes}min`
           : ""}
       </p>
+      {bands.length > 0 && (
+        <p className="mt-1 text-xs text-accent">
+          {bands
+            .slice()
+            .sort((a, b) => a.start_minutes - b.start_minutes)
+            .map(
+              (b) =>
+                `${hhmmLabel(b.start_minutes)}–${hhmmLabel(b.end_minutes)} · turnos de ${b.slot_minutes}′${b.price != null ? ` · $${b.price}` : ""}`
+            )
+            .join("  |  ")}
+        </p>
+      )}
     </div>
   );
 }
 
 function CourtEditForm({
   court,
+  bands,
   onDone,
 }: {
   court: Court;
+  bands: Band[];
   onDone: () => void;
 }) {
   const { run, pending, error } = useAction();
   const days = new Set(court.operating_days ?? [1, 2, 3, 4, 5, 6, 7]);
 
   return (
+    <div className="space-y-3">
     <form
       action={(fd) =>
         run(async () => {
@@ -809,7 +839,9 @@ function CourtEditForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-ink">Duración del turno</span>
+          <span className="text-xs font-medium text-ink">
+            Duración del turno {bands.length > 0 && <span className="text-muted">(la definen las franjas)</span>}
+          </span>
           <select
             name="slot_minutes"
             defaultValue={String(court.slot_minutes ?? 90)}
@@ -876,5 +908,82 @@ function CourtEditForm({
         </Button>
       </div>
     </form>
+    <BandsEditor court={court} bands={bands} />
+    </div>
+  );
+}
+
+function BandsEditor({ court, bands }: { court: Court; bands: Band[] }) {
+  const { run, pending, error } = useAction();
+  const sorted = bands.slice().sort((a, b) => a.start_minutes - b.start_minutes);
+
+  return (
+    <div className="space-y-3 rounded-xl border border-accent/40 bg-surface p-4">
+      <div>
+        <h4 className="text-sm font-bold text-ink">Franjas de turno</h4>
+        <p className="text-xs text-muted">
+          Definí franjas horarias con distinta duración. Ej: <b>08–16 turnos de 1h</b> (clases y
+          entrenamientos) y <b>16–23 turnos de 1.5h</b> (alquiler). Si no cargás ninguna, se usa la
+          duración de arriba para todo el día.
+        </p>
+      </div>
+
+      <div className="space-y-1.5">
+        {sorted.length === 0 && (
+          <p className="text-xs text-muted">Sin franjas — turno único de {court.slot_minutes}′.</p>
+        )}
+        {sorted.map((b) => (
+          <div
+            key={b.id}
+            className="flex items-center justify-between gap-2 rounded-lg border border-border-soft bg-canvas px-3 py-2 text-sm"
+          >
+            <span className="text-ink">
+              <span className="font-mono">{hhmmLabel(b.start_minutes)}–{hhmmLabel(b.end_minutes)}</span>
+              {" · "}turnos de <b>{b.slot_minutes}′</b>
+              {b.price != null ? ` · $${b.price}` : ""}
+            </span>
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => removeCourtBand(b.id))}
+              className="text-xs font-semibold text-red-500"
+            >
+              Quitar
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <form
+        action={(fd) => run(() => createCourtBand(fd))}
+        className="flex flex-wrap items-end gap-2"
+      >
+        <input type="hidden" name="court_id" value={court.id} />
+        <label className="space-y-1">
+          <span className="block text-xs text-muted">De (h)</span>
+          <input name="from_hour" type="number" min={0} max={23} defaultValue={8} className={`${inputCls} w-16`} />
+        </label>
+        <label className="space-y-1">
+          <span className="block text-xs text-muted">a (h)</span>
+          <input name="to_hour" type="number" min={1} max={24} defaultValue={16} className={`${inputCls} w-16`} />
+        </label>
+        <label className="space-y-1">
+          <span className="block text-xs text-muted">Turno</span>
+          <select name="slot_minutes" defaultValue="60" className={inputCls}>
+            <option value="60">60′ (1 h)</option>
+            <option value="90">90′ (1.5 h)</option>
+            <option value="120">120′ (2 h)</option>
+          </select>
+        </label>
+        <label className="space-y-1">
+          <span className="block text-xs text-muted">Precio</span>
+          <input name="price" type="number" min={0} step="any" placeholder="Opc." className={`${inputCls} w-24`} />
+        </label>
+        <Button size="sm" variant="outline" type="submit" disabled={pending}>
+          + Franja
+        </Button>
+      </form>
+      {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+    </div>
   );
 }

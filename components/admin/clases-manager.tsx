@@ -23,9 +23,33 @@ import {
   confirmGroup,
   dropGroup,
 } from "@/app/admin/clases/actions";
+import { courtSlots, type CourtBand } from "@/modules/reservations/slots";
 
 type Result = { ok: true } | { ok: false; error: string };
-type Court = { id: string; name: string; number: number | null };
+type Court = {
+  id: string;
+  name: string;
+  number: number | null;
+  open_hour: number;
+  close_hour: number;
+  slot_minutes: number;
+  price_per_slot: number | null;
+  bands?: CourtBand[] | null;
+};
+
+/** Opciones de horario de inicio: si hay cancha, sus turnos reales (respeta
+ *  franjas); si es "Sin cancha", cada 1 h (las clases duran 1 hora). */
+function startOptions(court: Court | undefined): { min: number; label: string }[] {
+  if (court) {
+    return courtSlots(court).map((s) => ({
+      min: s.start_minutes,
+      label: `${hhmm(s.start_minutes)}–${hhmm(s.start_minutes + s.slot_minutes)}`,
+    }));
+  }
+  const out: { min: number; label: string }[] = [];
+  for (let m = 8 * 60; m <= 22 * 60; m += 60) out.push({ min: m, label: hhmm(m) });
+  return out;
+}
 
 const DOW = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
@@ -44,10 +68,6 @@ function useRun() {
     });
   return { run, pending, msg };
 }
-
-// Opciones de horario cada 30' de 8:00 a 23:00.
-const SLOTS: number[] = [];
-for (let m = 8 * 60; m <= 23 * 60; m += 30) SLOTS.push(m);
 
 const DOW_SHORT = ["", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
@@ -188,6 +208,9 @@ function NewCoach() {
 function ScheduleLesson({ coaches, courts }: { coaches: Coach[]; courts: Court[] }) {
   const { run, pending, msg } = useRun();
   const active = coaches.filter((c) => c.active);
+  const [courtId, setCourtId] = useState("");
+  const court = courts.find((c) => c.id === courtId);
+  const opts = startOptions(court);
   if (active.length === 0)
     return <p className="text-sm text-muted">Agregá un profe activo para poder agendar clases.</p>;
   return (
@@ -200,7 +223,12 @@ function ScheduleLesson({ coaches, courts }: { coaches: Coach[]; courts: Court[]
       </label>
       <label className="space-y-1">
         <span className={lab}>Cancha</span>
-        <select name="court_id" className={`${inputCls} w-full`}>
+        <select
+          name="court_id"
+          className={`${inputCls} w-full`}
+          value={courtId}
+          onChange={(e) => setCourtId(e.target.value)}
+        >
           <option value="">Sin cancha</option>
           {courts.map((c) => (
             <option key={c.id} value={c.id}>{c.number ? `#${c.number} ` : ""}{c.name}</option>
@@ -214,7 +242,7 @@ function ScheduleLesson({ coaches, courts }: { coaches: Coach[]; courts: Court[]
       <label className="space-y-1">
         <span className={lab}>Horario</span>
         <select name="start_minutes" className={`${inputCls} w-full`} required>
-          {SLOTS.map((m) => (<option key={m} value={m}>{hhmm(m)}</option>))}
+          {opts.map((o) => (<option key={o.min} value={o.min}>{o.label}</option>))}
         </select>
       </label>
       <label className="space-y-1">
@@ -261,6 +289,9 @@ function LessonRow({ lesson }: { lesson: LessonWithNames }) {
 function NewGroup({ coaches, courts }: { coaches: Coach[]; courts: Court[] }) {
   const { run, pending, msg } = useRun();
   const active = coaches.filter((c) => c.active);
+  const [courtId, setCourtId] = useState("");
+  const court = courts.find((c) => c.id === courtId);
+  const opts = startOptions(court);
   if (active.length === 0)
     return <p className="text-sm text-muted">Agregá un profe activo para crear grupos.</p>;
   return (
@@ -273,7 +304,12 @@ function NewGroup({ coaches, courts }: { coaches: Coach[]; courts: Court[] }) {
       </label>
       <label className="space-y-1">
         <span className={lab}>Cancha</span>
-        <select name="court_id" className={`${inputCls} w-full`}>
+        <select
+          name="court_id"
+          className={`${inputCls} w-full`}
+          value={courtId}
+          onChange={(e) => setCourtId(e.target.value)}
+        >
           <option value="">Sin cancha</option>
           {courts.map((c) => (<option key={c.id} value={c.id}>{c.number ? `#${c.number} ` : ""}{c.name}</option>))}
         </select>
@@ -285,7 +321,7 @@ function NewGroup({ coaches, courts }: { coaches: Coach[]; courts: Court[] }) {
       <label className="space-y-1">
         <span className={lab}>Horario</span>
         <select name="start_minutes" className={`${inputCls} w-full`} required>
-          {SLOTS.map((m) => (<option key={m} value={m}>{hhmm(m)}</option>))}
+          {opts.map((o) => (<option key={o.min} value={o.min}>{o.label}</option>))}
         </select>
       </label>
       <label className="space-y-1">
@@ -316,7 +352,7 @@ function GroupCard({ group }: { group: GroupSessionView }) {
   const { run, pending } = useRun();
   const parts = (group.participants ?? []).filter((p) => p.status !== "cancelled");
   const full = parts.length >= group.capacity;
-  const total = group.num_slots * 90;
+  const total = group.num_slots * (group.slot_minutes || 90);
   const end = group.start_minutes + total;
   return (
     <Card>

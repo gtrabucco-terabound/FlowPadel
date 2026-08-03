@@ -43,7 +43,16 @@ export default async function ClasesPage() {
         availability={availability}
         lessons={lessons}
         groups={groups}
-        courts={courts.map((c) => ({ id: c.id, name: c.name, number: c.number }))}
+        courts={courts.map((c) => ({
+          id: c.id,
+          name: c.name,
+          number: c.number,
+          open_hour: c.open_hour,
+          close_hour: c.close_hour,
+          slot_minutes: c.slot_minutes,
+          price_per_slot: c.price_per_slot,
+          bands: c.bands,
+        }))}
       />
     </div>
   );

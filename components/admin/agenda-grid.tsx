@@ -9,6 +9,7 @@ import {
   createBookingWithPayment,
   generateBookingPaymentLink,
 } from "@/app/admin/agenda/actions";
+import { courtSlots, type CourtBand } from "@/modules/reservations/slots";
 
 export interface AgendaCourt {
   id: string;
@@ -20,6 +21,7 @@ export interface AgendaCourt {
   slot_minutes: number;
   operating_days: number[];
   price_per_slot: number | null;
+  bands?: CourtBand[] | null;
 }
 export interface AgendaBooking {
   id: string;
@@ -67,13 +69,8 @@ function prettyDate(dateISO: string): string {
   });
 }
 
-function slotsFor(court: AgendaCourt): number[] {
-  const out: number[] = [];
-  const start = court.open_hour * 60;
-  const end = court.close_hour * 60;
-  const step = court.slot_minutes || 90;
-  for (let m = start; m + step <= end; m += step) out.push(m);
-  return out;
+function slotsFor(court: AgendaCourt) {
+  return courtSlots(court);
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -113,16 +110,23 @@ function occupancyOf(
   bookings: AgendaBooking[]
 ): { total: number; taken: number; free: number } {
   const dow = dowOf(dayISO);
-  const total = courts.reduce(
-    (s, c) => s + ((c.operating_days ?? []).includes(dow) ? slotsFor(c).length : 0),
-    0
-  );
-  // Cada reserva ocupa tantos turnos como abarque (grupos de varios turnos seguidos).
-  const courtSlot = (courtId: string) =>
-    courts.find((c) => c.id === courtId)?.slot_minutes || 90;
+  let total = 0;
+  const slotsByCourt = new Map<string, ReturnType<typeof slotsFor>>();
+  for (const c of courts) {
+    const slots = (c.operating_days ?? []).includes(dow) ? slotsFor(c) : [];
+    slotsByCourt.set(c.id, slots);
+    total += slots.length;
+  }
+  // Cada reserva ocupa los turnos de la grilla que solapa (respeta las franjas).
   const taken = bookings
     .filter((b) => b.booking_date === dayISO)
-    .reduce((s, b) => s + Math.max(1, Math.round((b.slot_minutes || 90) / courtSlot(b.court_id))), 0);
+    .reduce((s, b) => {
+      const end = b.start_minutes + (b.slot_minutes || 90);
+      const covered = (slotsByCourt.get(b.court_id) ?? []).filter(
+        (sl) => sl.start_minutes < end && b.start_minutes < sl.start_minutes + sl.slot_minutes
+      ).length;
+      return s + covered;
+    }, 0);
   return { total, taken, free: Math.max(0, total - taken) };
 }
 
@@ -454,7 +458,8 @@ export function AgendaGrid({
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  {slots.map((min) => {
+                  {slots.map((slot) => {
+                    const min = slot.start_minutes;
                     const b = bookingAt(court.id, min);
                     const key = `${court.id}:${min}`;
                     // Turno cubierto por una reserva de varios turnos seguidos.
@@ -554,8 +559,8 @@ export function AgendaGrid({
                           ) : (
                             b.status === "reserved" &&
                             b.kind !== "fixed" &&
-                            court.price_per_slot != null &&
-                            court.price_per_slot > 0 && (
+                            slot.price != null &&
+                            slot.price > 0 && (
                               <button
                                 type="button"
                                 disabled={pending}
@@ -581,13 +586,16 @@ export function AgendaGrid({
                           <input type="hidden" name="court_id" value={court.id} />
                           <input type="hidden" name="booking_date" value={date} />
                           <input type="hidden" name="start_minutes" value={min} />
-                          <input type="hidden" name="slot_minutes" value={court.slot_minutes} />
+                          <input type="hidden" name="slot_minutes" value={slot.slot_minutes} />
                           <input
                             type="hidden"
                             name="price"
-                            value={court.price_per_slot ?? ""}
+                            value={slot.price ?? ""}
                           />
-                          <p className="font-mono text-xs text-muted">{hhmm(min)}</p>
+                          <p className="font-mono text-xs text-muted">
+                            {hhmm(min)}–{hhmm(min + slot.slot_minutes)}
+                            {slot.price != null ? ` · $${slot.price}` : ""}
+                          </p>
                           <input
                             name="customer_name"
                             placeholder="Nombre de quien reserva"
@@ -604,8 +612,8 @@ export function AgendaGrid({
                             <Button type="submit" size="sm" name="status" value="reserved" disabled={pending}>
                               Reservar
                             </Button>
-                            {court.price_per_slot != null &&
-                              court.price_per_slot > 0 && (
+                            {slot.price != null &&
+                              slot.price > 0 && (
                                 <Button
                                   type="button"
                                   size="sm"
@@ -640,8 +648,12 @@ export function AgendaGrid({
                         onClick={() => setEditing(key)}
                         className="flex w-full items-center justify-between rounded-lg border border-dashed border-border-soft px-3 py-2 text-sm text-muted transition-colors hover:border-accent hover:text-ink"
                       >
-                        <span className="font-mono text-xs">{hhmm(min)}</span>
-                        <span className="text-xs">Libre · reservar</span>
+                        <span className="font-mono text-xs">
+                          {hhmm(min)}–{hhmm(min + slot.slot_minutes)}
+                        </span>
+                        <span className="text-xs">
+                          Libre{slot.price != null ? ` · $${slot.price}` : ""} · reservar
+                        </span>
                       </button>
                     );
                   })}
