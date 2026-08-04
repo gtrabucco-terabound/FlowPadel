@@ -36,6 +36,7 @@ import {
   getMatchForResult,
   updateMatchResult,
   recomputeStandingsRpc,
+  recomputeApaPointsRpc,
   getGroupStageCompletion,
   matchExistsInEvent,
   submitLeagueMatchResult,
@@ -425,6 +426,8 @@ export async function recordMatchResult(
 async function recomputeStandings(eventId: string): Promise<void> {
   const supabase = await createClient();
   await recomputeStandingsRpc(supabase, eventId);
+  // Puntos APA (ranking individual por ronda alcanzada). Idempotente.
+  await recomputeApaPointsRpc(supabase, eventId);
 }
 
 /* ------------------------------------------------------------------ */

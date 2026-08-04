@@ -403,6 +403,14 @@ export async function recomputeStandingsRpc(
   await supabase.rpc("recompute_standings", { p_event_id: eventId });
 }
 
+/** Recalcula los puntos APA del evento (ranking individual por ronda alcanzada). */
+export async function recomputeApaPointsRpc(
+  supabase: DB,
+  eventId: string
+): Promise<void> {
+  await supabase.rpc("recompute_apa_points", { p_event_id: eventId });
+}
+
 /** ¿Están completos todos los partidos de zona? y ¿ya existe bracket? */
 export async function getGroupStageCompletion(
   supabase: DB,
