@@ -9,6 +9,8 @@ import {
   slugExists,
   createDraftEvent,
   acceptInterclub,
+  getEventStatusForClub,
+  deleteEventRow,
 } from "@/modules/tournaments/repository";
 
 const createEventSchema = z.object({
@@ -108,6 +110,22 @@ export async function acceptInterclubChallenge(
   const res = await acceptInterclub(supabase, eventId);
   if (!res.ok)
     return { ok: false, error: res.error || "No pudimos aceptar el desafío." };
+  revalidatePath("/admin/events");
+  return { ok: true };
+}
+
+/** Borra un evento — solo si está en borrador (por seguridad). */
+export async function deleteEvent(
+  eventId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const status = await getEventStatusForClub(supabase, eventId, clubId);
+  if (status == null) return { ok: false, error: "Evento no encontrado." };
+  if (status !== "draft")
+    return { ok: false, error: "Solo se pueden borrar eventos en borrador." };
+  const { error } = await deleteEventRow(supabase, eventId, clubId);
+  if (error) return { ok: false, error: "No pudimos borrar el evento." };
   revalidatePath("/admin/events");
   return { ok: true };
 }
