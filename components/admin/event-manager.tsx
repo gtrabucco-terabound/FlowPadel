@@ -69,6 +69,13 @@ function isLeagueFormat(
   return lf != null && LEAGUE_FORMATS.includes(lf);
 }
 
+/** Cancha abierta (juego libre: inscripción + cobro, sin fixture ni ranking). */
+function isOpenCourtFormat(
+  lf: Enums<"tournament_format"> | null
+): boolean {
+  return lf === "cancha_abierta";
+}
+
 /** Americano (parejas rotativas, ranking individual). */
 function isAmericanoFormat(
   lf: Enums<"tournament_format"> | null
@@ -91,12 +98,14 @@ export interface EventManagerData {
   courts: CourtName[];
   courtBlocks: CourtBlock[];
   rivalClubs: { id: string; name: string }[];
+  coaches: { id: string; name: string }[];
   mpCollected: number;
 }
 
 export function EventManager({ data }: { data: EventManagerData }) {
   const league = isLeagueFormat(data.event.long_format);
   const americano = isAmericanoFormat(data.event.long_format);
+  const openCourt = isOpenCourtFormat(data.event.long_format);
   // Calendario + Ranking individual están disponibles para liga y americano.
   const hasFixture = league || americano;
   // En Borrador arranca por Ajustes (configurar); ya publicado, por Inscripciones.
@@ -107,6 +116,15 @@ export function EventManager({ data }: { data: EventManagerData }) {
     (id && data.teams.find((t) => t.id === id)?.name) || "Equipo";
 
   const tabs = useMemo(() => {
+    // Cancha abierta: juego libre → solo inscripción, cobro y cuánto genera.
+    if (openCourt) {
+      return [
+        { value: "settings", label: "Ajustes" },
+        { value: "planner", label: "Economía" },
+        { value: "registrations", label: "Inscripciones" },
+        { value: "finances", label: "Finanzas" },
+      ];
+    }
     // Orden por ciclo de vida: configurar → cobrar → inscribir → armar → jugar → cerrar.
     const base = [
       { value: "settings", label: "Ajustes" },
@@ -124,7 +142,7 @@ export function EventManager({ data }: { data: EventManagerData }) {
       { value: "finances", label: "Finanzas" },
     ];
     return base;
-  }, [americano]);
+  }, [americano, openCourt]);
 
   return (
     <div className="space-y-6">
@@ -1090,11 +1108,9 @@ type LongFormat = Enums<"tournament_format">;
 type TournamentType = LongFormat | "un_dia";
 
 const TYPE_OPTIONS: { value: TournamentType; label: string }[] = [
-  { value: "un_dia", label: "Un día (grupos + eliminación)" },
-  { value: "liga_ida", label: "Liga ida" },
-  { value: "liga_ida_vuelta", label: "Liga ida y vuelta" },
-  { value: "liga_playoff", label: "Liga + playoff" },
-  { value: "americano", label: "Americano (estimado)" },
+  { value: "un_dia", label: "Torneo — un día (grupos + eliminación)" },
+  { value: "liga_playoff", label: "Liga (todos contra todos + playoff)" },
+  { value: "cancha_abierta", label: "Cancha abierta (juego libre, sin fixture)" },
 ];
 
 /** Convierte el long_format del evento (o null) al valor de la UI. */
@@ -1117,7 +1133,7 @@ function isLeague(t: TournamentType): boolean {
  * "por evento" (un día / americano: se paga por cancha para esa jornada).
  */
 function usesMonthly(t: TournamentType): boolean {
-  return t !== "un_dia" && t !== "americano";
+  return t !== "un_dia" && t !== "americano" && t !== "cancha_abierta";
 }
 
 /** Partidos totales según tipo de torneo y cantidad de equipos n. */
@@ -1141,6 +1157,9 @@ function totalMatches(type: TournamentType, n: number): number {
     case "americano":
       // Fase 1: usamos liga_ida como base (estimado).
       return (n * (n - 1)) / 2;
+    case "cancha_abierta":
+      // Juego libre: no hay fixture de partidos.
+      return 0;
     default:
       return 0;
   }
@@ -2229,6 +2248,7 @@ function SettingsTab({ data }: { data: EventManagerData }) {
     Enums<"category_system">
   >(e.category_system ?? "fixed");
   const [interclub, setInterclub] = useState<boolean>(e.is_interclub ?? false);
+  const openCourt = isOpenCourtFormat(e.long_format);
   const [flyerUrl, setFlyerUrl] = useState<string | null>(e.flyer_image_url);
   const [flyerUploading, setFlyerUploading] = useState(false);
   const flyerRef = useRef<HTMLInputElement>(null);
@@ -2455,6 +2475,27 @@ function SettingsTab({ data }: { data: EventManagerData }) {
                 </p>
               )}
             </div>
+
+            {openCourt && (
+              <Field label="Responsable a cargo (profe)">
+                <select
+                  name="managed_by_coach_id"
+                  defaultValue={e.managed_by_coach_id ?? ""}
+                  className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                >
+                  <option value="">Sin asignar</option>
+                  {data.coaches.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 block text-xs text-muted">
+                  Quien coordina la cancha abierta (arma y rota los partidos). Se
+                  cargan en Configuración → Profesores.
+                </span>
+              </Field>
+            )}
 
             <label className="flex items-center gap-2 text-sm font-semibold text-ink">
               <input
