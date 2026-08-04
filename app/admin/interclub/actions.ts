@@ -65,9 +65,10 @@ export async function saveInterclubCategories(
   ligaId: string,
   formData: FormData
 ): Promise<Result> {
-  const raw = String(formData.get("categories") ?? "");
-  const cats = [...new Set(raw.split(",").map((c) => c.trim()).filter(Boolean))];
-  if (cats.length === 0) return fail("Ingresá al menos una categoría.");
+  const cats = [
+    ...new Set(formData.getAll("category").map((c) => String(c).trim()).filter(Boolean)),
+  ];
+  if (cats.length === 0) return fail("Elegí al menos una categoría.");
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
   const { error } = await setLigaCategories(supabase, ligaId, clubId, cats);
@@ -83,8 +84,10 @@ export async function saveInterclubPair(
   category: string,
   formData: FormData
 ): Promise<Result> {
-  const name = String(formData.get("pair_name") ?? "").trim();
-  if (name.length < 2) return fail("Ingresá la pareja.");
+  const j1 = String(formData.get("jugador_1") ?? "").trim();
+  const j2 = String(formData.get("jugador_2") ?? "").trim();
+  const name = [j1, j2].filter(Boolean).join(" / ");
+  if (name.length < 2) return fail("Cargá la pareja (al menos un jugador).");
   await requireClubAccess();
   const supabase = await createClient();
   const { error } = await upsertPair(supabase, teamId, category, name);

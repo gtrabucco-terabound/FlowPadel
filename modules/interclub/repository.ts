@@ -244,3 +244,19 @@ export async function setSeriesAggregate(
     .eq("id", seriesId);
   return { error: Boolean(error) };
 }
+
+/** Jugadores del club (para elegir parejas). Nombre + categoría. */
+export async function listClubPlayerNames(
+  supabase: DB,
+  clubId: string
+): Promise<{ full_name: string; category: string | null }[]> {
+  const { data } = await supabase
+    .from("players")
+    .select("full_name, category")
+    .eq("home_club_id", clubId)
+    .order("full_name", { ascending: true });
+  return (data ?? []).map((p) => ({
+    full_name: p.full_name,
+    category: p.category == null ? null : String(p.category),
+  }));
+}

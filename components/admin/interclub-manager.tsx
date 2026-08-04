@@ -81,6 +81,8 @@ function standingsFrom(teams: InterclubTeam[], series: SeriesView[]): Standing[]
 }
 
 /* ---- Manager de una liga ---- */
+const STD_CATS = ["1ra", "2da", "3ra", "4ta", "5ta", "6ta", "7ma", "8va", "9na"];
+
 export function LigaManager({
   ligaId,
   categories,
@@ -88,6 +90,7 @@ export function LigaManager({
   pairs,
   series,
   lines,
+  players,
 }: {
   ligaId: string;
   categories: string[];
@@ -95,6 +98,7 @@ export function LigaManager({
   pairs: InterclubPair[];
   series: SeriesView[];
   lines: SeriesLine[];
+  players: { full_name: string; category: string | null }[];
 }) {
   const router = useRouter();
   const { run, pending, msg } = useRun();
@@ -105,6 +109,14 @@ export function LigaManager({
 
   return (
     <div className="space-y-8">
+      {/* Sugerencias de jugadores del club por categoría (para elegir sin escribir). */}
+      {categories.map((c) => (
+        <datalist key={c} id={`dl-${c}`}>
+          {players.map((p) => (
+            <option key={p.full_name} value={p.full_name} />
+          ))}
+        </datalist>
+      ))}
       {/* Categorías en juego */}
       <section>
         <h2 className="mb-2 text-lg font-bold text-ink">Categorías en juego</h2>
@@ -116,10 +128,20 @@ export function LigaManager({
           </div>
         ) : (
           <Card>
-            <CardContent className="space-y-2 py-4">
-              <p className="text-xs text-muted">Separá con comas. Ej: 5ta, 6ta, 7ta, 8va</p>
-              <form action={(fd) => run(() => saveInterclubCategories(ligaId, fd))} className="flex flex-wrap items-end gap-2">
-                <input name="categories" defaultValue={categories.join(", ")} placeholder="5ta, 6ta, 7ta, 8va" className={`${inputCls} w-96`} />
+            <CardContent className="space-y-3 py-4">
+              <p className="text-xs text-muted">Elegí las categorías que se juegan.</p>
+              <form action={(fd) => run(() => saveInterclubCategories(ligaId, fd))} className="space-y-3">
+                <div className="flex flex-wrap gap-1.5">
+                  {STD_CATS.map((c) => (
+                    <label
+                      key={c}
+                      className="cursor-pointer rounded-full border border-border-soft bg-canvas px-3 py-1 text-sm font-medium text-muted has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-accent-ink"
+                    >
+                      <input type="checkbox" name="category" value={c} defaultChecked={categories.includes(c)} className="sr-only" />
+                      {c}
+                    </label>
+                  ))}
+                </div>
                 <Button size="sm" variant="outline" type="submit" disabled={pending}>Guardar categorías</Button>
               </form>
             </CardContent>
@@ -145,17 +167,22 @@ export function LigaManager({
                   <p className="text-xs text-muted">Definí las categorías arriba para cargar las parejas.</p>
                 ) : (
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {categories.map((c) => (
-                      <form key={c} action={(fd) => run(() => saveInterclubPair(ligaId, t.id, c, fd))}
-                        className="flex items-center gap-2">
-                        <span className="w-10 shrink-0 text-xs font-semibold text-muted">{c}</span>
-                        <input name="pair_name" defaultValue={pairName(t.id, c)} placeholder="Pareja"
-                          className={`${inputCls} flex-1`} disabled={hasFixture} />
-                        {!hasFixture && (
-                          <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
-                        )}
-                      </form>
-                    ))}
+                    {categories.map((c) => {
+                      const [j1 = "", j2 = ""] = pairName(t.id, c).split(" / ");
+                      return (
+                        <form key={c} action={(fd) => run(() => saveInterclubPair(ligaId, t.id, c, fd))}
+                          className="flex items-center gap-1.5">
+                          <span className="w-10 shrink-0 text-xs font-semibold text-muted">{c}</span>
+                          <input name="jugador_1" list={`dl-${c}`} defaultValue={j1} placeholder="Jugador 1"
+                            className={`${inputCls} min-w-0 flex-1`} disabled={hasFixture} />
+                          <input name="jugador_2" list={`dl-${c}`} defaultValue={j2} placeholder="Jugador 2"
+                            className={`${inputCls} min-w-0 flex-1`} disabled={hasFixture} />
+                          {!hasFixture && (
+                            <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
+                          )}
+                        </form>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
