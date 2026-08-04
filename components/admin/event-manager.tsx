@@ -2522,7 +2522,7 @@ function SettingsTab({ data }: { data: EventManagerData }) {
                 : "—"}
             </p>
           </div>
-          <StartButton eventId={e.id} disabled={e.status === "in_progress"} />
+          <StartButton eventId={e.id} started={e.status === "in_progress"} />
         </CardContent>
       </Card>
     </div>
@@ -2531,21 +2531,31 @@ function SettingsTab({ data }: { data: EventManagerData }) {
 
 function StartButton({
   eventId,
-  disabled,
+  started,
 }: {
   eventId: string;
-  disabled: boolean;
+  started: boolean;
 }) {
   const { run, pending, error } = useAction();
   return (
     <div className="text-right">
       <Button
         size="sm"
-        disabled={pending || disabled}
+        variant={started ? "outline" : undefined}
+        disabled={pending}
         onClick={() => run(() => startTournament(eventId))}
       >
-        {disabled ? "En progreso" : "Iniciar torneo"}
+        {pending
+          ? "Generando…"
+          : started
+            ? "Generar partidos faltantes"
+            : "Iniciar torneo"}
       </Button>
+      {started && (
+        <p className="mt-1 text-xs text-muted">
+          Suma los cruces que falten (no duplica los ya creados).
+        </p>
+      )}
       {error && (
         <p className="mt-1 text-xs font-semibold text-red-600">{error}</p>
       )}

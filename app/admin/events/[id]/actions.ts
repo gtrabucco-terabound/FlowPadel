@@ -826,6 +826,13 @@ export async function startTournament(eventId: string): Promise<ActionResult> {
     }
   }
 
+  // Evita "iniciar" con zonas vacías: dejaría el torneo en progreso sin partidos
+  // y sin forma de regenerarlos. Si ya había partidos, es una re-generación válida.
+  if (existing.length === 0 && inserts.length === 0)
+    return fail(
+      "Las zonas todavía no tienen equipos asignados. Asigná los equipos a cada zona y volvé a intentar."
+    );
+
   const { error: insErr } = await insertMatches(supabase, inserts);
   if (insErr) return fail("No pudimos generar los partidos.");
 
