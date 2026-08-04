@@ -45,9 +45,21 @@ export type Database = {
         Relationships: []
       }
       interclub_ligas: {
-        Row: { id: string; club_id: string; name: string; status: string; created_at: string }
-        Insert: { id?: string; club_id: string; name: string; status?: string; created_at?: string }
-        Update: { id?: string; club_id?: string; name?: string; status?: string; created_at?: string }
+        Row: { id: string; club_id: string; name: string; status: string; categories: string[]; created_at: string }
+        Insert: { id?: string; club_id: string; name: string; status?: string; categories?: string[]; created_at?: string }
+        Update: { id?: string; club_id?: string; name?: string; status?: string; categories?: string[]; created_at?: string }
+        Relationships: []
+      }
+      interclub_pairs: {
+        Row: { id: string; team_id: string; category: string; pair_name: string; created_at: string }
+        Insert: { id?: string; team_id: string; category: string; pair_name: string; created_at?: string }
+        Update: { id?: string; team_id?: string; category?: string; pair_name?: string; created_at?: string }
+        Relationships: []
+      }
+      interclub_series_lines: {
+        Row: { id: string; series_id: string; category: string; home_score: number | null; away_score: number | null; created_at: string }
+        Insert: { id?: string; series_id: string; category: string; home_score?: number | null; away_score?: number | null; created_at?: string }
+        Update: { id?: string; series_id?: string; category?: string; home_score?: number | null; away_score?: number | null; created_at?: string }
         Relationships: []
       }
       interclub_teams: {

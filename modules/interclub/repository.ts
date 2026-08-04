@@ -143,3 +143,104 @@ export async function setSeriesResult(
     .eq("id", id);
   return { error: Boolean(error) };
 }
+
+/* ---- B2: categorías, parejas por categoría, líneas de serie ---- */
+
+export type InterclubPair = Tables<"interclub_pairs">;
+export type SeriesLine = Tables<"interclub_series_lines">;
+
+export async function setLigaCategories(
+  supabase: DB,
+  ligaId: string,
+  clubId: string,
+  categories: string[]
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("interclub_ligas")
+    .update({ categories })
+    .eq("id", ligaId)
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
+}
+
+/** Parejas por categoría de todos los equipos de la liga. */
+export async function listPairs(supabase: DB, ligaId: string): Promise<InterclubPair[]> {
+  const teams = await listTeams(supabase, ligaId);
+  const ids = teams.map((t) => t.id);
+  if (ids.length === 0) return [];
+  const { data } = await supabase
+    .from("interclub_pairs")
+    .select("*")
+    .in("team_id", ids);
+  return (data ?? []) as InterclubPair[];
+}
+
+export async function upsertPair(
+  supabase: DB,
+  teamId: string,
+  category: string,
+  pairName: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("interclub_pairs")
+    .upsert({ team_id: teamId, category, pair_name: pairName }, { onConflict: "team_id,category" });
+  return { error: Boolean(error) };
+}
+
+/** Líneas (resultados por categoría) de todas las series de la liga. */
+export async function listAllLines(supabase: DB, ligaId: string): Promise<SeriesLine[]> {
+  const { data: series } = await supabase
+    .from("interclub_series")
+    .select("id")
+    .eq("liga_id", ligaId);
+  const ids = (series ?? []).map((s) => s.id);
+  if (ids.length === 0) return [];
+  const { data } = await supabase
+    .from("interclub_series_lines")
+    .select("*")
+    .in("series_id", ids);
+  return (data ?? []) as SeriesLine[];
+}
+
+export async function upsertSeriesLine(
+  supabase: DB,
+  seriesId: string,
+  category: string,
+  home: number,
+  away: number
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("interclub_series_lines")
+    .upsert(
+      { series_id: seriesId, category, home_score: home, away_score: away },
+      { onConflict: "series_id,category" }
+    );
+  return { error: Boolean(error) };
+}
+
+export async function listSeriesLines(supabase: DB, seriesId: string): Promise<SeriesLine[]> {
+  const { data } = await supabase
+    .from("interclub_series_lines")
+    .select("*")
+    .eq("series_id", seriesId);
+  return (data ?? []) as SeriesLine[];
+}
+
+/** Actualiza el marcador agregado de la serie (categorías ganadas) + estado. */
+export async function setSeriesAggregate(
+  supabase: DB,
+  seriesId: string,
+  homeCats: number,
+  awayCats: number,
+  completed: boolean
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("interclub_series")
+    .update({
+      home_cats_won: homeCats,
+      away_cats_won: awayCats,
+      status: completed ? "completed" : "scheduled",
+    })
+    .eq("id", seriesId);
+  return { error: Boolean(error) };
+}
