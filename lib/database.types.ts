@@ -2615,6 +2615,7 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: undefined
       }
+      recompute_apa_points: { Args: { p_event_id: string }; Returns: undefined }
       recompute_standings: { Args: { p_event_id: string }; Returns: undefined }
       registration_phone_taken: {
         Args: { p_event_id: string; p_phone: string }
