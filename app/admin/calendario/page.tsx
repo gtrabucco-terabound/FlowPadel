@@ -12,6 +12,10 @@ import {
   listUpcomingLessons,
   listGroupSessions,
 } from "@/modules/coaches/repository";
+import {
+  listClubBookings,
+  listActiveCourtsForClub,
+} from "@/modules/reservations/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +67,7 @@ function overlap(a: Ev, b: Ev): boolean {
 
 type Item = {
   key: string;
-  kind: "tournament" | "lesson" | "group";
+  kind: "tournament" | "lesson" | "group" | "booking";
   date: string;
   time: number | null;
   title: string;
@@ -78,6 +82,7 @@ const KIND_META: Record<Item["kind"], { icon: string; label: string }> = {
   tournament: { icon: "🏆", label: "Torneo" },
   lesson: { icon: "🎾", label: "Clase" },
   group: { icon: "👥", label: "Entrenamiento" },
+  booking: { icon: "📅", label: "Reserva" },
 };
 
 export default async function CalendarioPage({
@@ -93,11 +98,16 @@ export default async function CalendarioPage({
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const [events, lessons, groups] = await Promise.all([
+  const [events, lessons, groups, bookings, courts] = await Promise.all([
     listClubCalendarEvents(supabase, ctx.activeClubId),
     listUpcomingLessons(supabase, ctx.activeClubId, from),
     listGroupSessions(supabase, ctx.activeClubId, from),
+    listClubBookings(supabase, ctx.activeClubId, from, to),
+    listActiveCourtsForClub(supabase, ctx.activeClubId),
   ]);
+  const courtName = new Map(
+    courts.map((c) => [c.id, `${c.number ? `#${c.number} ` : ""}${c.name}`])
+  );
 
   // Choque de fechas: solo entre torneos con fecha (se calcula sobre todos).
   const datedEvents = events.filter((e) => e.start_date);
@@ -156,6 +166,25 @@ export default async function CalendarioPage({
       statusTone: g.status === "confirmed" ? "open" : undefined,
       clash: false,
       endLabel: `${hhmm(g.start_minutes)}–${hhmm(end)}`,
+    });
+  }
+
+  // Reservas de cancha (excluye las de clase/torneo: ya se ven como su propio ítem).
+  for (const b of bookings) {
+    if (b.kind === "class" || b.kind === "tournament") continue;
+    items.push({
+      key: `b-${b.id}`,
+      kind: "booking",
+      date: dayKey(b.booking_date),
+      time: b.start_minutes,
+      title: b.customer_name || (b.status === "blocked" ? "Bloqueado" : "Reserva"),
+      subtitle: [courtName.get(b.court_id), b.kind === "fixed" ? "turno fijo" : null]
+        .filter(Boolean)
+        .join(" · ") || null,
+      statusLabel: b.status === "held" ? "Esperando pago" : b.paid_at ? "Pagada" : null,
+      statusTone: b.paid_at ? "open" : b.status === "held" ? "draft" : undefined,
+      clash: false,
+      endLabel: null,
     });
   }
 
