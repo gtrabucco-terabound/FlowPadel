@@ -15,6 +15,7 @@ import {
 } from "@/lib/format";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
+import { phaseLabel, phaseRank, zoneNumbers, zoneLabel } from "@/lib/tournament-format";
 import {
   approveRegistration,
   rejectRegistration,
@@ -646,6 +647,7 @@ function ZonesTab({
   const visibleZones = filter.selected
     ? data.zones.filter((z) => z.modality === filter.selected)
     : data.zones;
+  const zoneNum = zoneNumbers(data.zones);
 
   return (
     <div className="space-y-4">
@@ -678,7 +680,9 @@ function ZonesTab({
             <Card key={z.id}>
               <CardContent className="py-4">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <h3 className="font-bold text-padel-700">{z.name}</h3>
+                  <h3 className="font-bold text-padel-700">
+                    {zoneLabel(zoneNum.get(z.id) ?? 0)}
+                  </h3>
                   {filter.show && z.modality && (
                     <Badge tone="neutral">{modalityLabel(z.modality)}</Badge>
                   )}
@@ -725,8 +729,22 @@ function MatchesTab({
       )
     : data.matches;
 
+  // Agrupa: partidos de zona por zona (numerada); el cuadro por fase.
+  const zoneNum = zoneNumbers(data.zones);
+  const groups = new Map<string, { label: string; order: number; matches: Match[] }>();
+  for (const m of visible) {
+    const isZone = m.zone_id != null && zoneNum.has(m.zone_id);
+    const key = isZone ? `z:${m.zone_id}` : `p:${m.phase}`;
+    const num = isZone ? zoneNum.get(m.zone_id!)! : 0;
+    const label = isZone ? zoneLabel(num) : phaseLabel(m.phase);
+    const order = isZone ? num : 100 + phaseRank(m.phase);
+    if (!groups.has(key)) groups.set(key, { label, order, matches: [] });
+    groups.get(key)!.matches.push(m);
+  }
+  const ordered = [...groups.values()].sort((a, b) => a.order - b.order);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-5">
       {filter.show && (
         <ModalityFilter
           modalities={filter.modalities}
@@ -734,18 +752,18 @@ function MatchesTab({
           onSelect={filter.setSelected}
         />
       )}
-      {visible.map((m) => (
-        <MatchRow
-          key={m.id}
-          match={m}
-          eventId={data.event.id}
-          teamName={teamName}
-          modality={
-            filter.show && m.zone_id != null
-              ? zoneModality.get(m.zone_id) ?? null
-              : null
-          }
-        />
+      {ordered.map((g) => (
+        <div key={g.label} className="space-y-2">
+          <h3 className="fp-microlabel text-padel-600">{g.label}</h3>
+          {g.matches.map((m) => (
+            <MatchRow
+              key={m.id}
+              match={m}
+              eventId={data.event.id}
+              teamName={teamName}
+            />
+          ))}
+        </div>
       ))}
     </div>
   );
@@ -858,13 +876,6 @@ function BracketTab({
     () => data.matches.filter(isBracketMatch),
     [data.matches]
   );
-  // Partidos del cuadro con ambos equipos definidos y sin resultado cargado.
-  const pendingResults = bracketMatches.filter(
-    (m) =>
-      m.team_a_id != null &&
-      m.team_b_id != null &&
-      m.status !== "completed"
-  );
 
   return (
     <div className="space-y-5">
@@ -891,51 +902,10 @@ function BracketTab({
 
       <BracketView matches={bracketMatches} teamName={teamName} />
 
-      {pendingResults.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="fp-microlabel text-padel-600">Cargar resultados</h3>
-          {pendingResults.map((m) => (
-            <BracketResultRow
-              key={m.id}
-              match={m}
-              eventId={data.event.id}
-              teamName={teamName}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function BracketResultRow({
-  match,
-  eventId,
-  teamName,
-}: {
-  match: Match;
-  eventId: string;
-  teamName: (id: string | null) => string;
-}) {
-  const { run, pending, error } = useAction();
-  return (
-    <div className="rounded-lg border border-border-soft bg-surface px-3 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 text-sm">
-          <span className="text-ink">{teamName(match.team_a_id)}</span>
-          <span className="px-2 text-muted">vs</span>
-          <span className="text-ink">{teamName(match.team_b_id)}</span>
-        </div>
-        <LeagueResultForm
-          eventId={eventId}
-          matchId={match.id}
-          run={run}
-          pending={pending}
-        />
-      </div>
-      {error && (
-        <p className="mt-2 text-xs font-semibold text-red-600">{error}</p>
-      )}
+      <p className="text-xs text-muted">
+        Los resultados se cargan en la pestaña <b>Partidos</b> (sección Cuartos /
+        Semifinal / Final). Acá ves el avance del cuadro.
+      </p>
     </div>
   );
 }
