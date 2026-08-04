@@ -44,6 +44,24 @@ export type Database = {
         }
         Relationships: []
       }
+      interclub_ligas: {
+        Row: { id: string; club_id: string; name: string; status: string; created_at: string }
+        Insert: { id?: string; club_id: string; name: string; status?: string; created_at?: string }
+        Update: { id?: string; club_id?: string; name?: string; status?: string; created_at?: string }
+        Relationships: []
+      }
+      interclub_teams: {
+        Row: { id: string; liga_id: string; name: string; created_at: string }
+        Insert: { id?: string; liga_id: string; name: string; created_at?: string }
+        Update: { id?: string; liga_id?: string; name?: string; created_at?: string }
+        Relationships: []
+      }
+      interclub_series: {
+        Row: { id: string; liga_id: string; home_team_id: string; away_team_id: string; home_cats_won: number | null; away_cats_won: number | null; status: string; created_at: string }
+        Insert: { id?: string; liga_id: string; home_team_id: string; away_team_id: string; home_cats_won?: number | null; away_cats_won?: number | null; status?: string; created_at?: string }
+        Update: { id?: string; liga_id?: string; home_team_id?: string; away_team_id?: string; home_cats_won?: number | null; away_cats_won?: number | null; status?: string; created_at?: string }
+        Relationships: []
+      }
       bot_sessions: {
         Row: {
           data: Json

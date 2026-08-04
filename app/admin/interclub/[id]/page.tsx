@@ -1,0 +1,47 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getAdminContext } from "@/lib/admin/club";
+import { createClient } from "@/lib/supabase/server";
+import {
+  getLiga,
+  listTeams,
+  listSeries,
+} from "@/modules/interclub/repository";
+import { LigaManager } from "@/components/admin/interclub-manager";
+
+export const dynamic = "force-dynamic";
+
+export default async function InterclubLigaPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const ctx = await getAdminContext();
+  const supabase = await createClient();
+
+  const liga = await getLiga(supabase, id, ctx.activeClubId);
+  if (!liga) notFound();
+
+  const [teams, series] = await Promise.all([
+    listTeams(supabase, id),
+    listSeries(supabase, id),
+  ]);
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <Link href="/admin/interclub" className="text-sm font-semibold text-accent">
+          ← Interclub
+        </Link>
+        <h1 className="mt-1 text-2xl font-semibold text-ink">{liga.name}</h1>
+        <p className="text-sm text-muted">
+          Liga por equipos: todos contra todos. Cada serie es club vs club (gana el que
+          gana más categorías).
+        </p>
+      </div>
+
+      <LigaManager ligaId={liga.id} teams={teams} series={series} />
+    </div>
+  );
+}
