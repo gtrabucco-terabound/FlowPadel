@@ -1,17 +1,20 @@
 import { Avatar } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Tables } from "@/lib/database.types";
 
-export type RankingPlayer = Pick<
-  Tables<"players">,
-  "id" | "full_name" | "elo_rating" | "matches_played" | "matches_won"
->;
+export type RankingPlayer = {
+  id: string;
+  full_name: string;
+  apa_points: number;
+  tournaments: number;
+  elo_rating: number;
+};
 
 export function RankingList({ players }: { players: RankingPlayer[] }) {
   if (players.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border-strong bg-surface p-10 text-center text-muted">
-        Todavía no hay jugadores en el ranking.
+        Todavía no hay puntos en el ranking. Se suman al jugar torneos (según la
+        ronda que alcances).
       </div>
     );
   }
@@ -39,17 +42,20 @@ export function RankingList({ players }: { players: RankingPlayer[] }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium text-ink">{p.full_name}</p>
                 <p className="text-xs text-muted">
-                  {p.matches_played} PJ · {p.matches_won} G
+                  {p.tournaments} {p.tournaments === 1 ? "torneo" : "torneos"} · nivel {Math.round(p.elo_rating)}
                 </p>
               </div>
-              <span
-                className={
-                  top
-                    ? "text-lg font-semibold text-padel-600"
-                    : "text-lg font-semibold text-ink"
-                }
-              >
-                {Math.round(p.elo_rating)}
+              <span className="text-right">
+                <span
+                  className={
+                    top
+                      ? "block text-lg font-semibold text-padel-600"
+                      : "block text-lg font-semibold text-ink"
+                  }
+                >
+                  {p.apa_points}
+                </span>
+                <span className="text-[10px] uppercase tracking-wide text-muted">pts</span>
               </span>
             </div>
           );

@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      apa_points: {
+        Row: {
+          id: string
+          event_id: string
+          player_id: string
+          team_id: string | null
+          phase: string
+          points: number
+          awarded_at: string
+        }
+        Insert: {
+          id?: string
+          event_id: string
+          player_id: string
+          team_id?: string | null
+          phase: string
+          points?: number
+          awarded_at?: string
+        }
+        Update: {
+          id?: string
+          event_id?: string
+          player_id?: string
+          team_id?: string | null
+          phase?: string
+          points?: number
+          awarded_at?: string
+        }
+        Relationships: []
+      }
       bot_sessions: {
         Row: {
           data: Json

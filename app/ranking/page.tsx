@@ -6,7 +6,7 @@ import {
 } from "@/components/club-ranking-list";
 import { RankingTabs } from "@/components/ranking-tabs";
 import {
-  listTopRatedPlayers,
+  listApaRanking,
   listClubRanking,
 } from "@/modules/ranking/repository";
 
@@ -16,7 +16,7 @@ export default async function RankingPage() {
   const supabase = await createClient();
 
   const [playersData, clubRanking] = await Promise.all([
-    listTopRatedPlayers(supabase, 50),
+    listApaRanking(supabase, 50),
     listClubRanking(supabase),
   ]);
 
@@ -29,7 +29,9 @@ export default async function RankingPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-semibold text-ink">Ranking</h1>
-      <p className="mb-6 text-muted">Jugadores por rating y clubes por puntos.</p>
+      <p className="mb-6 text-muted">
+        Jugadores por puntos APA (últimos 12 meses) y clubes por puntos.
+      </p>
       <RankingTabs
         players={<RankingList players={players} />}
         clubs={<ClubRankingList clubs={clubs} />}
