@@ -56,6 +56,45 @@ export async function listTopRatedPlayers(
   return (data ?? []) as TopRatedPlayer[];
 }
 
+/** Jugador en el ranking APA (puntos por ronda alcanzada, últimos 12 meses). */
+export type ApaRankingPlayer = {
+  id: string;
+  full_name: string;
+  apa_points: number;
+  tournaments: number;
+  elo_rating: number;
+};
+
+/** Ranking individual por puntos APA acumulados en los últimos 12 meses. */
+export async function listApaRanking(
+  supabase: DB,
+  limit: number
+): Promise<ApaRankingPlayer[]> {
+  const since = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString();
+  const { data } = await supabase
+    .from("apa_points")
+    .select("points, player:players(id, full_name, elo_rating)")
+    .gte("awarded_at", since);
+
+  const map = new Map<string, ApaRankingPlayer>();
+  for (const row of (data ?? []) as unknown as {
+    points: number;
+    player: { id: string; full_name: string; elo_rating: number } | null;
+  }[]) {
+    const p = row.player;
+    if (!p) continue;
+    const cur =
+      map.get(p.id) ??
+      { id: p.id, full_name: p.full_name, apa_points: 0, tournaments: 0, elo_rating: p.elo_rating };
+    cur.apa_points += row.points;
+    cur.tournaments += 1;
+    map.set(p.id, cur);
+  }
+  return [...map.values()]
+    .sort((a, b) => b.apa_points - a.apa_points)
+    .slice(0, limit);
+}
+
 /** Ranking de clubes (RPC) enriquecido con la ciudad de cada club. */
 export async function listClubRanking(supabase: DB): Promise<ClubRankingEntry[]> {
   const [{ data: ranking }, { data: clubs }] = await Promise.all([
