@@ -3,7 +3,6 @@ import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { eventStatusMeta, formatDate } from "@/lib/format";
 import { getClubDashboard } from "@/modules/tournaments/repository";
 import { listDayBookingsWithCourt } from "@/modules/reservations/repository";
 import { countClubPlayers } from "@/modules/players/repository";
@@ -157,52 +156,6 @@ export default async function AdminDashboard() {
         )}
       </section>
 
-      {/* Eventos recientes */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-ink">Torneos recientes</h2>
-          <Link
-            href="/admin/events"
-            className="text-sm font-semibold text-padel-600 hover:text-padel-700"
-          >
-            Ver todos
-          </Link>
-        </div>
-
-        {rows.length === 0 ? (
-          <Card>
-            <CardContent className="py-10 text-center text-muted">
-              Todavía no creaste torneos.{" "}
-              <Link href="/admin/events" className="font-semibold text-padel-600">
-                Crear el primero
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {rows.slice(0, 5).map((e) => {
-              const meta = eventStatusMeta(e.status);
-              return (
-                <Link key={e.id} href={`/admin/events/${e.id}`}>
-                  <Card className="transition-colors hover:border-padel-200">
-                    <CardContent className="flex items-center justify-between gap-3 py-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-ink">
-                          {e.name}
-                        </p>
-                        <p className="text-xs text-muted">
-                          {formatDate(e.start_date)}
-                        </p>
-                      </div>
-                      <Badge tone={meta.tone}>{meta.label}</Badge>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
     </div>
   );
 }
