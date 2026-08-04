@@ -764,6 +764,11 @@ function MatchRow({
 }) {
   const { run, pending, error } = useAction();
   const done = match.status === "completed";
+  // Un partido con una pareja sin definir no se puede cargar: si falta un solo
+  // rival es un "pasa libre" (bye); si faltan las dos, todavía se define (feeders
+  // de una ronda superior del cuadro).
+  const ready = Boolean(match.team_a_id && match.team_b_id);
+  const bye = !ready && Boolean(match.team_a_id || match.team_b_id);
 
   return (
     <Card>
@@ -799,6 +804,8 @@ function MatchRow({
             <Badge tone="open">
               {match.games_a} – {match.games_b}
             </Badge>
+          ) : !ready ? (
+            <Badge tone="neutral">{bye ? "Pasa libre" : "A definir"}</Badge>
           ) : (
             <form
               action={(fd) => run(() => recordMatchResult(eventId, match.id, fd))}
