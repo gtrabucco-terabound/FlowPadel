@@ -164,6 +164,7 @@ export type EventManagementData = {
     "id" | "court_id" | "booking_date" | "start_minutes" | "slot_minutes" | "status"
   >[];
   rivalClubs: { id: string; name: string }[];
+  coaches: { id: string; name: string }[];
 };
 
 /**
@@ -259,6 +260,13 @@ export async function getEventManagementData(
     .neq("id", clubId)
     .order("name", { ascending: true });
 
+  const { data: coachesData } = await supabase
+    .from("coaches")
+    .select("id, name")
+    .eq("club_id", clubId)
+    .eq("active", true)
+    .order("name", { ascending: true });
+
   const playerIds = Array.from(
     new Set((playerStandings ?? []).map((p) => p.player_id))
   );
@@ -307,6 +315,7 @@ export async function getEventManagementData(
     courts: courts ?? [],
     courtBlocks: courtBlocks ?? [],
     rivalClubs: (clubData ?? []) as { id: string; name: string }[],
+    coaches: (coachesData ?? []) as { id: string; name: string }[],
   };
 }
 

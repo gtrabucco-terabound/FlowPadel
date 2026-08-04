@@ -834,6 +834,7 @@ export type Database = {
           inscription_per_person: number
           is_interclub: boolean
           long_format: Database["public"]["Enums"]["tournament_format"] | null
+          managed_by_coach_id: string | null
           markup_pct: number
           matches_per_court_month: number
           max_teams: number | null
@@ -873,6 +874,7 @@ export type Database = {
           inscription_per_person?: number
           is_interclub?: boolean
           long_format?: Database["public"]["Enums"]["tournament_format"] | null
+          managed_by_coach_id?: string | null
           markup_pct?: number
           matches_per_court_month?: number
           max_teams?: number | null
@@ -912,6 +914,7 @@ export type Database = {
           inscription_per_person?: number
           is_interclub?: boolean
           long_format?: Database["public"]["Enums"]["tournament_format"] | null
+          managed_by_coach_id?: string | null
           markup_pct?: number
           matches_per_court_month?: number
           max_teams?: number | null
@@ -2659,6 +2662,7 @@ export type Database = {
         | "liga_ida_vuelta"
         | "liga_playoff"
         | "americano"
+        | "cancha_abierta"
       tournament_modality: "caballeros" | "damas" | "mixto" | "combinado"
     }
     CompositeTypes: {
@@ -2825,6 +2829,7 @@ export const Constants = {
         "liga_ida_vuelta",
         "liga_playoff",
         "americano",
+        "cancha_abierta",
       ],
       tournament_modality: ["caballeros", "damas", "mixto", "combinado"],
     },

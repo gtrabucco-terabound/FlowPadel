@@ -573,6 +573,7 @@ const settingsSchema = z.object({
   flyer_image_url: z.string().max(500).nullable(),
   is_interclub: z.boolean(),
   rival_club_id: z.string().min(1).nullable(),
+  managed_by_coach_id: z.string().min(1).nullable(),
 });
 
 export async function updateEventSettings(
@@ -603,6 +604,8 @@ export async function updateEventSettings(
     flyer_image_url: formData.get("flyer_image_url")?.toString().trim() || null,
     is_interclub: isInterclub,
     rival_club_id: isInterclub && rawRival ? String(rawRival) : null,
+    managed_by_coach_id:
+      formData.get("managed_by_coach_id")?.toString().trim() || null,
   });
   if (!parsed.success) return fail("Datos inválidos.");
   if (parsed.data.is_interclub && !parsed.data.rival_club_id)
@@ -623,6 +626,7 @@ export async function updateEventSettings(
     flyer_image_url: parsed.data.flyer_image_url,
     is_interclub: parsed.data.is_interclub,
     rival_club_id: parsed.data.rival_club_id,
+    managed_by_coach_id: parsed.data.managed_by_coach_id,
   });
   if (error) return fail("No pudimos guardar los cambios.");
 
