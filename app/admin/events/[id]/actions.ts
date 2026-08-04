@@ -386,6 +386,8 @@ export async function recordMatchResult(
 
   const match = await getMatchForResult(supabase, matchId, eventId);
   if (!match) return fail("Partido no encontrado.");
+  if (!match.team_a_id || !match.team_b_id)
+    return fail("Este partido todavía no tiene las dos parejas definidas.");
 
   const winner = games_a > games_b ? match.team_a_id : match.team_b_id;
 
