@@ -651,7 +651,7 @@ export async function updateEventSettings(
 
 const economicsSchema = z.object({
   long_format: z
-    .enum(["liga_ida", "liga_ida_vuelta", "liga_playoff", "americano"])
+    .enum(["liga_ida", "liga_ida_vuelta", "liga_playoff", "americano", "cancha_abierta"])
     .nullable(),
   charge_court: z.boolean(),
   court_cost_month: z.coerce.number().min(0).max(100_000_000),

@@ -57,6 +57,14 @@ export async function createEvent(formData: FormData): Promise<CreateEventResult
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
 
+  // Sede por defecto = nombre del club (salvo interclub, que pivotea entre clubes).
+  const { data: clubRow } = await supabase
+    .from("clubs")
+    .select("name")
+    .eq("id", clubId)
+    .maybeSingle();
+  const defaultVenue = parsed.data.is_interclub ? null : clubRow?.name ?? null;
+
   const base = slugify(parsed.data.name) || "evento";
   let slug = base;
   // Ensure global slug uniqueness (slug is used in public routes).
@@ -76,6 +84,7 @@ export async function createEvent(formData: FormData): Promise<CreateEventResult
     categoryValue: parsed.data.category_value,
     isInterclub: parsed.data.is_interclub,
     rivalClubId: parsed.data.rival_club_id,
+    venue: defaultVenue,
   });
 
   if (!eventId) {

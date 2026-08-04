@@ -24,6 +24,7 @@ export type NewDraftEvent = {
   categoryValue: string | null;
   isInterclub: boolean;
   rivalClubId: string | null;
+  venue?: string | null;
 };
 
 /** ¿Existe ya un evento con ese slug? (slug se usa en rutas públicas). */
@@ -58,6 +59,7 @@ export async function createDraftEvent(
       category_value: e.categoryValue,
       is_interclub: e.isInterclub,
       rival_club_id: e.rivalClubId,
+      venue: e.venue ?? null,
     })
     .select("id")
     .single();
