@@ -24,7 +24,10 @@ type NavGroup = {
 const GROUPS: NavGroup[] = [
   {
     title: null,
-    items: [{ href: "/admin", label: "Inicio", exact: true }],
+    items: [
+      { href: "/admin", label: "Inicio", exact: true },
+      { href: "/admin/calendario", label: "Calendario", exact: false },
+    ],
   },
   {
     title: "Operación",
@@ -32,7 +35,6 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/agenda", label: "Agenda", exact: false },
       { href: "/admin/turnos-fijos", label: "Turnos fijos", exact: false },
       { href: "/admin/clases", label: "Clases", exact: false },
-      { href: "/admin/calendario", label: "Calendario", exact: false },
       { href: "/admin/events", label: "Torneos", exact: false },
       { href: "/admin/interclub", label: "Interclub", exact: false },
     ],
