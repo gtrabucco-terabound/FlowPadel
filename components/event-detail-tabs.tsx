@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Tabs } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDate, modalityLabel } from "@/lib/format";
+import { phaseLabel, phaseRank, zoneNumbers, zoneLabel } from "@/lib/tournament-format";
 import { BracketView, isBracketMatch } from "@/components/bracket-view";
 import type { Enums, Tables } from "@/lib/database.types";
 
@@ -338,8 +339,7 @@ function MatchesView({
     return <EmptyState text="Todavía no hay partidos cargados." />;
   }
 
-  const zoneName = (id: string | null) =>
-    id ? data.zones.find((z) => z.id === id)?.name ?? "Zona" : "Sin zona";
+  const zoneNum = zoneNumbers(data.zones);
   const zoneModality = new Map(data.zones.map((z) => [z.id, z.modality]));
 
   const visibleMatches = filter.selected
@@ -348,13 +348,18 @@ function MatchesView({
       )
     : data.matches;
 
-  // Group matches by zone id.
-  const groups = new Map<string, Match[]>();
+  // Agrupa: partidos de zona por zona (numerada); el cuadro por fase.
+  const groups = new Map<string, { label: string; order: number; matches: Match[] }>();
   for (const m of visibleMatches) {
-    const key = m.zone_id ?? "__none__";
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(m);
+    const isZone = m.zone_id != null && zoneNum.has(m.zone_id);
+    const key = isZone ? `z:${m.zone_id}` : `p:${m.phase}`;
+    const num = isZone ? zoneNum.get(m.zone_id!)! : 0;
+    const label = isZone ? zoneLabel(num) : phaseLabel(m.phase);
+    const order = isZone ? num : 100 + phaseRank(m.phase);
+    if (!groups.has(key)) groups.set(key, { label, order, matches: [] });
+    groups.get(key)!.matches.push(m);
   }
+  const ordered = [...groups.values()].sort((a, b) => a.order - b.order);
 
   return (
     <div className="space-y-6">
@@ -365,13 +370,11 @@ function MatchesView({
           onSelect={filter.setSelected}
         />
       )}
-      {[...groups.entries()].map(([zoneId, matches]) => (
-        <div key={zoneId}>
-          <h3 className="fp-microlabel mb-2 text-padel-600">
-            {zoneName(zoneId === "__none__" ? null : zoneId)}
-          </h3>
+      {ordered.map((g) => (
+        <div key={g.label}>
+          <h3 className="fp-microlabel mb-2 text-padel-600">{g.label}</h3>
           <div className="space-y-2">
-            {matches.map((m) => {
+            {g.matches.map((m) => {
               const aWins = m.winner_team_id === m.team_a_id;
               const bWins = m.winner_team_id === m.team_b_id;
               return (
