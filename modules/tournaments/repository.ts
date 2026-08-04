@@ -27,6 +27,35 @@ export type NewDraftEvent = {
   venue?: string | null;
 };
 
+/** Estado de un evento del club (para validar borrado). null si no existe. */
+export async function getEventStatusForClub(
+  supabase: DB,
+  eventId: string,
+  clubId: string
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("events")
+    .select("status")
+    .eq("id", eventId)
+    .eq("club_id", clubId)
+    .maybeSingle();
+  return data?.status ?? null;
+}
+
+/** Borra un evento del club (las tablas hijas caen por ON DELETE CASCADE). */
+export async function deleteEventRow(
+  supabase: DB,
+  eventId: string,
+  clubId: string
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId)
+    .eq("club_id", clubId);
+  return { error: Boolean(error) };
+}
+
 /** ¿Existe ya un evento con ese slug? (slug se usa en rutas públicas). */
 export async function slugExists(
   supabase: DB,

@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { eventStatusMeta, eventTypeLabel, formatDate } from "@/lib/format";
+import { EventListRow } from "@/components/admin/event-list-row";
 import { NewEventDialog } from "@/components/admin/new-event-dialog";
 import { InterclubChallenges } from "@/components/admin/interclub-challenges";
 import {
@@ -48,19 +47,15 @@ export default async function EventsPage() {
           {rows.map((e) => {
             const meta = eventStatusMeta(e.status);
             return (
-              <Link key={e.id} href={`/admin/events/${e.id}`}>
-                <Card className="transition-colors hover:border-padel-200">
-                  <CardContent className="flex items-center justify-between gap-3 py-4">
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-ink">{e.name}</p>
-                      <p className="text-xs text-muted">
-                        {eventTypeLabel(e.event_type)} · {formatDate(e.start_date)}
-                      </p>
-                    </div>
-                    <Badge tone={meta.tone}>{meta.label}</Badge>
-                  </CardContent>
-                </Card>
-              </Link>
+              <EventListRow
+                key={e.id}
+                id={e.id}
+                name={e.name}
+                subtitle={`${eventTypeLabel(e.event_type)} · ${formatDate(e.start_date)}`}
+                statusLabel={meta.label}
+                statusTone={meta.tone}
+                isDraft={e.status === "draft"}
+              />
             );
           })}
         </div>
