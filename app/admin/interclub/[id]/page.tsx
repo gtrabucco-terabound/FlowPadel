@@ -8,6 +8,7 @@ import {
   listSeries,
   listPairs,
   listAllLines,
+  listClubPlayerNames,
 } from "@/modules/interclub/repository";
 import { LigaManager } from "@/components/admin/interclub-manager";
 
@@ -25,11 +26,12 @@ export default async function InterclubLigaPage({
   const liga = await getLiga(supabase, id, ctx.activeClubId);
   if (!liga) notFound();
 
-  const [teams, series, pairs, lines] = await Promise.all([
+  const [teams, series, pairs, lines, players] = await Promise.all([
     listTeams(supabase, id),
     listSeries(supabase, id),
     listPairs(supabase, id),
     listAllLines(supabase, id),
+    listClubPlayerNames(supabase, ctx.activeClubId),
   ]);
 
   return (
@@ -52,6 +54,7 @@ export default async function InterclubLigaPage({
         pairs={pairs}
         series={series}
         lines={lines}
+        players={players}
       />
     </div>
   );
