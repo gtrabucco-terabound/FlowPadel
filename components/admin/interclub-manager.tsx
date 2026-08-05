@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import type {
   InterclubTeam,
   InterclubPair,
@@ -12,18 +13,20 @@ import type {
 } from "@/modules/interclub/repository";
 import {
   createInterclubLiga,
-  addInterclubTeam,
+  joinInterclubLiga,
   removeInterclubTeam,
   generateInterclubFixture,
   saveInterclubCategories,
   saveInterclubPair,
   saveInterclubLine,
+  confirmInterclubTeam,
   removeInterclubLiga,
 } from "@/app/admin/interclub/actions";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 const inputCls =
   "rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-accent";
+const STD_CATS = ["1ra", "2da", "3ra", "4ta", "5ta", "6ta", "7ma", "8va", "9na"];
 
 function useRun() {
   const router = useRouter();
@@ -42,7 +45,7 @@ function useRun() {
   return { run, pending, msg };
 }
 
-/* ---- Alta de liga ---- */
+/* ---- Alta / sumarse (listado) ---- */
 export function NewLigaForm() {
   const router = useRouter();
   const { run, pending, msg } = useRun();
@@ -52,10 +55,28 @@ export function NewLigaForm() {
       className="flex flex-wrap items-end gap-2"
     >
       <label className="space-y-1">
-        <span className="block text-xs font-medium text-ink">Nueva liga interclub</span>
+        <span className="block text-xs font-medium text-ink">Crear una liga interclub</span>
         <input name="name" required placeholder="Ej. Interclub Verano 2026" className={`${inputCls} w-72`} />
       </label>
       <Button size="sm" type="submit" disabled={pending}>{pending ? "Creando…" : "Crear liga"}</Button>
+      {msg && <span className="text-sm text-red-500">{msg}</span>}
+    </form>
+  );
+}
+
+export function JoinLigaForm() {
+  const router = useRouter();
+  const { run, pending, msg } = useRun();
+  return (
+    <form
+      action={(fd) => run(() => joinInterclubLiga(fd), (r) => r.ok && r.id && router.push(`/admin/interclub/${r.id}`))}
+      className="flex flex-wrap items-end gap-2"
+    >
+      <label className="space-y-1">
+        <span className="block text-xs font-medium text-ink">Sumarme a una liga (con código)</span>
+        <input name="code" required placeholder="Ej. ABC234" className={`${inputCls} w-40 uppercase`} />
+      </label>
+      <Button size="sm" variant="outline" type="submit" disabled={pending}>{pending ? "Sumando…" : "Sumarme"}</Button>
       {msg && <span className="text-sm text-red-500">{msg}</span>}
     </form>
   );
@@ -81,10 +102,11 @@ function standingsFrom(teams: InterclubTeam[], series: SeriesView[]): Standing[]
 }
 
 /* ---- Manager de una liga ---- */
-const STD_CATS = ["1ra", "2da", "3ra", "4ta", "5ta", "6ta", "7ma", "8va", "9na"];
-
 export function LigaManager({
   ligaId,
+  joinCode,
+  isOrganizer,
+  myClubId,
   categories,
   teams,
   pairs,
@@ -93,6 +115,9 @@ export function LigaManager({
   players,
 }: {
   ligaId: string;
+  joinCode: string | null;
+  isOrganizer: boolean;
+  myClubId: string;
   categories: string[];
   teams: InterclubTeam[];
   pairs: InterclubPair[];
@@ -109,19 +134,34 @@ export function LigaManager({
 
   return (
     <div className="space-y-8">
-      {/* Sugerencias de jugadores del club por categoría (para elegir sin escribir). */}
       {categories.map((c) => (
         <datalist key={c} id={`dl-${c}`}>
-          {players.map((p) => (
-            <option key={p.full_name} value={p.full_name} />
-          ))}
+          {players.map((p) => (<option key={p.full_name} value={p.full_name} />))}
         </datalist>
       ))}
-      {/* Categorías en juego */}
+
+      {/* Código para compartir */}
+      {!hasFixture && joinCode && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Código para invitar clubes</p>
+              <p className="font-mono text-2xl font-bold text-accent">{joinCode}</p>
+            </div>
+            <p className="max-w-xs text-xs text-muted">
+              Compartí este código con los clubes que quieras invitar. Cada uno se suma desde
+              Interclub → “Sumarme con código”, arma su equipo y confirma.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Categorías (solo organizador) */}
       <section>
         <h2 className="mb-2 text-lg font-bold text-ink">Categorías en juego</h2>
-        {hasFixture ? (
+        {hasFixture || !isOrganizer ? (
           <div className="flex flex-wrap gap-2">
+            {categories.length === 0 && <span className="text-sm text-muted">Sin categorías definidas.</span>}
             {categories.map((c) => (
               <span key={c} className="rounded-full border border-border-soft bg-canvas px-2.5 py-1 text-sm text-ink">{c}</span>
             ))}
@@ -133,10 +173,7 @@ export function LigaManager({
               <form action={(fd) => run(() => saveInterclubCategories(ligaId, fd))} className="space-y-3">
                 <div className="flex flex-wrap gap-1.5">
                   {STD_CATS.map((c) => (
-                    <label
-                      key={c}
-                      className="cursor-pointer rounded-full border border-border-soft bg-canvas px-3 py-1 text-sm font-medium text-muted has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-accent-ink"
-                    >
+                    <label key={c} className="cursor-pointer rounded-full border border-border-soft bg-canvas px-3 py-1 text-sm font-medium text-muted has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-accent-ink">
                       <input type="checkbox" name="category" value={c} defaultChecked={categories.includes(c)} className="sr-only" />
                       {c}
                     </label>
@@ -149,55 +186,64 @@ export function LigaManager({
         )}
       </section>
 
-      {/* Clubes + parejas por categoría */}
+      {/* Clubes + parejas */}
       <section>
         <h2 className="mb-3 text-lg font-bold text-ink">Clubes participantes</h2>
         <div className="space-y-3">
-          {teams.map((t) => (
-            <Card key={t.id}>
-              <CardContent className="space-y-3 py-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-ink">{t.name}</p>
-                  {!hasFixture && (
-                    <button type="button" className="text-xs font-semibold text-red-500"
-                      onClick={() => run(() => removeInterclubTeam(ligaId, t.id))}>Quitar club</button>
-                  )}
-                </div>
-                {categories.length === 0 ? (
-                  <p className="text-xs text-muted">Definí las categorías arriba para cargar las parejas.</p>
-                ) : (
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {categories.map((c) => {
-                      const [j1 = "", j2 = ""] = pairName(t.id, c).split(" / ");
-                      return (
-                        <form key={c} action={(fd) => run(() => saveInterclubPair(ligaId, t.id, c, fd))}
-                          className="flex items-center gap-1.5">
-                          <span className="w-10 shrink-0 text-xs font-semibold text-muted">{c}</span>
-                          <input name="jugador_1" list={`dl-${c}`} defaultValue={j1} placeholder="Jugador 1"
-                            className={`${inputCls} min-w-0 flex-1`} disabled={hasFixture} />
-                          <input name="jugador_2" list={`dl-${c}`} defaultValue={j2} placeholder="Jugador 2"
-                            className={`${inputCls} min-w-0 flex-1`} disabled={hasFixture} />
-                          {!hasFixture && (
-                            <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
-                          )}
-                        </form>
-                      );
-                    })}
+          {teams.map((t) => {
+            const mine = t.club_id === myClubId;
+            const editable = mine && !hasFixture;
+            return (
+              <Card key={t.id}>
+                <CardContent className="space-y-3 py-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold text-ink">
+                      {t.name}{mine && <span className="ml-2 text-xs font-normal text-accent">(tu club)</span>}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      {t.confirmed ? <Badge tone="open">Confirmado</Badge> : <Badge tone="draft">Sin confirmar</Badge>}
+                      {isOrganizer && !hasFixture && !mine && (
+                        <button type="button" className="text-xs font-semibold text-red-500"
+                          onClick={() => run(() => removeInterclubTeam(ligaId, t.id))}>Quitar</button>
+                      )}
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-          {!hasFixture && (
-            <Card>
-              <CardContent className="py-4">
-                <form action={(fd) => run(() => addInterclubTeam(ligaId, fd))} className="flex flex-wrap items-end gap-2">
-                  <input name="name" required placeholder="Ej. Club Norte" className={inputCls} />
-                  <Button size="sm" variant="outline" type="submit" disabled={pending}>+ Club</Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+                  {categories.length === 0 ? (
+                    <p className="text-xs text-muted">Falta que el organizador defina las categorías.</p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {categories.map((c) => {
+                        const [j1 = "", j2 = ""] = pairName(t.id, c).split(" / ");
+                        if (!editable) {
+                          return (
+                            <div key={c} className="flex items-center gap-2 text-sm">
+                              <span className="w-10 shrink-0 text-xs font-semibold text-muted">{c}</span>
+                              <span className="truncate text-ink">{pairName(t.id, c) || <span className="text-muted">—</span>}</span>
+                            </div>
+                          );
+                        }
+                        return (
+                          <form key={c} action={(fd) => run(() => saveInterclubPair(ligaId, c, fd))} className="flex items-center gap-1.5">
+                            <span className="w-10 shrink-0 text-xs font-semibold text-muted">{c}</span>
+                            <input name="jugador_1" list={`dl-${c}`} defaultValue={j1} placeholder="Jugador 1" className={`${inputCls} min-w-0 flex-1`} />
+                            <input name="jugador_2" list={`dl-${c}`} defaultValue={j2} placeholder="Jugador 2" className={`${inputCls} min-w-0 flex-1`} />
+                            <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
+                          </form>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Confirmar mi equipo */}
+                  {mine && !hasFixture && categories.length > 0 && (
+                    <Button size="sm" variant={t.confirmed ? "outline" : undefined} disabled={pending}
+                      onClick={() => run(() => confirmInterclubTeam(ligaId, !t.confirmed))}>
+                      {t.confirmed ? "Desconfirmar equipo" : "Confirmar mi equipo"}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
 
@@ -205,9 +251,8 @@ export function LigaManager({
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink">Fixture de series</h2>
-          {!hasFixture && (
-            <Button size="sm" disabled={pending}
-              onClick={() => run(() => generateInterclubFixture(ligaId))}>
+          {isOrganizer && !hasFixture && (
+            <Button size="sm" disabled={pending} onClick={() => run(() => generateInterclubFixture(ligaId))}>
               Generar fixture e iniciar
             </Button>
           )}
@@ -215,18 +260,18 @@ export function LigaManager({
         {msg && <p className="mb-2 text-sm font-semibold text-red-600">{msg}</p>}
         {!hasFixture ? (
           <Card><CardContent className="py-8 text-center text-sm text-muted">
-            Cargá categorías, clubes y sus parejas, y generá el fixture (todos contra todos).
+            {isOrganizer
+              ? "Cuando todos los clubes confirmen su equipo, generá el fixture (todos contra todos)."
+              : "Cargá tu equipo y confirmalo. El organizador genera el fixture cuando todos confirmaron."}
           </CardContent></Card>
         ) : (
           <div className="space-y-3">
-            {series.map((s) => (
-              <SeriesCard key={s.id} ligaId={ligaId} s={s} categories={categories} pairs={pairs} lines={lines} />
-            ))}
+            {series.map((s) => (<SeriesCard key={s.id} ligaId={ligaId} s={s} categories={categories} pairs={pairs} lines={lines} canEdit={isOrganizer} />))}
           </div>
         )}
       </section>
 
-      {/* Tabla de clubes */}
+      {/* Tabla */}
       {hasFixture && (
         <section>
           <h2 className="mb-3 text-lg font-bold text-ink">Tabla de clubes</h2>
@@ -261,34 +306,23 @@ export function LigaManager({
         </section>
       )}
 
-      {/* Eliminar liga */}
-      <section className="border-t border-border-soft pt-4">
-        <Button size="sm" variant="ghost" disabled={pending}
-          className="text-red-500 hover:text-red-600"
-          onClick={() => {
-            if (confirm("¿Borrar esta liga interclub? No se puede deshacer.")) {
-              run(() => removeInterclubLiga(ligaId), () => router.push("/admin/interclub"));
-            }
-          }}>
-          Borrar liga
-        </Button>
-      </section>
+      {/* Eliminar (solo organizador) */}
+      {isOrganizer && (
+        <section className="border-t border-border-soft pt-4">
+          <Button size="sm" variant="ghost" disabled={pending} className="text-red-500 hover:text-red-600"
+            onClick={() => { if (confirm("¿Borrar esta liga interclub? No se puede deshacer.")) run(() => removeInterclubLiga(ligaId), () => router.push("/admin/interclub")); }}>
+            Borrar liga
+          </Button>
+        </section>
+      )}
     </div>
   );
 }
 
 function SeriesCard({
-  ligaId,
-  s,
-  categories,
-  pairs,
-  lines,
+  ligaId, s, categories, pairs, lines, canEdit,
 }: {
-  ligaId: string;
-  s: SeriesView;
-  categories: string[];
-  pairs: InterclubPair[];
-  lines: SeriesLine[];
+  ligaId: string; s: SeriesView; categories: string[]; pairs: InterclubPair[]; lines: SeriesLine[]; canEdit: boolean;
 }) {
   const { run, pending } = useRun();
   const pairName = (teamId: string, cat: string) =>
@@ -306,9 +340,7 @@ function SeriesCard({
             <span className="px-2 text-muted">vs</span>
             <span className={awayWins ? "text-ink" : "text-muted"}>{s.away?.name ?? "Club"}</span>
           </p>
-          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-sm font-semibold text-ink">
-            {s.home_cats_won ?? 0} – {s.away_cats_won ?? 0}
-          </span>
+          <span className="rounded-full bg-surface-2 px-2.5 py-1 text-sm font-semibold text-ink">{s.home_cats_won ?? 0} – {s.away_cats_won ?? 0}</span>
         </div>
         <div className="space-y-1.5">
           {categories.map((c) => {
@@ -320,17 +352,16 @@ function SeriesCard({
                 <span className="min-w-0 flex-1 truncate text-ink">
                   {pairName(s.home_team_id, c)} <span className="text-muted">vs</span> {pairName(s.away_team_id, c)}
                 </span>
-                <form action={(fd) => run(() => saveInterclubLine(ligaId, s.id, c, categories.length, fd))}
-                  className="flex items-center gap-1.5">
-                  <input name="home_score" type="number" min={0} required defaultValue={line?.home_score ?? ""}
-                    aria-label="Games local" className={`${inputCls} w-12`} />
-                  <span className="text-muted">–</span>
-                  <input name="away_score" type="number" min={0} required defaultValue={line?.away_score ?? ""}
-                    aria-label="Games visitante" className={`${inputCls} w-12`} />
-                  <Button size="sm" variant={done ? "ghost" : "outline"} type="submit" disabled={pending}>
-                    {done ? "✓" : "Guardar"}
-                  </Button>
-                </form>
+                {canEdit ? (
+                  <form action={(fd) => run(() => saveInterclubLine(ligaId, s.id, c, categories.length, fd))} className="flex items-center gap-1.5">
+                    <input name="home_score" type="number" min={0} required defaultValue={line?.home_score ?? ""} aria-label="Games local" className={`${inputCls} w-12`} />
+                    <span className="text-muted">–</span>
+                    <input name="away_score" type="number" min={0} required defaultValue={line?.away_score ?? ""} aria-label="Games visitante" className={`${inputCls} w-12`} />
+                    <Button size="sm" variant={done ? "ghost" : "outline"} type="submit" disabled={pending}>{done ? "✓" : "Guardar"}</Button>
+                  </form>
+                ) : (
+                  <span className="font-mono text-sm text-ink">{done ? `${line!.home_score}–${line!.away_score}` : "—"}</span>
+                )}
               </div>
             );
           })}

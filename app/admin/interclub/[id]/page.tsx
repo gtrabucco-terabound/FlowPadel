@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getAdminContext } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import {
-  getLiga,
+  getLigaAny,
   listTeams,
   listSeries,
   listPairs,
@@ -23,8 +23,10 @@ export default async function InterclubLigaPage({
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const liga = await getLiga(supabase, id, ctx.activeClubId);
+  const liga = await getLigaAny(supabase, id);
   if (!liga) notFound();
+
+  const isOrganizer = liga.club_id === ctx.activeClubId;
 
   const [teams, series, pairs, lines, players] = await Promise.all([
     listTeams(supabase, id),
@@ -49,6 +51,9 @@ export default async function InterclubLigaPage({
 
       <LigaManager
         ligaId={liga.id}
+        joinCode={liga.join_code}
+        isOrganizer={isOrganizer}
+        myClubId={ctx.activeClubId}
         categories={liga.categories ?? []}
         teams={teams}
         pairs={pairs}

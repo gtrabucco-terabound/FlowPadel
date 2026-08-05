@@ -8,18 +8,27 @@ import {
   setLigaStatus,
   deleteLiga,
   listTeams,
-  insertTeam,
   deleteTeam,
   countSeries,
   insertSeriesBatch,
   getLiga,
   setLigaCategories,
   listPairs,
-  upsertPair,
   upsertSeriesLine,
   listSeriesLines,
   setSeriesAggregate,
+  joinInterclubRpc,
+  saveInterclubPairRpc,
+  confirmInterclubTeamRpc,
 } from "@/modules/interclub/repository";
+
+/** Código de liga: 6 caracteres A–Z/2–9 (sin ambiguos). */
+function genCode(): string {
+  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let s = "";
+  for (let i = 0; i < 6; i++) s += abc[Math.floor(Math.random() * abc.length)];
+  return s;
+}
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 const fail = (error: string): Result => ({ ok: false, error });
@@ -34,19 +43,31 @@ export async function createInterclubLiga(formData: FormData): Promise<Result> {
   if (name.length < 2) return fail("Ingresá un nombre para la liga.");
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const id = await createLiga(supabase, clubId, name);
+  const { data: club } = await supabase.from("clubs").select("name").eq("id", clubId).maybeSingle();
+  const id = await createLiga(supabase, clubId, name, genCode(), club?.name ?? "Mi club");
   if (!id) return fail("No pudimos crear la liga.");
   refresh();
   return { ok: true, id };
 }
 
-export async function addInterclubTeam(ligaId: string, formData: FormData): Promise<Result> {
-  const name = String(formData.get("name") ?? "").trim();
-  if (name.length < 2) return fail("Ingresá el nombre del equipo/club.");
-  await requireClubAccess();
+/** Un club se suma a una liga con el código compartido. */
+export async function joinInterclubLiga(formData: FormData): Promise<Result> {
+  const code = String(formData.get("code") ?? "").trim();
+  if (code.length < 4) return fail("Ingresá el código.");
+  const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await insertTeam(supabase, ligaId, name);
-  if (error) return fail("No pudimos agregar el equipo.");
+  const r = await joinInterclubRpc(supabase, code, clubId);
+  if (!r.ok) return fail(r.error ?? "No pudimos sumarte.");
+  refresh();
+  return { ok: true, id: r.liga };
+}
+
+/** Confirma (o desconfirma) el equipo del club en la liga. */
+export async function confirmInterclubTeam(ligaId: string, confirmed: boolean): Promise<Result> {
+  const { clubId } = await requireClubAccess();
+  const supabase = await createClient();
+  const r = await confirmInterclubTeamRpc(supabase, ligaId, clubId, confirmed);
+  if (!r.ok) return fail(r.error ?? "No pudimos confirmar.");
   refresh(ligaId);
   return { ok: true };
 }
@@ -77,10 +98,9 @@ export async function saveInterclubCategories(
   return { ok: true };
 }
 
-/** Carga/edita la pareja de un club en una categoría. */
+/** Carga/edita la pareja del club (el propio) en una categoría, vía RPC segura. */
 export async function saveInterclubPair(
   ligaId: string,
-  teamId: string,
   category: string,
   formData: FormData
 ): Promise<Result> {
@@ -88,10 +108,10 @@ export async function saveInterclubPair(
   const j2 = String(formData.get("jugador_2") ?? "").trim();
   const name = [j1, j2].filter(Boolean).join(" / ");
   if (name.length < 2) return fail("Cargá la pareja (al menos un jugador).");
-  await requireClubAccess();
+  const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await upsertPair(supabase, teamId, category, name);
-  if (error) return fail("No pudimos guardar la pareja.");
+  const r = await saveInterclubPairRpc(supabase, ligaId, clubId, category, name);
+  if (!r.ok) return fail(r.error ?? "No pudimos guardar la pareja.");
   refresh(ligaId);
   return { ok: true };
 }
@@ -112,7 +132,12 @@ export async function generateInterclubFixture(ligaId: string): Promise<Result> 
   if (cats.length === 0) return fail("Primero definí las categorías en juego.");
 
   const teams = await listTeams(supabase, ligaId);
-  if (teams.length < 2) return fail("Cargá al menos 2 clubes.");
+  if (teams.length < 2) return fail("Se tienen que sumar al menos 2 clubes.");
+
+  // Candado: todos los clubes tienen que haber confirmado su equipo.
+  const sinConfirmar = teams.filter((t) => !t.confirmed).map((t) => t.name);
+  if (sinConfirmar.length > 0)
+    return fail(`Falta que confirmen: ${sinConfirmar.slice(0, 4).join(", ")}${sinConfirmar.length > 4 ? "…" : ""}`);
 
   // Candado: cada club debe tener su pareja cargada en cada categoría.
   const pairs = await listPairs(supabase, ligaId);
