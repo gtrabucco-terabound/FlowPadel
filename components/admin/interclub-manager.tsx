@@ -108,6 +108,7 @@ export function LigaManager({
   isOrganizer,
   myClubId,
   categories,
+  pairsPerCat,
   teams,
   pairs,
   series,
@@ -119,6 +120,7 @@ export function LigaManager({
   isOrganizer: boolean;
   myClubId: string;
   categories: string[];
+  pairsPerCat: Record<string, number>;
   teams: InterclubTeam[];
   pairs: InterclubPair[];
   series: SeriesView[];
@@ -129,8 +131,10 @@ export function LigaManager({
   const { run, pending, msg } = useRun();
   const hasFixture = series.length > 0;
   const standings = standingsFrom(teams, series);
-  const pairName = (teamId: string, cat: string) =>
-    pairs.find((p) => p.team_id === teamId && p.category === cat)?.pair_name ?? "";
+  const countFor = (c: string) => Math.max(1, Number(pairsPerCat[c]) || 1);
+  const totalLines = categories.reduce((s, c) => s + countFor(c), 0);
+  const pairName = (teamId: string, cat: string, slot: number) =>
+    pairs.find((p) => p.team_id === teamId && p.category === cat && p.slot === slot)?.pair_name ?? "";
 
   return (
     <div className="space-y-8">
@@ -169,16 +173,19 @@ export function LigaManager({
         ) : (
           <Card>
             <CardContent className="space-y-3 py-4">
-              <p className="text-xs text-muted">Elegí las categorías que se juegan.</p>
+              <p className="text-xs text-muted">Elegí las categorías y cuántas parejas juega cada club en cada una.</p>
               <form action={(fd) => run(() => saveInterclubCategories(ligaId, fd))} className="space-y-3">
-                <div className="flex flex-wrap gap-1.5">
+                <div className="grid gap-2 sm:grid-cols-3">
                   {STD_CATS.map((c) => (
-                    <label key={c} className="cursor-pointer rounded-full border border-border-soft bg-canvas px-3 py-1 text-sm font-medium text-muted has-[:checked]:border-accent has-[:checked]:bg-accent has-[:checked]:text-accent-ink">
-                      <input type="checkbox" name="category" value={c} defaultChecked={categories.includes(c)} className="sr-only" />
-                      {c}
+                    <label key={c} className="flex items-center gap-2 rounded-lg border border-border-soft bg-canvas px-3 py-1.5 text-sm has-[:checked]:border-accent">
+                      <input type="checkbox" name="category" value={c} defaultChecked={categories.includes(c)} className="h-4 w-4 accent-accent" />
+                      <span className="flex-1 font-medium text-ink">{c}</span>
+                      <input type="number" name={`count_${c}`} min={1} max={6} defaultValue={countFor(c)}
+                        title="Parejas por categoría" className={`${inputCls} w-14`} />
                     </label>
                   ))}
                 </div>
+                <p className="text-xs text-muted">El número es cuántas parejas por categoría (igual para todos los clubes).</p>
                 <Button size="sm" variant="outline" type="submit" disabled={pending}>Guardar categorías</Button>
               </form>
             </CardContent>
@@ -212,25 +219,29 @@ export function LigaManager({
                     <p className="text-xs text-muted">Falta que el organizador defina las categorías.</p>
                   ) : (
                     <div className="grid gap-2 sm:grid-cols-2">
-                      {categories.map((c) => {
-                        const [j1 = "", j2 = ""] = pairName(t.id, c).split(" / ");
-                        if (!editable) {
+                      {categories.flatMap((c) =>
+                        Array.from({ length: countFor(c) }, (_, i) => {
+                          const slot = i + 1;
+                          const label = countFor(c) > 1 ? `${c} #${slot}` : c;
+                          const [j1 = "", j2 = ""] = pairName(t.id, c, slot).split(" / ");
+                          if (!editable) {
+                            return (
+                              <div key={`${c}-${slot}`} className="flex items-center gap-2 text-sm">
+                                <span className="w-14 shrink-0 text-xs font-semibold text-muted">{label}</span>
+                                <span className="truncate text-ink">{pairName(t.id, c, slot) || <span className="text-muted">—</span>}</span>
+                              </div>
+                            );
+                          }
                           return (
-                            <div key={c} className="flex items-center gap-2 text-sm">
-                              <span className="w-10 shrink-0 text-xs font-semibold text-muted">{c}</span>
-                              <span className="truncate text-ink">{pairName(t.id, c) || <span className="text-muted">—</span>}</span>
-                            </div>
+                            <form key={`${c}-${slot}`} action={(fd) => run(() => saveInterclubPair(ligaId, c, slot, fd))} className="flex items-center gap-1.5">
+                              <span className="w-14 shrink-0 text-xs font-semibold text-muted">{label}</span>
+                              <input name="jugador_1" list={`dl-${c}`} defaultValue={j1} placeholder="Jugador 1" className={`${inputCls} min-w-0 flex-1`} />
+                              <input name="jugador_2" list={`dl-${c}`} defaultValue={j2} placeholder="Jugador 2" className={`${inputCls} min-w-0 flex-1`} />
+                              <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
+                            </form>
                           );
-                        }
-                        return (
-                          <form key={c} action={(fd) => run(() => saveInterclubPair(ligaId, c, fd))} className="flex items-center gap-1.5">
-                            <span className="w-10 shrink-0 text-xs font-semibold text-muted">{c}</span>
-                            <input name="jugador_1" list={`dl-${c}`} defaultValue={j1} placeholder="Jugador 1" className={`${inputCls} min-w-0 flex-1`} />
-                            <input name="jugador_2" list={`dl-${c}`} defaultValue={j2} placeholder="Jugador 2" className={`${inputCls} min-w-0 flex-1`} />
-                            <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
-                          </form>
-                        );
-                      })}
+                        })
+                      )}
                     </div>
                   )}
                   {/* Confirmar mi equipo */}
@@ -266,7 +277,7 @@ export function LigaManager({
           </CardContent></Card>
         ) : (
           <div className="space-y-3">
-            {series.map((s) => (<SeriesCard key={s.id} ligaId={ligaId} s={s} categories={categories} pairs={pairs} lines={lines} canEdit={isOrganizer} />))}
+            {series.map((s) => (<SeriesCard key={s.id} ligaId={ligaId} s={s} categories={categories} countFor={countFor} totalLines={totalLines} pairs={pairs} lines={lines} canEdit={isOrganizer} />))}
           </div>
         )}
       </section>
@@ -320,14 +331,14 @@ export function LigaManager({
 }
 
 function SeriesCard({
-  ligaId, s, categories, pairs, lines, canEdit,
+  ligaId, s, categories, countFor, totalLines, pairs, lines, canEdit,
 }: {
-  ligaId: string; s: SeriesView; categories: string[]; pairs: InterclubPair[]; lines: SeriesLine[]; canEdit: boolean;
+  ligaId: string; s: SeriesView; categories: string[]; countFor: (c: string) => number; totalLines: number; pairs: InterclubPair[]; lines: SeriesLine[]; canEdit: boolean;
 }) {
   const { run, pending } = useRun();
-  const pairName = (teamId: string, cat: string) =>
-    pairs.find((p) => p.team_id === teamId && p.category === cat)?.pair_name ?? "—";
-  const lineOf = (cat: string) => lines.find((l) => l.series_id === s.id && l.category === cat) ?? null;
+  const pairName = (teamId: string, cat: string, slot: number) =>
+    pairs.find((p) => p.team_id === teamId && p.category === cat && p.slot === slot)?.pair_name ?? "—";
+  const lineOf = (cat: string, slot: number) => lines.find((l) => l.series_id === s.id && l.category === cat && l.slot === slot) ?? null;
   const homeWins = s.status === "completed" && (s.home_cats_won ?? 0) > (s.away_cats_won ?? 0);
   const awayWins = s.status === "completed" && (s.away_cats_won ?? 0) > (s.home_cats_won ?? 0);
 
@@ -343,28 +354,32 @@ function SeriesCard({
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-sm font-semibold text-ink">{s.home_cats_won ?? 0} – {s.away_cats_won ?? 0}</span>
         </div>
         <div className="space-y-1.5">
-          {categories.map((c) => {
-            const line = lineOf(c);
-            const done = line && line.home_score != null && line.away_score != null;
-            return (
-              <div key={c} className="flex flex-wrap items-center gap-2 rounded-lg border border-border-soft bg-canvas px-3 py-2 text-sm">
-                <span className="w-8 shrink-0 text-xs font-semibold text-muted">{c}</span>
-                <span className="min-w-0 flex-1 truncate text-ink">
-                  {pairName(s.home_team_id, c)} <span className="text-muted">vs</span> {pairName(s.away_team_id, c)}
-                </span>
-                {canEdit ? (
-                  <form action={(fd) => run(() => saveInterclubLine(ligaId, s.id, c, categories.length, fd))} className="flex items-center gap-1.5">
-                    <input name="home_score" type="number" min={0} required defaultValue={line?.home_score ?? ""} aria-label="Games local" className={`${inputCls} w-12`} />
-                    <span className="text-muted">–</span>
-                    <input name="away_score" type="number" min={0} required defaultValue={line?.away_score ?? ""} aria-label="Games visitante" className={`${inputCls} w-12`} />
-                    <Button size="sm" variant={done ? "ghost" : "outline"} type="submit" disabled={pending}>{done ? "✓" : "Guardar"}</Button>
-                  </form>
-                ) : (
-                  <span className="font-mono text-sm text-ink">{done ? `${line!.home_score}–${line!.away_score}` : "—"}</span>
-                )}
-              </div>
-            );
-          })}
+          {categories.flatMap((c) =>
+            Array.from({ length: countFor(c) }, (_, i) => {
+              const slot = i + 1;
+              const label = countFor(c) > 1 ? `${c} #${slot}` : c;
+              const line = lineOf(c, slot);
+              const done = line && line.home_score != null && line.away_score != null;
+              return (
+                <div key={`${c}-${slot}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-border-soft bg-canvas px-3 py-2 text-sm">
+                  <span className="w-12 shrink-0 text-xs font-semibold text-muted">{label}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink">
+                    {pairName(s.home_team_id, c, slot)} <span className="text-muted">vs</span> {pairName(s.away_team_id, c, slot)}
+                  </span>
+                  {canEdit ? (
+                    <form action={(fd) => run(() => saveInterclubLine(ligaId, s.id, c, slot, totalLines, fd))} className="flex items-center gap-1.5">
+                      <input name="home_score" type="number" min={0} required defaultValue={line?.home_score ?? ""} aria-label="Games local" className={`${inputCls} w-12`} />
+                      <span className="text-muted">–</span>
+                      <input name="away_score" type="number" min={0} required defaultValue={line?.away_score ?? ""} aria-label="Games visitante" className={`${inputCls} w-12`} />
+                      <Button size="sm" variant={done ? "ghost" : "outline"} type="submit" disabled={pending}>{done ? "✓" : "Guardar"}</Button>
+                    </form>
+                  ) : (
+                    <span className="font-mono text-sm text-ink">{done ? `${line!.home_score}–${line!.away_score}` : "—"}</span>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       </CardContent>
     </Card>

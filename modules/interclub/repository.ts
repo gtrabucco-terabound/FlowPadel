@@ -85,10 +85,11 @@ export async function saveInterclubPairRpc(
   ligaId: string,
   clubId: string,
   category: string,
+  slot: number,
   pair: string
 ): Promise<{ ok: boolean; error?: string }> {
   const { data } = await supabase.rpc("save_interclub_pair", {
-    p_liga: ligaId, p_club_id: clubId, p_category: category, p_pair: pair,
+    p_liga: ligaId, p_club_id: clubId, p_category: category, p_slot: slot, p_pair: pair,
   });
   return (data as { ok: boolean; error?: string }) ?? { ok: false, error: "Error" };
 }
@@ -207,11 +208,12 @@ export async function setLigaCategories(
   supabase: DB,
   ligaId: string,
   clubId: string,
-  categories: string[]
+  categories: string[],
+  pairsPerCat: Record<string, number>
 ): Promise<{ error: boolean }> {
   const { error } = await supabase
     .from("interclub_ligas")
-    .update({ categories })
+    .update({ categories, pairs_per_cat: pairsPerCat })
     .eq("id", ligaId)
     .eq("club_id", clubId);
   return { error: Boolean(error) };
@@ -260,14 +262,15 @@ export async function upsertSeriesLine(
   supabase: DB,
   seriesId: string,
   category: string,
+  slot: number,
   home: number,
   away: number
 ): Promise<{ error: boolean }> {
   const { error } = await supabase
     .from("interclub_series_lines")
     .upsert(
-      { series_id: seriesId, category, home_score: home, away_score: away },
-      { onConflict: "series_id,category" }
+      { series_id: seriesId, category, slot, home_score: home, away_score: away },
+      { onConflict: "series_id,category,slot" }
     );
   return { error: Boolean(error) };
 }
