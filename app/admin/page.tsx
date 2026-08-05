@@ -114,6 +114,15 @@ export default async function AdminDashboard() {
         </div>
       </section>
 
+      {/* Bot y captación */}
+      <section className="space-y-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Bot y captación (mes)</h2>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Metric label="Reservas del bot" value={kpis.reservasBotMes} href="/admin/agenda" />
+          <Metric label="Invitaciones gestionadas" value={kpis.invitacionesMes} href="/admin/events" />
+        </div>
+      </section>
+
       {/* Torneos */}
       <section className="space-y-2">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Torneos</h2>

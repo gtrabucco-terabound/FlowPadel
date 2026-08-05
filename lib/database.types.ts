@@ -544,6 +544,7 @@ export type Database = {
           player_id: string | null
           price: number | null
           slot_minutes: number
+          source: string
           start_minutes: number
           status: string
           updated_at: string
@@ -569,6 +570,7 @@ export type Database = {
           player_id?: string | null
           price?: number | null
           slot_minutes?: number
+          source?: string
           start_minutes: number
           status?: string
           updated_at?: string
@@ -594,6 +596,7 @@ export type Database = {
           player_id?: string | null
           price?: number | null
           slot_minutes?: number
+          source?: string
           start_minutes?: number
           status?: string
           updated_at?: string

@@ -6,9 +6,11 @@ export type ClubKpis = {
   recaudadoMes: number;
   porCobrarMes: number;
   reservasMes: number;
+  reservasBotMes: number;
   clientesMes: number;
   nuevosMes: number;
   clasesMes: number;
+  invitacionesMes: number;
 };
 
 /** Indicadores del mes para el tablero de Inicio (rango [from, to] YYYY-MM-DD). */
@@ -18,10 +20,11 @@ export async function getClubKpis(
   from: string,
   to: string
 ): Promise<ClubKpis> {
-  const [bkRes, lessonsRes, groupsRes, nuevosRes] = await Promise.all([
+  const [bkRes, lessonsRes, groupsRes, nuevosRes, invitesRes] =
+    await Promise.all([
     supabase
       .from("court_bookings")
-      .select("price, amount_charged, paid_at, status, kind, customer_phone")
+      .select("price, amount_charged, paid_at, status, kind, customer_phone, source")
       .eq("club_id", clubId)
       .gte("booking_date", from)
       .lte("booking_date", to)
@@ -45,6 +48,13 @@ export async function getClubKpis(
       .select("id", { count: "exact", head: true })
       .eq("home_club_id", clubId)
       .gte("created_at", from),
+    // Invitaciones a torneos gestionadas en el mes (motor de invitaciones).
+    supabase
+      .from("tournament_invites")
+      .select("id, events!inner(club_id)", { count: "exact", head: true })
+      .eq("events.club_id", clubId)
+      .gte("created_at", from)
+      .lte("created_at", `${to}T23:59:59`),
   ]);
 
   // Reservas reales (excluye bloqueos y turnos de torneo).
@@ -53,6 +63,7 @@ export async function getClubKpis(
   );
   let recaudado = 0;
   let porCobrar = 0;
+  let reservasBot = 0;
   const clientes = new Set<string>();
   for (const b of bookings) {
     const cobrado = Number(b.amount_charged ?? b.price ?? 0);
@@ -60,14 +71,17 @@ export async function getClubKpis(
     else if (b.status === "reserved" || b.status === "held")
       porCobrar += Number(b.price ?? 0);
     if (b.customer_phone) clientes.add(b.customer_phone);
+    if (b.source === "bot") reservasBot += 1;
   }
 
   return {
     recaudadoMes: Math.round(recaudado),
     porCobrarMes: Math.round(porCobrar),
     reservasMes: bookings.length,
+    reservasBotMes: reservasBot,
     clientesMes: clientes.size,
     nuevosMes: nuevosRes.count ?? 0,
     clasesMes: (lessonsRes.count ?? 0) + (groupsRes.count ?? 0),
+    invitacionesMes: invitesRes.count ?? 0,
   };
 }
