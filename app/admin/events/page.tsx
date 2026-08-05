@@ -9,7 +9,6 @@ import {
   listClubEvents,
   listInterclubChallenges,
 } from "@/modules/tournaments/repository";
-import { listOtherClubs } from "@/modules/clubs/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +16,8 @@ export default async function EventsPage() {
   const ctx = await getAdminContext();
   const supabase = await createClient();
 
-  const [rows, rivalClubs, challenges] = await Promise.all([
+  const [rows, challenges] = await Promise.all([
     listClubEvents(supabase, ctx.activeClubId),
-    // Clubs disponibles como rival (todos menos el activo).
-    listOtherClubs(supabase, ctx.activeClubId),
     // Desafíos interclub recibidos (con el nombre del organizador resuelto).
     listInterclubChallenges(supabase, ctx.activeClubId),
   ]);
@@ -29,7 +26,7 @@ export default async function EventsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-ink">Eventos</h1>
-        <NewEventDialog rivalClubs={rivalClubs} />
+        <NewEventDialog />
       </div>
 
       {challenges.length > 0 && (

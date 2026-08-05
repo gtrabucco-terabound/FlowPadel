@@ -52,7 +52,7 @@ import {
 } from "@/modules/tournaments/events-repository";
 import type { Enums, Tables, TablesInsert } from "@/lib/database.types";
 
-type ActionResult = { ok: true } | { ok: false; error: string };
+type ActionResult = { ok: true; warning?: string } | { ok: false; error: string };
 
 function fail(error: string): ActionResult {
   return { ok: false, error };
@@ -640,9 +640,30 @@ export async function updateEventSettings(
     await generateEventInvites(supabase, eventId);
   }
 
+  // Aviso suave de choque de fecha: al aprobar (Abierto) un evento con fecha,
+  // avisamos si el club ya tiene otro evento (no borrador) ese mismo día. No
+  // bloquea el guardado, solo informa.
+  let warning: string | undefined;
+  if (parsed.data.status === "open" && event.start_date && event.club_id) {
+    const day = String(event.start_date).slice(0, 10);
+    const { data: clashes } = await supabase
+      .from("events")
+      .select("name")
+      .eq("club_id", event.club_id)
+      .neq("id", eventId)
+      .neq("status", "draft")
+      .gte("start_date", day)
+      .lte("start_date", `${day}T23:59:59`)
+      .limit(3);
+    if (clashes && clashes.length > 0) {
+      const nombres = clashes.map((c) => c.name).join(", ");
+      warning = `⚠️ Ya hay otro evento ese día en el club: ${nombres}.`;
+    }
+  }
+
   refresh(eventId);
   revalidatePath("/admin/events");
-  return { ok: true };
+  return { ok: true, warning };
 }
 
 /* ------------------------------------------------------------------ */

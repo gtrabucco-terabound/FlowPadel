@@ -179,15 +179,24 @@ function useAction() {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const run = (fn: () => Promise<{ ok: boolean; error?: string } | void>) => {
+  const [notice, setNotice] = useState<string | null>(null);
+  const run = (
+    fn: () => Promise<
+      { ok: boolean; error?: string; warning?: string } | void
+    >
+  ) => {
     setError(null);
+    setNotice(null);
     start(async () => {
       const res = await fn();
       if (res && "ok" in res && !res.ok) setError(res.error ?? "Error");
-      else router.refresh();
+      else {
+        if (res && "warning" in res && res.warning) setNotice(res.warning);
+        router.refresh();
+      }
     });
   };
-  return { run, pending, error };
+  return { run, pending, error, notice };
 }
 
 function EmptyState({ text }: { text: string }) {
@@ -2242,12 +2251,11 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 }
 
 function SettingsTab({ data }: { data: EventManagerData }) {
-  const { run, pending, error } = useAction();
+  const { run, pending, error, notice } = useAction();
   const e = data.event;
   const [categorySystem, setCategorySystem] = useState<
     Enums<"category_system">
   >(e.category_system ?? "fixed");
-  const [interclub, setInterclub] = useState<boolean>(e.is_interclub ?? false);
   const openCourt = isOpenCourtFormat(e.long_format);
   const [flyerUrl, setFlyerUrl] = useState<string | null>(e.flyer_image_url);
   const [flyerUploading, setFlyerUploading] = useState(false);
@@ -2429,53 +2437,6 @@ function SettingsTab({ data }: { data: EventManagerData }) {
               </div>
             </div>
 
-            <div className="space-y-3 rounded-lg border border-border-soft p-3">
-              <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-                <input
-                  name="is_interclub"
-                  type="checkbox"
-                  checked={interclub}
-                  onChange={(ev) => setInterclub(ev.target.checked)}
-                  className="h-4 w-4"
-                />
-                Torneo interclub
-              </label>
-
-              {interclub && (
-                <Field label="Club rival">
-                  <select
-                    name="rival_club_id"
-                    defaultValue={e.rival_club_id ?? ""}
-                    className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
-                  >
-                    <option value="" disabled>
-                      Elegí un club
-                    </option>
-                    {data.rivalClubs.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-
-              {interclub && (
-                <p className="text-xs font-semibold">
-                  Estado del desafío:{" "}
-                  {e.rival_accepted ? (
-                    <span className="text-green-600">
-                      Aceptado por el club rival
-                    </span>
-                  ) : (
-                    <span className="text-amber-600">
-                      Pendiente de aceptación
-                    </span>
-                  )}
-                </p>
-              )}
-            </div>
-
             {openCourt && (
               <Field label="Responsable a cargo (profe)">
                 <select
@@ -2509,6 +2470,11 @@ function SettingsTab({ data }: { data: EventManagerData }) {
 
             {error && (
               <p className="text-sm font-semibold text-red-600">{error}</p>
+            )}
+            {notice && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-700">
+                {notice}
+              </p>
             )}
             <Button type="submit" size="sm" disabled={pending}>
               Guardar cambios
