@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { listLigas } from "@/modules/interclub/repository";
-import { NewLigaForm } from "@/components/admin/interclub-manager";
+import { NewLigaForm, JoinLigaForm } from "@/components/admin/interclub-manager";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +16,9 @@ const STATUS: Record<string, { label: string; tone: "draft" | "open" | "live" | 
 };
 
 export default async function InterclubPage() {
-  const ctx = await getAdminContext();
+  await getAdminContext();
   const supabase = await createClient();
-  const ligas = await listLigas(supabase, ctx.activeClubId);
+  const ligas = await listLigas(supabase);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -30,8 +30,9 @@ export default async function InterclubPage() {
       </div>
 
       <Card>
-        <CardContent className="py-5">
+        <CardContent className="flex flex-wrap items-end justify-between gap-4 py-5">
           <NewLigaForm />
+          <JoinLigaForm />
         </CardContent>
       </Card>
 

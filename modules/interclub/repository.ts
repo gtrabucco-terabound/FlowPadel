@@ -14,13 +14,23 @@ export type SeriesView = InterclubSeries & {
 
 /* ---- Ligas ---- */
 
-export async function listLigas(supabase: DB, clubId: string): Promise<InterclubLiga[]> {
+export async function listLigas(supabase: DB): Promise<InterclubLiga[]> {
+  // RLS: devuelve las ligas que organiza o en las que participa el usuario.
   const { data } = await supabase
     .from("interclub_ligas")
     .select("*")
-    .eq("club_id", clubId)
     .order("created_at", { ascending: false });
   return (data ?? []) as InterclubLiga[];
+}
+
+/** Liga visible para el usuario (organizador o participante), vía RLS. */
+export async function getLigaAny(supabase: DB, ligaId: string): Promise<InterclubLiga | null> {
+  const { data } = await supabase
+    .from("interclub_ligas")
+    .select("*")
+    .eq("id", ligaId)
+    .maybeSingle();
+  return (data as InterclubLiga) ?? null;
 }
 
 export async function getLiga(
@@ -40,15 +50,59 @@ export async function getLiga(
 export async function createLiga(
   supabase: DB,
   clubId: string,
-  name: string
+  name: string,
+  joinCode: string,
+  organizerName: string
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from("interclub_ligas")
-    .insert({ club_id: clubId, name })
+    .insert({ club_id: clubId, name, join_code: joinCode })
     .select("id")
     .single();
   if (error || !data) return null;
+  // El organizador también participa: se crea su equipo automáticamente.
+  await supabase.from("interclub_teams").insert({
+    liga_id: data.id,
+    name: organizerName,
+    club_id: clubId,
+  });
   return data.id;
+}
+
+/* ---- RPCs (cada club opera su parte de una liga compartida) ---- */
+
+export async function joinInterclubRpc(
+  supabase: DB,
+  code: string,
+  clubId: string
+): Promise<{ ok: boolean; liga?: string; error?: string }> {
+  const { data } = await supabase.rpc("join_interclub", { p_code: code, p_club_id: clubId });
+  return (data as { ok: boolean; liga?: string; error?: string }) ?? { ok: false, error: "Error" };
+}
+
+export async function saveInterclubPairRpc(
+  supabase: DB,
+  ligaId: string,
+  clubId: string,
+  category: string,
+  pair: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { data } = await supabase.rpc("save_interclub_pair", {
+    p_liga: ligaId, p_club_id: clubId, p_category: category, p_pair: pair,
+  });
+  return (data as { ok: boolean; error?: string }) ?? { ok: false, error: "Error" };
+}
+
+export async function confirmInterclubTeamRpc(
+  supabase: DB,
+  ligaId: string,
+  clubId: string,
+  confirmed: boolean
+): Promise<{ ok: boolean; error?: string }> {
+  const { data } = await supabase.rpc("confirm_interclub_team", {
+    p_liga: ligaId, p_club_id: clubId, p_confirmed: confirmed,
+  });
+  return (data as { ok: boolean; error?: string }) ?? { ok: false, error: "Error" };
 }
 
 export async function setLigaStatus(
