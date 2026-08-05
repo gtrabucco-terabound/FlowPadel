@@ -218,30 +218,33 @@ export function LigaManager({
                   {categories.length === 0 ? (
                     <p className="text-xs text-muted">Falta que el organizador defina las categorías.</p>
                   ) : (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {categories.flatMap((c) =>
-                        Array.from({ length: countFor(c) }, (_, i) => {
-                          const slot = i + 1;
-                          const label = countFor(c) > 1 ? `${c} #${slot}` : c;
-                          const [j1 = "", j2 = ""] = pairName(t.id, c, slot).split(" / ");
-                          if (!editable) {
+                    <div className="space-y-4">
+                      {categories.map((c) => (
+                        <div key={c} className="space-y-1.5">
+                          <p className="text-xs font-bold uppercase tracking-wide text-accent">Categoría {c}</p>
+                          {Array.from({ length: countFor(c) }, (_, i) => {
+                            const slot = i + 1;
+                            const [j1 = "", j2 = ""] = pairName(t.id, c, slot).split(" / ");
+                            const label = countFor(c) > 1 ? `Pareja ${slot}` : "Pareja";
+                            if (!editable) {
+                              return (
+                                <div key={slot} className="flex items-center gap-2 text-sm">
+                                  <span className="w-16 shrink-0 text-xs text-muted">{label}</span>
+                                  <span className="truncate text-ink">{pairName(t.id, c, slot) || <span className="text-muted">—</span>}</span>
+                                </div>
+                              );
+                            }
                             return (
-                              <div key={`${c}-${slot}`} className="flex items-center gap-2 text-sm">
-                                <span className="w-14 shrink-0 text-xs font-semibold text-muted">{label}</span>
-                                <span className="truncate text-ink">{pairName(t.id, c, slot) || <span className="text-muted">—</span>}</span>
-                              </div>
+                              <form key={slot} action={(fd) => run(() => saveInterclubPair(ligaId, c, slot, fd))} className="flex items-center gap-1.5">
+                                <span className="w-16 shrink-0 text-xs text-muted">{label}</span>
+                                <input name="jugador_1" list={`dl-${c}`} defaultValue={j1} placeholder="Jugador 1" className={`${inputCls} min-w-0 flex-1`} />
+                                <input name="jugador_2" list={`dl-${c}`} defaultValue={j2} placeholder="Jugador 2" className={`${inputCls} min-w-0 flex-1`} />
+                                <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
+                              </form>
                             );
-                          }
-                          return (
-                            <form key={`${c}-${slot}`} action={(fd) => run(() => saveInterclubPair(ligaId, c, slot, fd))} className="flex items-center gap-1.5">
-                              <span className="w-14 shrink-0 text-xs font-semibold text-muted">{label}</span>
-                              <input name="jugador_1" list={`dl-${c}`} defaultValue={j1} placeholder="Jugador 1" className={`${inputCls} min-w-0 flex-1`} />
-                              <input name="jugador_2" list={`dl-${c}`} defaultValue={j2} placeholder="Jugador 2" className={`${inputCls} min-w-0 flex-1`} />
-                              <Button size="sm" variant="ghost" type="submit" disabled={pending}>✓</Button>
-                            </form>
-                          );
-                        })
-                      )}
+                          })}
+                        </div>
+                      ))}
                     </div>
                   )}
                   {/* Confirmar mi equipo */}
@@ -353,33 +356,35 @@ function SeriesCard({
           </p>
           <span className="rounded-full bg-surface-2 px-2.5 py-1 text-sm font-semibold text-ink">{s.home_cats_won ?? 0} – {s.away_cats_won ?? 0}</span>
         </div>
-        <div className="space-y-1.5">
-          {categories.flatMap((c) =>
-            Array.from({ length: countFor(c) }, (_, i) => {
-              const slot = i + 1;
-              const label = countFor(c) > 1 ? `${c} #${slot}` : c;
-              const line = lineOf(c, slot);
-              const done = line && line.home_score != null && line.away_score != null;
-              return (
-                <div key={`${c}-${slot}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-border-soft bg-canvas px-3 py-2 text-sm">
-                  <span className="w-12 shrink-0 text-xs font-semibold text-muted">{label}</span>
-                  <span className="min-w-0 flex-1 truncate text-ink">
-                    {pairName(s.home_team_id, c, slot)} <span className="text-muted">vs</span> {pairName(s.away_team_id, c, slot)}
-                  </span>
-                  {canEdit ? (
-                    <form action={(fd) => run(() => saveInterclubLine(ligaId, s.id, c, slot, totalLines, fd))} className="flex items-center gap-1.5">
-                      <input name="home_score" type="number" min={0} required defaultValue={line?.home_score ?? ""} aria-label="Games local" className={`${inputCls} w-12`} />
-                      <span className="text-muted">–</span>
-                      <input name="away_score" type="number" min={0} required defaultValue={line?.away_score ?? ""} aria-label="Games visitante" className={`${inputCls} w-12`} />
-                      <Button size="sm" variant={done ? "ghost" : "outline"} type="submit" disabled={pending}>{done ? "✓" : "Guardar"}</Button>
-                    </form>
-                  ) : (
-                    <span className="font-mono text-sm text-ink">{done ? `${line!.home_score}–${line!.away_score}` : "—"}</span>
-                  )}
-                </div>
-              );
-            })
-          )}
+        <div className="space-y-3">
+          {categories.map((c) => (
+            <div key={c} className="space-y-1.5">
+              <p className="text-xs font-bold uppercase tracking-wide text-accent">Categoría {c}</p>
+              {Array.from({ length: countFor(c) }, (_, i) => {
+                const slot = i + 1;
+                const line = lineOf(c, slot);
+                const done = line && line.home_score != null && line.away_score != null;
+                return (
+                  <div key={slot} className="flex flex-wrap items-center gap-2 rounded-lg border border-border-soft bg-canvas px-3 py-2 text-sm">
+                    {countFor(c) > 1 && <span className="w-16 shrink-0 text-xs text-muted">Pareja {slot}</span>}
+                    <span className="min-w-0 flex-1 truncate text-ink">
+                      {pairName(s.home_team_id, c, slot)} <span className="text-muted">vs</span> {pairName(s.away_team_id, c, slot)}
+                    </span>
+                    {canEdit ? (
+                      <form action={(fd) => run(() => saveInterclubLine(ligaId, s.id, c, slot, totalLines, fd))} className="flex items-center gap-1.5">
+                        <input name="home_score" type="number" min={0} required defaultValue={line?.home_score ?? ""} aria-label="Games local" className={`${inputCls} w-12`} />
+                        <span className="text-muted">–</span>
+                        <input name="away_score" type="number" min={0} required defaultValue={line?.away_score ?? ""} aria-label="Games visitante" className={`${inputCls} w-12`} />
+                        <Button size="sm" variant={done ? "ghost" : "outline"} type="submit" disabled={pending}>{done ? "✓" : "Guardar"}</Button>
+                      </form>
+                    ) : (
+                      <span className="font-mono text-sm text-ink">{done ? `${line!.home_score}–${line!.away_score}` : "—"}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
