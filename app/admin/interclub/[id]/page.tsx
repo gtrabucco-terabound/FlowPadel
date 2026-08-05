@@ -55,6 +55,7 @@ export default async function InterclubLigaPage({
         isOrganizer={isOrganizer}
         myClubId={ctx.activeClubId}
         categories={liga.categories ?? []}
+        pairsPerCat={(liga.pairs_per_cat ?? {}) as Record<string, number>}
         teams={teams}
         pairs={pairs}
         series={series}

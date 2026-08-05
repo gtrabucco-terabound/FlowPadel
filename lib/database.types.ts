@@ -45,21 +45,21 @@ export type Database = {
         Relationships: []
       }
       interclub_ligas: {
-        Row: { id: string; club_id: string; name: string; status: string; categories: string[]; join_code: string | null; created_at: string }
-        Insert: { id?: string; club_id: string; name: string; status?: string; categories?: string[]; join_code?: string | null; created_at?: string }
-        Update: { id?: string; club_id?: string; name?: string; status?: string; categories?: string[]; join_code?: string | null; created_at?: string }
+        Row: { id: string; club_id: string; name: string; status: string; categories: string[]; pairs_per_cat: Json; join_code: string | null; created_at: string }
+        Insert: { id?: string; club_id: string; name: string; status?: string; categories?: string[]; pairs_per_cat?: Json; join_code?: string | null; created_at?: string }
+        Update: { id?: string; club_id?: string; name?: string; status?: string; categories?: string[]; pairs_per_cat?: Json; join_code?: string | null; created_at?: string }
         Relationships: []
       }
       interclub_pairs: {
-        Row: { id: string; team_id: string; category: string; pair_name: string; created_at: string }
-        Insert: { id?: string; team_id: string; category: string; pair_name: string; created_at?: string }
-        Update: { id?: string; team_id?: string; category?: string; pair_name?: string; created_at?: string }
+        Row: { id: string; team_id: string; category: string; slot: number; pair_name: string; created_at: string }
+        Insert: { id?: string; team_id: string; category: string; slot?: number; pair_name: string; created_at?: string }
+        Update: { id?: string; team_id?: string; category?: string; slot?: number; pair_name?: string; created_at?: string }
         Relationships: []
       }
       interclub_series_lines: {
-        Row: { id: string; series_id: string; category: string; home_score: number | null; away_score: number | null; created_at: string }
-        Insert: { id?: string; series_id: string; category: string; home_score?: number | null; away_score?: number | null; created_at?: string }
-        Update: { id?: string; series_id?: string; category?: string; home_score?: number | null; away_score?: number | null; created_at?: string }
+        Row: { id: string; series_id: string; category: string; slot: number; home_score: number | null; away_score: number | null; created_at: string }
+        Insert: { id?: string; series_id: string; category: string; slot?: number; home_score?: number | null; away_score?: number | null; created_at?: string }
+        Update: { id?: string; series_id?: string; category?: string; slot?: number; home_score?: number | null; away_score?: number | null; created_at?: string }
         Relationships: []
       }
       interclub_teams: {
@@ -2676,7 +2676,7 @@ export type Database = {
         Returns: undefined
       }
       join_interclub: { Args: { p_code: string; p_club_id: string }; Returns: Json }
-      save_interclub_pair: { Args: { p_liga: string; p_club_id: string; p_category: string; p_pair: string }; Returns: Json }
+      save_interclub_pair: { Args: { p_liga: string; p_club_id: string; p_category: string; p_slot: number; p_pair: string }; Returns: Json }
       confirm_interclub_team: { Args: { p_liga: string; p_club_id: string; p_confirmed: boolean }; Returns: Json }
       recompute_apa_points: { Args: { p_event_id: string }; Returns: undefined }
       recompute_standings: { Args: { p_event_id: string }; Returns: undefined }

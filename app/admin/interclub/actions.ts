@@ -83,9 +83,15 @@ export async function saveInterclubCategories(
     ...new Set(formData.getAll("category").map((c) => String(c).trim()).filter(Boolean)),
   ];
   if (cats.length === 0) return fail("Elegí al menos una categoría.");
+  // Cantidad de parejas por categoría (por defecto 1, tope 6).
+  const pairsPerCat: Record<string, number> = {};
+  for (const c of cats) {
+    const n = Number(formData.get(`count_${c}`));
+    pairsPerCat[c] = Number.isFinite(n) && n >= 1 && n <= 6 ? Math.floor(n) : 1;
+  }
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await setLigaCategories(supabase, ligaId, clubId, cats);
+  const { error } = await setLigaCategories(supabase, ligaId, clubId, cats, pairsPerCat);
   if (error) return fail("No pudimos guardar las categorías.");
   refresh(ligaId);
   return { ok: true };
@@ -95,6 +101,7 @@ export async function saveInterclubCategories(
 export async function saveInterclubPair(
   ligaId: string,
   category: string,
+  slot: number,
   formData: FormData
 ): Promise<Result> {
   const j1 = String(formData.get("jugador_1") ?? "").trim();
@@ -103,7 +110,7 @@ export async function saveInterclubPair(
   if (name.length < 2) return fail("Cargá la pareja (al menos un jugador).");
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
-  const r = await saveInterclubPairRpc(supabase, ligaId, clubId, category, name);
+  const r = await saveInterclubPairRpc(supabase, ligaId, clubId, category, slot, name);
   if (!r.ok) return fail(r.error ?? "No pudimos guardar la pareja.");
   refresh(ligaId);
   return { ok: true };
@@ -123,6 +130,8 @@ export async function generateInterclubFixture(ligaId: string): Promise<Result> 
 
   const cats = liga.categories ?? [];
   if (cats.length === 0) return fail("Primero definí las categorías en juego.");
+  const counts = (liga.pairs_per_cat ?? {}) as Record<string, number>;
+  const countFor = (c: string) => Math.max(1, Number(counts[c]) || 1);
 
   const teams = await listTeams(supabase, ligaId);
   if (teams.length < 2) return fail("Se tienen que sumar al menos 2 clubes.");
@@ -132,13 +141,15 @@ export async function generateInterclubFixture(ligaId: string): Promise<Result> 
   if (sinConfirmar.length > 0)
     return fail(`Falta que confirmen: ${sinConfirmar.slice(0, 4).join(", ")}${sinConfirmar.length > 4 ? "…" : ""}`);
 
-  // Candado: cada club debe tener su pareja cargada en cada categoría.
+  // Candado: cada club debe tener su pareja cargada en cada categoría y slot.
   const pairs = await listPairs(supabase, ligaId);
-  const have = new Set(pairs.map((p) => `${p.team_id}|${p.category}`));
+  const have = new Set(pairs.map((p) => `${p.team_id}|${p.category}|${p.slot}`));
   const faltantes: string[] = [];
   for (const t of teams)
     for (const c of cats)
-      if (!have.has(`${t.id}|${c}`)) faltantes.push(`${t.name} (${c})`);
+      for (let sl = 1; sl <= countFor(c); sl++)
+        if (!have.has(`${t.id}|${c}|${sl}`))
+          faltantes.push(`${t.name} (${c}${countFor(c) > 1 ? ` #${sl}` : ""})`);
   if (faltantes.length > 0)
     return fail(`Faltan parejas: ${faltantes.slice(0, 4).join(", ")}${faltantes.length > 4 ? "…" : ""}`);
 
@@ -160,20 +171,21 @@ export async function saveInterclubLine(
   ligaId: string,
   seriesId: string,
   category: string,
-  categoriesTotal: number,
+  slot: number,
+  linesTotal: number,
   formData: FormData
 ): Promise<Result> {
   const home = Number(formData.get("home_score"));
   const away = Number(formData.get("away_score"));
   if (!Number.isFinite(home) || !Number.isFinite(away) || home < 0 || away < 0)
-    return fail("Cargá el resultado de la categoría.");
-  if (home === away) return fail("No puede haber empate en la categoría.");
+    return fail("Cargá el resultado.");
+  if (home === away) return fail("No puede haber empate.");
   await requireClubAccess();
   const supabase = await createClient();
-  const { error } = await upsertSeriesLine(supabase, seriesId, category, home, away);
+  const { error } = await upsertSeriesLine(supabase, seriesId, category, slot, home, away);
   if (error) return fail("No pudimos guardar el resultado.");
 
-  // Recalcula categorías ganadas por cada lado; completa la serie si están todas.
+  // Recalcula líneas ganadas por cada lado; completa la serie si están todas.
   const lines = await listSeriesLines(supabase, seriesId);
   let hc = 0;
   let ac = 0;
@@ -182,7 +194,7 @@ export async function saveInterclubLine(
     if (l.home_score > l.away_score) hc++;
     else if (l.away_score > l.home_score) ac++;
   }
-  await setSeriesAggregate(supabase, seriesId, hc, ac, lines.length >= categoriesTotal);
+  await setSeriesAggregate(supabase, seriesId, hc, ac, lines.length >= linesTotal);
   refresh(ligaId);
   return { ok: true };
 }
