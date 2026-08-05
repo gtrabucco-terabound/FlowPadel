@@ -51,22 +51,22 @@ export async function createLiga(
   supabase: DB,
   clubId: string,
   name: string,
-  joinCode: string,
   organizerName: string
-): Promise<string | null> {
+): Promise<{ id: string | null; error: string | null }> {
+  // El código lo genera un trigger de la base (único). No lo pasamos.
   const { data, error } = await supabase
     .from("interclub_ligas")
-    .insert({ club_id: clubId, name, join_code: joinCode })
+    .insert({ club_id: clubId, name })
     .select("id")
     .single();
-  if (error || !data) return null;
+  if (error || !data) return { id: null, error: error?.message ?? "insert failed" };
   // El organizador también participa: se crea su equipo automáticamente.
   await supabase.from("interclub_teams").insert({
     liga_id: data.id,
     name: organizerName,
     club_id: clubId,
   });
-  return data.id;
+  return { id: data.id, error: null };
 }
 
 /* ---- RPCs (cada club opera su parte de una liga compartida) ---- */
