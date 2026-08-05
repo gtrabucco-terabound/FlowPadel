@@ -78,3 +78,29 @@ revoke all on function public.confirm_interclub_team(uuid,uuid,boolean) from pub
 grant execute on function public.join_interclub(text,uuid) to authenticated;
 grant execute on function public.save_interclub_pair(uuid,uuid,text,text) to authenticated;
 grant execute on function public.confirm_interclub_team(uuid,uuid,boolean) to authenticated;
+
+-- Código autogenerado por la base (único) vía trigger.
+create or replace function public.gen_interclub_code()
+returns text language plpgsql set search_path=public as $$
+declare v_code text; v_abc text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; i int;
+begin
+  loop
+    v_code := '';
+    for i in 1..6 loop
+      v_code := v_code || substr(v_abc, 1 + floor(random() * length(v_abc))::int, 1);
+    end loop;
+    exit when not exists (select 1 from interclub_ligas where join_code = v_code);
+  end loop;
+  return v_code;
+end$$;
+
+create or replace function public.set_interclub_code()
+returns trigger language plpgsql set search_path=public as $$
+begin
+  if new.join_code is null then new.join_code := gen_interclub_code(); end if;
+  return new;
+end$$;
+
+drop trigger if exists trg_interclub_code on interclub_ligas;
+create trigger trg_interclub_code before insert on interclub_ligas
+  for each row execute function set_interclub_code();

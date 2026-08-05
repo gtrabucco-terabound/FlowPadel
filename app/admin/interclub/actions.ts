@@ -22,13 +22,6 @@ import {
   confirmInterclubTeamRpc,
 } from "@/modules/interclub/repository";
 
-/** Código de liga: 6 caracteres A–Z/2–9 (sin ambiguos). */
-function genCode(): string {
-  const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let s = "";
-  for (let i = 0; i < 6; i++) s += abc[Math.floor(Math.random() * abc.length)];
-  return s;
-}
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
 const fail = (error: string): Result => ({ ok: false, error });
@@ -44,8 +37,8 @@ export async function createInterclubLiga(formData: FormData): Promise<Result> {
   const { clubId } = await requireClubAccess();
   const supabase = await createClient();
   const { data: club } = await supabase.from("clubs").select("name").eq("id", clubId).maybeSingle();
-  const id = await createLiga(supabase, clubId, name, genCode(), club?.name ?? "Mi club");
-  if (!id) return fail("No pudimos crear la liga.");
+  const { id, error } = await createLiga(supabase, clubId, name, club?.name ?? "Mi club");
+  if (!id) return fail(error ? `No pudimos crear la liga: ${error}` : "No pudimos crear la liga.");
   refresh();
   return { ok: true, id };
 }
