@@ -20,7 +20,7 @@ export async function getClubKpis(
   from: string,
   to: string
 ): Promise<ClubKpis> {
-  const [bkRes, lessonsRes, groupsRes, nuevosRes, invitesRes] =
+  const [bkRes, lessonsRes, groupsRes, nuevosRes, invitesRes, offerInvitesRes] =
     await Promise.all([
     supabase
       .from("court_bookings")
@@ -55,6 +55,13 @@ export async function getClubKpis(
       .eq("events.club_id", clubId)
       .gte("created_at", from)
       .lte("created_at", `${to}T23:59:59`),
+    // Invitaciones de oferta del motor de ocupación (canal segmentado).
+    supabase
+      .from("player_offer_invites")
+      .select("id", { count: "exact", head: true })
+      .eq("club_id", clubId)
+      .gte("invite_date", from)
+      .lte("invite_date", to),
   ]);
 
   // Reservas reales (excluye bloqueos y turnos de torneo).
@@ -82,6 +89,6 @@ export async function getClubKpis(
     clientesMes: clientes.size,
     nuevosMes: nuevosRes.count ?? 0,
     clasesMes: (lessonsRes.count ?? 0) + (groupsRes.count ?? 0),
-    invitacionesMes: invitesRes.count ?? 0,
+    invitacionesMes: (invitesRes.count ?? 0) + (offerInvitesRes.count ?? 0),
   };
 }
