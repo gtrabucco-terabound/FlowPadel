@@ -111,6 +111,7 @@ export function SettingsManager({
   bookingChargeValue,
   bookingPayAtClub,
   occupancy,
+  occupancyEnabled = true,
 }: {
   courts: Court[];
   bands: Band[];
@@ -121,6 +122,7 @@ export function SettingsManager({
   bookingChargeValue: number | null;
   bookingPayAtClub: boolean;
   occupancy: OccupancyConfig;
+  occupancyEnabled?: boolean;
 }) {
   return (
     <div className="max-w-2xl space-y-6">
@@ -133,7 +135,7 @@ export function SettingsManager({
           payAtClub={bookingPayAtClub}
         />
       )}
-      {canEditClub && <OccupancyCard occupancy={occupancy} />}
+      {canEditClub && occupancyEnabled && <OccupancyCard occupancy={occupancy} />}
       <CourtsCard courts={courts} bands={bands} />
     </div>
   );

@@ -5,11 +5,13 @@ import {
   ClubesManager,
   type ClubRow,
   type LeadRow,
+  type PlanOption,
 } from "@/components/admin/clubes-manager";
 import {
   listClubsOverview,
   listOpenClubLeads,
 } from "@/modules/clubs/repository";
+import { listAllPlans } from "@/modules/plans/repository";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +21,15 @@ export default async function ClubesPage() {
 
   const supabase = await createClient();
 
-  const [clubsData, leadsData] = await Promise.all([
+  const [clubsData, leadsData, plansData] = await Promise.all([
     listClubsOverview(supabase),
     listOpenClubLeads(supabase),
+    listAllPlans(supabase),
   ]);
 
   const clubs = clubsData as ClubRow[];
   const leads = leadsData as LeadRow[];
+  const plans: PlanOption[] = plansData.map((p) => ({ id: p.id, name: p.name }));
 
   return (
     <div className="space-y-6">
@@ -36,7 +40,7 @@ export default async function ClubesPage() {
           admin y convertí los clubes sugeridos por los jugadores.
         </p>
       </div>
-      <ClubesManager clubs={clubs} leads={leads} />
+      <ClubesManager clubs={clubs} leads={leads} plans={plans} />
     </div>
   );
 }

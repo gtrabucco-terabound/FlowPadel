@@ -1,4 +1,4 @@
-import { getAdminContext } from "@/lib/admin/club";
+import { requireFeature } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { AgendaView, type AgendaCourt, type AgendaBooking, type CoachIntervals } from "@/components/admin/agenda-grid";
 import {
@@ -46,7 +46,7 @@ export default async function AgendaPage({
     viewRaw === "semana" || viewRaw === "mes" ? viewRaw : "dia";
   const [from, to] = rangeFor(view, day);
 
-  const ctx = await getAdminContext();
+  const ctx = await requireFeature("reservations");
   const supabase = await createClient();
 
   const [courtsData, bookingsData, coaches, availability] = await Promise.all([

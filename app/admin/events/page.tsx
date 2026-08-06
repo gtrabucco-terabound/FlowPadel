@@ -1,4 +1,4 @@
-import { getAdminContext } from "@/lib/admin/club";
+import { requireFeature } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { eventStatusMeta, eventTypeLabel, formatDate } from "@/lib/format";
@@ -13,7 +13,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
-  const ctx = await getAdminContext();
+  const ctx = await requireFeature("tournaments");
   const supabase = await createClient();
 
   const [rows, challenges] = await Promise.all([

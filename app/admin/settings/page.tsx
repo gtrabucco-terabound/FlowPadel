@@ -62,6 +62,7 @@ export default async function SettingsPage() {
           segmentInactiveDays: occ?.segment_inactive_days ?? 21,
           segmentMaxPerRun: occ?.segment_max_per_run ?? 15,
         }}
+        occupancyEnabled={ctx.features.occupancy}
       />
       <div className="max-w-2xl">
         <CoachesManager coaches={coaches ?? []} availability={availability ?? []} />

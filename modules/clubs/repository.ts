@@ -367,6 +367,7 @@ export type ClubOverviewRow = {
   is_active: boolean;
   /** Tiene eventos o reservas → no se puede eliminar, sólo desactivar. */
   has_data: boolean;
+  plan_id: string | null;
 };
 
 export type ClubLeadRow = {
@@ -385,7 +386,7 @@ export async function listClubsOverview(
     { data: events },
     { data: bookings },
   ] = await Promise.all([
-    supabase.from("clubs").select("id, name, city, is_active").order("created_at"),
+    supabase.from("clubs").select("id, name, city, is_active, plan_id").order("created_at"),
     supabase.from("club_members").select("club_id"),
     supabase.from("events").select("club_id"),
     supabase.from("court_bookings").select("club_id"),
@@ -406,7 +407,21 @@ export async function listClubsOverview(
     admins: counts.get(c.id) ?? 0,
     is_active: c.is_active,
     has_data: withData.has(c.id),
+    plan_id: c.plan_id,
   }));
+}
+
+/** Asigna (o quita, con null) el plan de un club. Solo superadmin (RLS/roles). */
+export async function setClubPlanId(
+  supabase: DB,
+  clubId: string,
+  planId: string | null
+): Promise<{ error: boolean }> {
+  const { error } = await supabase
+    .from("clubs")
+    .update({ plan_id: planId, updated_at: new Date().toISOString() })
+    .eq("id", clubId);
+  return { error: Boolean(error) };
 }
 
 /** Clubes-lead sin convertir, priorizados por menciones de jugadores (CRM). */

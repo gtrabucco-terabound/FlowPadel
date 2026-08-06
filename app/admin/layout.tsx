@@ -66,6 +66,7 @@ export default async function AdminLayout({
             <SidebarNav
               role={ctx.activeMembership.role}
               superadmin={ctx.superadmin}
+              features={ctx.features}
             />
           </div>
         </aside>

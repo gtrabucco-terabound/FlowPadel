@@ -2,6 +2,11 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums, Tables } from "@/lib/database.types";
+import {
+  getClubFeatures,
+  type ClubFeatures,
+  type FeatureKey,
+} from "@/modules/plans/repository";
 
 export const ACTIVE_CLUB_COOKIE = "padel_active_club";
 
@@ -18,6 +23,7 @@ export interface AdminContext {
   activeClubId: string;
   activeMembership: AdminMembership;
   superadmin: boolean;
+  features: ClubFeatures;
 }
 
 type MembershipRow = {
@@ -64,6 +70,8 @@ export async function getAdminContext(): Promise<AdminContext> {
   const activeMembership =
     memberships.find((m) => m.club.id === cookieClub) ?? memberships[0];
 
+  const features = await getClubFeatures(supabase, activeMembership.club.id);
+
   return {
     userId: user.id,
     email: user.email ?? "",
@@ -71,7 +79,18 @@ export async function getAdminContext(): Promise<AdminContext> {
     activeClubId: activeMembership.club.id,
     activeMembership,
     superadmin,
+    features,
   };
+}
+
+/**
+ * Guard de feature para páginas/acciones: si el club activo no tiene la feature
+ * habilitada en su plan, redirige a /admin. El superadmin nunca se bloquea.
+ */
+export async function requireFeature(feature: FeatureKey): Promise<AdminContext> {
+  const ctx = await getAdminContext();
+  if (!ctx.superadmin && !ctx.features[feature]) redirect("/admin");
+  return ctx;
 }
 
 /** Lightweight check used inside server actions: returns active club id + role. */

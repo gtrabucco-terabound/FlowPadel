@@ -4,7 +4,12 @@ import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { createClub, setClubActive, deleteClub } from "@/app/admin/clubes/actions";
+import {
+  createClub,
+  setClubActive,
+  deleteClub,
+  setClubPlan,
+} from "@/app/admin/clubes/actions";
 
 const inputCls =
   "w-full rounded-xl border border-border-strong bg-surface px-3.5 py-2.5 text-ink placeholder:text-faint outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/30";
@@ -16,11 +21,16 @@ export interface ClubRow {
   admins: number;
   is_active: boolean;
   has_data: boolean;
+  plan_id: string | null;
 }
 export interface LeadRow {
   id: string;
   name: string;
   mention_count: number;
+}
+export interface PlanOption {
+  id: string;
+  name: string;
 }
 
 const ADMIN_MSG: Record<string, string> = {
@@ -30,7 +40,7 @@ const ADMIN_MSG: Record<string, string> = {
   sin_admin: "Club creado. Asignale un admin cuando quieras.",
 };
 
-function ClubItem({ club: c }: { club: ClubRow }) {
+function ClubItem({ club: c, plans }: { club: ClubRow; plans: PlanOption[] }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +83,20 @@ function ClubItem({ club: c }: { club: ClubRow }) {
         {error && <p className="mt-1 text-xs font-semibold text-red-500">{error}</p>}
       </div>
       <div className="flex items-center gap-2">
+        <select
+          aria-label="Plan del club"
+          disabled={pending}
+          value={c.plan_id ?? ""}
+          onChange={(e) => run(() => setClubPlan(c.id, e.target.value || null))}
+          className="rounded-lg border border-border-soft bg-surface px-2 py-1.5 text-xs text-ink outline-none focus:border-accent"
+        >
+          <option value="">Sin plan (todo)</option>
+          {plans.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
         <Button
           type="button"
           size="sm"
@@ -103,9 +127,11 @@ function ClubItem({ club: c }: { club: ClubRow }) {
 export function ClubesManager({
   clubs,
   leads,
+  plans,
 }: {
   clubs: ClubRow[];
   leads: LeadRow[];
+  plans: PlanOption[];
 }) {
   const [state, formAction, pending] = useActionState(createClub, null);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -223,7 +249,7 @@ export function ClubesManager({
         </h2>
         <div className="space-y-2">
           {clubs.map((c) => (
-            <ClubItem key={c.id} club={c} />
+            <ClubItem key={c.id} club={c} plans={plans} />
           ))}
         </div>
       </div>

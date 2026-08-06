@@ -3,10 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { getAdminContext } from "@/lib/admin/club";
 import {
   adminCreateClub,
   setClubActiveFlag,
   adminDeleteClub,
+  setClubPlanId,
 } from "@/modules/clubs/repository";
 
 type Result =
@@ -77,6 +79,21 @@ export async function setClubActive(
   const supabase = await createClient();
   const { error } = await setClubActiveFlag(supabase, clubId, active);
   if (error) return { ok: false, error: "No pudimos actualizar el club." };
+  revalidatePath("/admin/clubes");
+  return { ok: true };
+}
+
+/** Asigna el plan de un club (o lo quita con planId vacío). Solo superadmin. */
+export async function setClubPlan(
+  clubId: string,
+  planId: string | null
+): Promise<SimpleResult> {
+  const ctx = await getAdminContext();
+  if (!ctx.superadmin)
+    return { ok: false, error: "Solo un superadmin puede asignar planes." };
+  const supabase = await createClient();
+  const { error } = await setClubPlanId(supabase, clubId, planId || null);
+  if (error) return { ok: false, error: "No pudimos asignar el plan." };
   revalidatePath("/admin/clubes");
   return { ok: true };
 }
