@@ -14,6 +14,7 @@ export type ClubFeatures = {
   paymentsMp: boolean;
   occupancy: boolean;
   whatsappBot: boolean;
+  privateLine: boolean;
   lessons: boolean;
   communityScope: string; // 'club' | 'platform'
   planName: string | null;
@@ -26,6 +27,7 @@ export type FeatureKey =
   | "tournaments"
   | "occupancy"
   | "whatsappBot"
+  | "privateLine"
   | "lessons";
 
 // Sin plan asignado ⇒ todo habilitado. Así no rompemos clubs existentes: el
@@ -37,6 +39,7 @@ const ALL_ON: ClubFeatures = {
   paymentsMp: true,
   occupancy: true,
   whatsappBot: true,
+  privateLine: true,
   lessons: true,
   communityScope: "platform",
   planName: null,
@@ -50,7 +53,7 @@ export async function getClubFeatures(
   const { data } = await supabase
     .from("clubs")
     .select(
-      "plan:plans(name, f_reservations, f_fixed_bookings, f_tournaments, f_payments_mp, f_occupancy, f_whatsapp_bot, f_lessons, community_scope)"
+      "plan:plans(name, f_reservations, f_fixed_bookings, f_tournaments, f_payments_mp, f_occupancy, f_whatsapp_bot, f_private_line, f_lessons, community_scope)"
     )
     .eq("id", clubId)
     .maybeSingle();
@@ -63,6 +66,7 @@ export async function getClubFeatures(
     paymentsMp: p.f_payments_mp,
     occupancy: p.f_occupancy,
     whatsappBot: p.f_whatsapp_bot,
+    privateLine: p.f_private_line,
     lessons: p.f_lessons,
     communityScope: p.community_scope,
     planName: p.name,
@@ -135,6 +139,7 @@ export type PlanInput = {
   f_payments_mp: boolean;
   f_occupancy: boolean;
   f_whatsapp_bot: boolean;
+  f_private_line: boolean;
   f_lessons: boolean;
   community_scope: string;
   founder_eligible: boolean;
@@ -216,6 +221,7 @@ export function planFeatureLabels(plan: Plan): string[] {
   if (plan.f_payments_mp) out.push("Cobros con Mercado Pago");
   if (plan.f_occupancy) out.push("Motor de ocupación (WhatsApp)");
   if (plan.f_whatsapp_bot) out.push("Bot de WhatsApp");
+  if (plan.f_private_line) out.push("WhatsApp propio (línea privada)");
   if (plan.f_lessons) out.push("Clases y entrenamientos");
   out.push(
     plan.community_scope === "platform"

@@ -18,6 +18,8 @@ import {
   updateOccupancy,
   createCourtBand,
   removeCourtBand,
+  connectClubWhatsapp,
+  refreshClubWhatsapp,
 } from "@/app/admin/settings/actions";
 import type { Tables } from "@/lib/database.types";
 
@@ -112,6 +114,8 @@ export function SettingsManager({
   bookingPayAtClub,
   occupancy,
   occupancyEnabled = true,
+  privateLineEnabled = false,
+  whatsapp,
 }: {
   courts: Court[];
   bands: Band[];
@@ -123,6 +127,8 @@ export function SettingsManager({
   bookingPayAtClub: boolean;
   occupancy: OccupancyConfig;
   occupancyEnabled?: boolean;
+  privateLineEnabled?: boolean;
+  whatsapp: WhatsappConfig;
 }) {
   return (
     <div className="max-w-2xl space-y-6">
@@ -135,9 +141,108 @@ export function SettingsManager({
           payAtClub={bookingPayAtClub}
         />
       )}
+      {canEditClub && privateLineEnabled && <WhatsappCard whatsapp={whatsapp} />}
       {canEditClub && occupancyEnabled && <OccupancyCard occupancy={occupancy} />}
       <CourtsCard courts={courts} bands={bands} />
     </div>
+  );
+}
+
+type WhatsappConfig = {
+  connected: boolean;
+  status: string | null;
+  phone: string | null;
+};
+
+function WhatsappCard({ whatsapp }: { whatsapp: WhatsappConfig }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(whatsapp.status);
+  const [phone, setPhone] = useState<string | null>(whatsapp.phone);
+
+  const src = (b: string) =>
+    b.startsWith("data:") ? b : `data:image/png;base64,${b}`;
+
+  const generate = () => {
+    setError(null);
+    start(async () => {
+      const res = await connectClubWhatsapp();
+      if (!res.ok) setError(res.error);
+      else {
+        setQr(res.qr);
+        setStatus("connecting");
+      }
+    });
+  };
+
+  const check = () => {
+    setError(null);
+    start(async () => {
+      const res = await refreshClubWhatsapp();
+      if (!res.ok) setError(res.error);
+      else {
+        setStatus(res.status);
+        setPhone(res.phone);
+        if (res.status === "connected") setQr(null);
+        router.refresh();
+      }
+    });
+  };
+
+  const connected = status === "connected";
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 py-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-ink">WhatsApp propio del club</h2>
+          <Badge tone={connected ? "live" : "neutral"}>
+            {connected
+              ? phone
+                ? `Conectado · ${phone}`
+                : "Conectado"
+              : status === "connecting"
+                ? "Esperando escaneo"
+                : "Sin conectar"}
+          </Badge>
+        </div>
+        <p className="text-sm text-muted">
+          Conectá el número propio del club (tu línea privada). El bot de reservas
+          y los avisos de canchas van a salir desde este WhatsApp en vez del número
+          general de FlowPadel.
+        </p>
+
+        {qr && !connected && (
+          <div className="rounded-lg border border-border-soft bg-surface p-4 text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src(qr)}
+              alt="Código QR de WhatsApp"
+              className="mx-auto h-56 w-56"
+            />
+            <p className="mt-2 text-xs text-muted">
+              Abrí WhatsApp → Dispositivos vinculados → Vincular dispositivo, y
+              escaneá este código. Después tocá &quot;Verificar estado&quot;.
+            </p>
+          </div>
+        )}
+
+        {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
+
+        <div className="flex flex-wrap gap-2">
+          {!connected && (
+            <Button size="sm" onClick={generate} disabled={pending}>
+              {pending ? "Generando…" : qr ? "Regenerar QR" : "Conectar WhatsApp"}
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={check} disabled={pending}>
+            Verificar estado
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
