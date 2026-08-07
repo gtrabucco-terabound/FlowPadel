@@ -255,6 +255,44 @@ export type Database = {
           },
         ]
       }
+      club_whatsapp_instances: {
+        Row: {
+          club_id: string
+          created_at: string
+          instance_name: string
+          last_connected_at: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          club_id: string
+          created_at?: string
+          instance_name: string
+          last_connected_at?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          club_id?: string
+          created_at?: string
+          instance_name?: string
+          last_connected_at?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "club_whatsapp_instances_club_id_fkey"
+            columns: ["club_id"]
+            isOneToOne: true
+            referencedRelation: "clubs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       club_occupancy: {
         Row: {
           club_id: string
@@ -544,6 +582,7 @@ export type Database = {
           player_id: string | null
           price: number | null
           slot_minutes: number
+          source: string
           start_minutes: number
           status: string
           updated_at: string
@@ -569,6 +608,7 @@ export type Database = {
           player_id?: string | null
           price?: number | null
           slot_minutes?: number
+          source?: string
           start_minutes: number
           status?: string
           updated_at?: string
@@ -594,6 +634,7 @@ export type Database = {
           player_id?: string | null
           price?: number | null
           slot_minutes?: number
+          source?: string
           start_minutes?: number
           status?: string
           updated_at?: string
@@ -1713,6 +1754,7 @@ export type Database = {
           f_lessons: boolean
           f_occupancy: boolean
           f_payments_mp: boolean
+          f_private_line: boolean
           f_reservations: boolean
           f_tournaments: boolean
           f_whatsapp_bot: boolean
@@ -1735,6 +1777,7 @@ export type Database = {
           f_lessons?: boolean
           f_occupancy?: boolean
           f_payments_mp?: boolean
+          f_private_line?: boolean
           f_reservations?: boolean
           f_tournaments?: boolean
           f_whatsapp_bot?: boolean
@@ -1757,6 +1800,7 @@ export type Database = {
           f_lessons?: boolean
           f_occupancy?: boolean
           f_payments_mp?: boolean
+          f_private_line?: boolean
           f_reservations?: boolean
           f_tournaments?: boolean
           f_whatsapp_bot?: boolean

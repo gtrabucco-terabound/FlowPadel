@@ -1,4 +1,4 @@
-import { getAdminContext } from "@/lib/admin/club";
+import { requireFeature } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { ClasesManager } from "@/components/admin/clases-manager";
 import {
@@ -17,7 +17,7 @@ function todayAR(): string {
 }
 
 export default async function ClasesPage() {
-  const ctx = await getAdminContext();
+  const ctx = await requireFeature("lessons");
   const clubId = ctx.activeClubId;
   const supabase = await createClient();
 

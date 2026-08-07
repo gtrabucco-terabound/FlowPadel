@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { Enums } from "@/lib/database.types";
+import type { ClubFeatures, FeatureKey } from "@/modules/plans/repository";
 
 type NavItem = {
   href: string;
@@ -11,6 +12,8 @@ type NavItem = {
   exact: boolean;
   adminOnly?: boolean;
   superadminOnly?: boolean;
+  /** Si está seteada, el ítem solo se muestra si el plan del club la incluye. */
+  feature?: FeatureKey;
 };
 
 type NavGroup = {
@@ -26,17 +29,18 @@ const GROUPS: NavGroup[] = [
     title: null,
     items: [
       { href: "/admin", label: "Inicio", exact: true },
+      { href: "/admin/proyeccion", label: "Proyección económica", exact: false, adminOnly: true },
       { href: "/admin/calendario", label: "Calendario", exact: false },
     ],
   },
   {
     title: "Operación",
     items: [
-      { href: "/admin/agenda", label: "Agenda", exact: false },
-      { href: "/admin/turnos-fijos", label: "Turnos fijos", exact: false },
-      { href: "/admin/clases", label: "Clases", exact: false },
-      { href: "/admin/events", label: "Torneos", exact: false },
-      { href: "/admin/interclub", label: "Interclub", exact: false },
+      { href: "/admin/agenda", label: "Agenda", exact: false, feature: "reservations" },
+      { href: "/admin/turnos-fijos", label: "Turnos fijos", exact: false, feature: "fixedBookings" },
+      { href: "/admin/clases", label: "Clases", exact: false, feature: "lessons" },
+      { href: "/admin/events", label: "Torneos", exact: false, feature: "tournaments" },
+      { href: "/admin/interclub", label: "Interclub", exact: false, feature: "tournaments" },
     ],
   },
   {
@@ -51,7 +55,6 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/miembros", label: "Miembros", exact: false, adminOnly: true },
       { href: "/admin/operar", label: "Operar clubes", exact: false },
-      { href: "/admin/proyeccion", label: "Proyección económica", exact: false, adminOnly: true },
       { href: "/admin/settings", label: "Configuración", exact: false },
     ],
   },
@@ -67,15 +70,19 @@ const GROUPS: NavGroup[] = [
 export function SidebarNav({
   role,
   superadmin,
+  features,
 }: {
   role?: Enums<"club_member_role">;
   superadmin?: boolean;
+  features?: ClubFeatures;
 }) {
   const pathname = usePathname();
 
   const canSee = (item: NavItem) =>
     (!item.adminOnly || role === "club_admin") &&
-    (!item.superadminOnly || superadmin);
+    (!item.superadminOnly || superadmin) &&
+    // Gating por plan: el superadmin ve todo; sin `features` no se gatea.
+    (!item.feature || superadmin || features?.[item.feature] !== false);
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname.startsWith(item.href);

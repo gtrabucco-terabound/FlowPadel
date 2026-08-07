@@ -1,4 +1,4 @@
-import { getAdminContext } from "@/lib/admin/club";
+import { requireFeature } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import {
   FixedBookingsManager,
@@ -22,7 +22,7 @@ function currentPeriod(): string {
 }
 
 export default async function TurnosFijosPage() {
-  const ctx = await getAdminContext();
+  const ctx = await requireFeature("fixedBookings");
   const supabase = await createClient();
 
   const [courtsData, fbData, chargesData, clientsData] = await Promise.all([

@@ -6,6 +6,73 @@ type DB = Awaited<ReturnType<typeof createClient>>;
 
 export type Plan = Tables<"plans">;
 
+/** Flags de features efectivos de un club, resueltos desde su plan. */
+export type ClubFeatures = {
+  reservations: boolean;
+  fixedBookings: boolean;
+  tournaments: boolean;
+  paymentsMp: boolean;
+  occupancy: boolean;
+  whatsappBot: boolean;
+  privateLine: boolean;
+  lessons: boolean;
+  communityScope: string; // 'club' | 'platform'
+  planName: string | null;
+};
+
+/** Clave de feature usada para gatear navegación/páginas. */
+export type FeatureKey =
+  | "reservations"
+  | "fixedBookings"
+  | "tournaments"
+  | "occupancy"
+  | "whatsappBot"
+  | "privateLine"
+  | "lessons";
+
+// Sin plan asignado ⇒ todo habilitado. Así no rompemos clubs existentes: el
+// gating recién "muerde" cuando el superadmin le asigna un plan al club.
+const ALL_ON: ClubFeatures = {
+  reservations: true,
+  fixedBookings: true,
+  tournaments: true,
+  paymentsMp: true,
+  occupancy: true,
+  whatsappBot: true,
+  privateLine: true,
+  lessons: true,
+  communityScope: "platform",
+  planName: null,
+};
+
+/** Resuelve los features efectivos del club a partir de su plan (o todo-ON). */
+export async function getClubFeatures(
+  supabase: DB,
+  clubId: string
+): Promise<ClubFeatures> {
+  const { data } = await supabase
+    .from("clubs")
+    .select(
+      "plan:plans(name, f_reservations, f_fixed_bookings, f_tournaments, f_payments_mp, f_occupancy, f_whatsapp_bot, f_private_line, f_lessons, community_scope)"
+    )
+    .eq("id", clubId)
+    .maybeSingle();
+  const p = (data as { plan: Tables<"plans"> | null } | null)?.plan;
+  if (!p) return ALL_ON;
+  return {
+    reservations: p.f_reservations,
+    fixedBookings: p.f_fixed_bookings,
+    tournaments: p.f_tournaments,
+    paymentsMp: p.f_payments_mp,
+    occupancy: p.f_occupancy,
+    whatsappBot: p.f_whatsapp_bot,
+    privateLine: p.f_private_line,
+    lessons: p.f_lessons,
+    communityScope: p.community_scope,
+    planName: p.name,
+  };
+}
+
 export type RoiMetric = { value: string; label: string; note: string };
 
 export type PlatformSettings = {
@@ -72,6 +139,7 @@ export type PlanInput = {
   f_payments_mp: boolean;
   f_occupancy: boolean;
   f_whatsapp_bot: boolean;
+  f_private_line: boolean;
   f_lessons: boolean;
   community_scope: string;
   founder_eligible: boolean;
@@ -153,6 +221,7 @@ export function planFeatureLabels(plan: Plan): string[] {
   if (plan.f_payments_mp) out.push("Cobros con Mercado Pago");
   if (plan.f_occupancy) out.push("Motor de ocupación (WhatsApp)");
   if (plan.f_whatsapp_bot) out.push("Bot de WhatsApp");
+  if (plan.f_private_line) out.push("WhatsApp propio (línea privada)");
   if (plan.f_lessons) out.push("Clases y entrenamientos");
   out.push(
     plan.community_scope === "platform"

@@ -81,6 +81,104 @@ export async function listAvailability(
   return (data ?? []) as CoachAvailability[];
 }
 
+/* ---- Reporte por profesor (calendario + disponibilidad + KPIs) ---- */
+
+export type CoachUpcoming = {
+  kind: "clase" | "grupo";
+  date: string;
+  start: number;
+};
+
+export type CoachReport = {
+  coach: Coach;
+  clasesMes: number;
+  gruposMes: number;
+  alumnosMes: number;
+  ingresoMes: number;
+  weekdays: number[];
+  proximas: CoachUpcoming[];
+};
+
+/**
+ * Arma el reporte de cada profe del club: clases/grupos del mes, alumnos
+ * distintos, ingreso estimado de clases individuales, días de disponibilidad y
+ * sus próximas actividades. Rango [from, to] en YYYY-MM-DD; `today` = hoy.
+ */
+export async function getCoachesReport(
+  supabase: DB,
+  clubId: string,
+  from: string,
+  to: string,
+  today: string
+): Promise<CoachReport[]> {
+  const coaches = await listClubCoaches(supabase, clubId);
+  if (coaches.length === 0) return [];
+  const ids = coaches.map((c) => c.id);
+
+  const [lessonsRes, groupsRes, availRes] = await Promise.all([
+    supabase
+      .from("lessons")
+      .select("coach_id, lesson_date, start_minutes, price, player_id, customer_name, status")
+      .in("coach_id", ids)
+      .neq("status", "cancelled")
+      .gte("lesson_date", from)
+      .lte("lesson_date", to),
+    supabase
+      .from("group_sessions")
+      .select("coach_id, session_date, start_minutes, status")
+      .in("coach_id", ids)
+      .neq("status", "cancelled")
+      .gte("session_date", from)
+      .lte("session_date", to),
+    supabase
+      .from("coach_availability")
+      .select("coach_id, weekday")
+      .in("coach_id", ids),
+  ]);
+
+  const lessons = lessonsRes.data ?? [];
+  const groups = groupsRes.data ?? [];
+  const avail = availRes.data ?? [];
+
+  return coaches.map((coach) => {
+    const myLessons = lessons.filter((l) => l.coach_id === coach.id);
+    const myGroups = groups.filter((g) => g.coach_id === coach.id);
+
+    const alumnos = new Set<string>();
+    let ingreso = 0;
+    for (const l of myLessons) {
+      ingreso += Number(l.price ?? 0);
+      const who = l.player_id ?? l.customer_name;
+      if (who) alumnos.add(who);
+    }
+
+    const weekdays = Array.from(
+      new Set(avail.filter((a) => a.coach_id === coach.id).map((a) => a.weekday))
+    ).sort((a, b) => a - b);
+
+    const proximas: CoachUpcoming[] = [
+      ...myLessons
+        .filter((l) => l.lesson_date >= today)
+        .map((l) => ({ kind: "clase" as const, date: l.lesson_date, start: l.start_minutes })),
+      ...myGroups
+        .filter((g) => g.session_date >= today)
+        .map((g) => ({ kind: "grupo" as const, date: g.session_date, start: g.start_minutes })),
+    ]
+      .sort((a, b) => (a.date === b.date ? a.start - b.start : a.date < b.date ? -1 : 1))
+      .slice(0, 4);
+
+    return {
+      coach,
+      clasesMes: myLessons.length,
+      gruposMes: myGroups.length,
+      alumnosMes: alumnos.size,
+      ingresoMes: Math.round(ingreso),
+      weekdays,
+      proximas,
+    };
+  });
+}
+
 /** ¿Ya existe una franja del profe ese día que se pise con [start,end)? */
 export async function availabilityOverlaps(
   supabase: DB,

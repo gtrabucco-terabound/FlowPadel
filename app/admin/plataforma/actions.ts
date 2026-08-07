@@ -51,6 +51,7 @@ function planFromForm(formData: FormData): PlanInput {
     f_payments_mp: on(formData, "f_payments_mp"),
     f_occupancy: on(formData, "f_occupancy"),
     f_whatsapp_bot: on(formData, "f_whatsapp_bot"),
+    f_private_line: on(formData, "f_private_line"),
     f_lessons: on(formData, "f_lessons"),
     community_scope:
       String(formData.get("community_scope") ?? "club") === "platform"

@@ -9,6 +9,7 @@ import {
 } from "@/modules/clubs/repository";
 import { listCourtBands } from "@/modules/reservations/repository";
 import { listClubCoaches, listAvailability } from "@/modules/coaches/repository";
+import { getClubInstance } from "@/modules/whatsapp/repository";
 import { CoachesManager } from "@/components/admin/coaches-manager";
 
 export const dynamic = "force-dynamic";
@@ -36,6 +37,11 @@ export default async function SettingsPage() {
     ? await getClubOccupancy(supabase, ctx.activeClubId)
     : null;
 
+  const waInstance =
+    canEditClub && ctx.features.privateLine
+      ? await getClubInstance(supabase, ctx.activeClubId)
+      : null;
+
   return (
     <div className="space-y-6">
       <div>
@@ -61,6 +67,13 @@ export default async function SettingsPage() {
           segmentMinMatches: occ?.segment_min_matches ?? 3,
           segmentInactiveDays: occ?.segment_inactive_days ?? 21,
           segmentMaxPerRun: occ?.segment_max_per_run ?? 15,
+        }}
+        occupancyEnabled={ctx.features.occupancy}
+        privateLineEnabled={ctx.features.privateLine}
+        whatsapp={{
+          connected: waInstance?.status === "connected",
+          status: waInstance?.status ?? null,
+          phone: waInstance?.phone ?? null,
         }}
       />
       <div className="max-w-2xl">

@@ -101,7 +101,12 @@ export default async function ProyeccionPage({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-ink">Proyección anual</h1>
+        <div>
+          <h1 className="text-2xl font-semibold text-ink">Proyección económica</h1>
+          <p className="text-sm text-muted">
+            {ctx.activeMembership.club.name} · torneos: proyectado vs. real
+          </p>
+        </div>
         {years.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <Link
@@ -131,17 +136,23 @@ export default async function ProyeccionPage({
         )}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Ganancia proyectada" value={money(totalProjGain)} />
-        <MetricCard
-          label="Recaudado real"
-          value={money(totalRealCollected)}
-        />
-        <MetricCard label="Pozo real" value={money(totalRealPool)} />
-        <MetricCard label="Torneos" value={String(rows.length)} />
-      </div>
+      <section className="space-y-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Resumen (proyectado vs. real)
+        </h2>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <MetricCard label="Ganancia proyectada" value={money(totalProjGain)} />
+          <MetricCard label="Recaudado real" value={money(totalRealCollected)} highlight />
+          <MetricCard label="Pozo real" value={money(totalRealPool)} />
+          <MetricCard label="Torneos" value={String(rows.length)} />
+        </div>
+      </section>
 
-      {rows.length === 0 ? (
+      <section className="space-y-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">
+          Detalle por torneo
+        </h2>
+        {rows.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted">
             No hay torneos para mostrar.
@@ -204,19 +215,28 @@ export default async function ProyeccionPage({
             </table>
           </CardContent>
         </Card>
-      )}
+        )}
+      </section>
     </div>
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
   return (
     <Card>
-      <CardContent className="py-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-          {label}
+      <CardContent className="py-5">
+        <p className={`text-2xl font-semibold ${highlight ? "text-padel-600" : "text-ink"}`}>
+          {value}
         </p>
-        <p className="mt-1 text-xl font-bold text-ink">{value}</p>
+        <p className="mt-1 text-sm text-muted">{label}</p>
       </CardContent>
     </Card>
   );

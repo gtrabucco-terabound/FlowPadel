@@ -30,13 +30,17 @@ Deno.serve(async () => {
   const d = dow(iso);
 
   const { data: clubs } = await db.from("club_occupancy")
-    .select("club_id, wa_target, discount_pct, lead_minutes, segment_enabled, segment_min_matches, segment_inactive_days, segment_discount_pct, segment_max_per_run, club:clubs(slug,name)")
+    .select("club_id, wa_target, discount_pct, lead_minutes, segment_enabled, segment_min_matches, segment_inactive_days, segment_discount_pct, segment_max_per_run, club:clubs(slug,name,plan:plans(f_occupancy))")
     .eq("enabled", true);
 
   let posted = 0; let invited = 0;
   for (const c of (clubs ?? []) as any[]) {
     const slug = c.club?.slug; const name = c.club?.name ?? "el club";
     if (!slug) continue;
+    // Gating por plan: si el club tiene un plan asignado y NO incluye ocupación,
+    // se saltea. Sin plan asignado ⇒ permitido (mismo criterio que la app).
+    const plan = c.club?.plan;
+    if (plan && plan.f_occupancy === false) continue;
     const { data: dayRaw } = await db.rpc("public_court_day", { p_slug: slug, p_date: iso });
     const day: any = dayRaw ?? {};
     const courts = day.courts ?? []; const taken = day.bookings ?? [];

@@ -30,6 +30,7 @@ export type EventForActions = Pick<
   | "category_value"
   | "category_system"
   | "event_type"
+  | "start_date"
 >;
 
 /** Verifica que el evento sea del club activo; devuelve sus datos o null. */
@@ -41,7 +42,7 @@ export async function getEventForActions(
   const { data } = await supabase
     .from("events")
     .select(
-      "id, club_id, registration_fee, currency, long_format, charge_court, inscription_per_person, court_fee_per_person, court_pool_per_person, modality, category_value, category_system, event_type"
+      "id, club_id, registration_fee, currency, long_format, charge_court, inscription_per_person, court_fee_per_person, court_pool_per_person, modality, category_value, category_system, event_type, start_date"
     )
     .eq("id", eventId)
     .eq("club_id", clubId)

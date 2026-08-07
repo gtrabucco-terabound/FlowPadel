@@ -3,7 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { requireClubAccess } from "@/lib/admin/club";
+import { requireClubAccess, getAdminContext } from "@/lib/admin/club";
+import {
+  getClubInstance,
+  upsertClubInstance,
+  setInstanceStatus,
+} from "@/modules/whatsapp/repository";
+import {
+  ensureInstance,
+  connectInstance,
+  instanceState,
+  evolutionConfigured,
+} from "@/lib/evolution";
 import {
   upsertClubPaymentTokens,
   updateBookingChargePolicy,
@@ -283,4 +294,56 @@ export async function removeCourtBand(id: string): Promise<ActionResult> {
   if (error) return fail("No pudimos borrar la franja.");
   refresh();
   return { ok: true };
+}
+
+/* ---- Línea privada de WhatsApp (tier Marca propia) ---- */
+
+type QrResult =
+  | { ok: true; qr: string | null }
+  | { ok: false; error: string };
+
+/** Crea/asegura la instancia del club en Evolution y devuelve el QR (base64). */
+export async function connectClubWhatsapp(): Promise<QrResult> {
+  const ctx = await getAdminContext();
+  if (ctx.activeMembership.role !== "club_admin" && !ctx.superadmin)
+    return { ok: false, error: "Solo el admin del club puede conectar WhatsApp." };
+  if (!ctx.features.privateLine)
+    return { ok: false, error: "Tu plan no incluye la línea privada de WhatsApp." };
+  if (!evolutionConfigured())
+    return { ok: false, error: "WhatsApp no está configurado en el servidor." };
+
+  const supabase = await createClient();
+  const name = `club-${ctx.activeMembership.club.slug}`;
+  await upsertClubInstance(supabase, ctx.activeClubId, name);
+
+  const ens = await ensureInstance(name);
+  if (!ens.ok) return { ok: false, error: ens.error };
+  const qr = await connectInstance(name);
+  if (!qr.ok) return { ok: false, error: qr.error };
+
+  await setInstanceStatus(supabase, ctx.activeClubId, "connecting", null);
+  refresh();
+  return { ok: true, qr: qr.data.base64 };
+}
+
+type StatusResult =
+  | { ok: true; status: string; phone: string | null }
+  | { ok: false; error: string };
+
+/** Consulta el estado real de la instancia en Evolution y lo persiste. */
+export async function refreshClubWhatsapp(): Promise<StatusResult> {
+  const ctx = await getAdminContext();
+  if (ctx.activeMembership.role !== "club_admin" && !ctx.superadmin)
+    return { ok: false, error: "Solo el admin del club puede ver el estado." };
+
+  const supabase = await createClient();
+  const inst = await getClubInstance(supabase, ctx.activeClubId);
+  if (!inst) return { ok: false, error: "Todavía no generaste el QR." };
+
+  const st = await instanceState(inst.instance_name);
+  if (!st.ok) return { ok: false, error: st.error };
+
+  await setInstanceStatus(supabase, ctx.activeClubId, st.data.status, st.data.phone);
+  refresh();
+  return { ok: true, status: st.data.status, phone: st.data.phone };
 }

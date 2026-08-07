@@ -4,23 +4,13 @@ import { useRef, useState, useTransition } from "react";
 import { createEvent } from "@/app/admin/events/actions";
 import { Button } from "@/components/ui/button";
 
-export interface RivalClubOption {
-  id: string;
-  name: string;
-}
-
-export function NewEventDialog({
-  rivalClubs = [],
-}: {
-  rivalClubs?: RivalClubOption[];
-}) {
+export function NewEventDialog() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [categorySystem, setCategorySystem] = useState<"fixed" | "suma">(
     "fixed"
   );
-  const [interclub, setInterclub] = useState(false);
 
   function open() {
     setError(null);
@@ -156,40 +146,6 @@ export function NewEventDialog({
               className="w-full rounded-lg border border-border-soft bg-canvas px-3 py-2 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-padel-500"
             />
           </label>
-
-          <label className="flex items-center gap-2 text-sm font-semibold text-ink">
-            <input
-              name="is_interclub"
-              type="checkbox"
-              checked={interclub}
-              onChange={(e) => setInterclub(e.target.checked)}
-              className="h-4 w-4"
-            />
-            Torneo interclub
-          </label>
-
-          {interclub && (
-            <label className="block">
-              <span className="mb-1 block text-sm font-semibold text-ink">
-                Club rival
-              </span>
-              <select
-                name="rival_club_id"
-                defaultValue=""
-                required
-                className="w-full rounded-lg border border-border-soft bg-canvas px-3 py-2 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-padel-500"
-              >
-                <option value="" disabled>
-                  Elegí un club
-                </option>
-                {rivalClubs.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
 
           {error && <p className="text-sm font-semibold text-red-600">{error}</p>}
 

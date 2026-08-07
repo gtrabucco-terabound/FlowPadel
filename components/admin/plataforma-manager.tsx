@@ -36,6 +36,7 @@ const TOGGLES: { key: keyof Plan; label: string }[] = [
   { key: "f_payments_mp", label: "Cobros Mercado Pago" },
   { key: "f_occupancy", label: "Motor de ocupación" },
   { key: "f_whatsapp_bot", label: "Bot de WhatsApp" },
+  { key: "f_private_line", label: "WhatsApp propio (línea privada)" },
   { key: "f_lessons", label: "Clases y entrenamientos" },
 ];
 

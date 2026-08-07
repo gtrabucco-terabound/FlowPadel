@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAdminContext } from "@/lib/admin/club";
+import { requireFeature } from "@/lib/admin/club";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ const STATUS: Record<string, { label: string; tone: "draft" | "open" | "live" | 
 };
 
 export default async function InterclubPage() {
-  await getAdminContext();
+  await requireFeature("tournaments");
   const supabase = await createClient();
   const ligas = await listLigas(supabase);
 
