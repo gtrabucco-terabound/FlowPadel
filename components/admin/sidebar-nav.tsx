@@ -38,7 +38,6 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/agenda", label: "Agenda", exact: false, feature: "reservations" },
       { href: "/admin/turnos-fijos", label: "Turnos fijos", exact: false, feature: "fixedBookings" },
       { href: "/admin/clases", label: "Clases", exact: false, feature: "lessons" },
-      { href: "/admin/profesores", label: "Profesores", exact: false, feature: "lessons" },
       { href: "/admin/events", label: "Torneos", exact: false, feature: "tournaments" },
       { href: "/admin/interclub", label: "Interclub", exact: false, feature: "tournaments" },
     ],
