@@ -29,6 +29,7 @@ const GROUPS: NavGroup[] = [
     title: null,
     items: [
       { href: "/admin", label: "Inicio", exact: true },
+      { href: "/admin/proyeccion", label: "Proyección económica", exact: false, adminOnly: true },
       { href: "/admin/calendario", label: "Calendario", exact: false },
     ],
   },
@@ -54,7 +55,6 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/miembros", label: "Miembros", exact: false, adminOnly: true },
       { href: "/admin/operar", label: "Operar clubes", exact: false },
-      { href: "/admin/proyeccion", label: "Proyección económica", exact: false, adminOnly: true },
       { href: "/admin/settings", label: "Configuración", exact: false },
     ],
   },
